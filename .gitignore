@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.opencode/node_modules/
+
+# Local & Generated Tools Output
+graphify-out/
+*.log
+
+# Environment & User Secrets
+.env
+.env.local
+.env.*.local
+*.user.toml
+_bmad/config.user.toml
+_bmad/custom/config.user.toml
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temp & Scratch files
+scratch/
+*.tmp
