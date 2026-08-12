@@ -1,6 +1,8 @@
-# Personal Tracker 🚀
+# Personal_Tracker 🚀
 
-Personal Task, Habit, and Routine Tracking Application built with spec-driven architecture and AI agent-assisted development (BMAD Method).
+A private AI-powered personal productivity and discipline assistant for managing tasks, habits, routines, reminders, focus sessions, and smart notifications with voice-powered Gemini integration.
+
+---
 
 ## 📌 Overview
 
