@@ -38,7 +38,15 @@ data class PersonalTrackerSpacing(
     val chipHeight: Dp = 32.dp,
     val fabSize: Dp = 56.dp,
     val progressBarHeight: Dp = 6.dp,
-    val coinIconSize: Dp = 20.dp
+    val coinIconSize: Dp = 20.dp,
+
+    // T-shirt size aliases
+    val xs: Dp = spacing1,
+    val sm: Dp = spacing2,
+    val md: Dp = spacing4,
+    val lg: Dp = spacing6,
+    val xl: Dp = spacing8,
+    val xxl: Dp = spacing12
 )
 
 val LocalPersonalTrackerSpacing = staticCompositionLocalOf { PersonalTrackerSpacing() }
