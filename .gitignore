@@ -23,3 +23,11 @@ Thumbs.db
 # Temp & Scratch files
 scratch/
 *.tmp
+
+# Android Build & Local Configuration
+.gradle/
+build/
+app/build/
+local.properties
+*.apk
+*.aab
