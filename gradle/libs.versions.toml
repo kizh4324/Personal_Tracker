@@ -1,15 +1,15 @@
 [versions]
 # Toolchain & Kotlin
-kotlin = "2.4.0"
+kotlin = "2.0.21"
 agp = "8.8.0"
-ksp = "2.4.0-1.0.30"
+ksp = "2.0.21-1.0.28"
 
 # AndroidX Core & Lifecycle
 coreKtx = "1.15.0"
 lifecycle = "2.8.7"
 
 # Jetpack Compose & UI
-composeBom = "2026.02.00"
+composeBom = "2024.12.01"
 activityCompose = "1.10.0"
 navigationCompose = "2.8.7"
 
