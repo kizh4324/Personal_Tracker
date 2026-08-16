@@ -1,20 +1,20 @@
 [versions]
 # Toolchain & Kotlin
-kotlin = "2.0.21"
-agp = "8.8.0"
-ksp = "2.0.21-1.0.28"
+kotlin = "2.1.0"
+agp = "8.10.1"
+ksp = "2.1.0-1.0.29"
 
 # AndroidX Core & Lifecycle
 coreKtx = "1.15.0"
 lifecycle = "2.8.7"
 
 # Jetpack Compose & UI
-composeBom = "2024.12.01"
+composeBom = "2026.02.00"
 activityCompose = "1.10.0"
 navigationCompose = "2.8.7"
 
 # Dependency Injection
-hilt = "2.55"
+hilt = "2.58"
 hiltNavigationCompose = "1.2.0"
 
 # Local Database & Storage
@@ -55,6 +55,7 @@ androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
 androidx-compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "ui-tooling-preview" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 androidx-compose-animation = { group = "androidx.compose.animation", name = "animation" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 
