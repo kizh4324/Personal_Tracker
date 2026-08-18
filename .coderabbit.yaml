@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+tone_instructions: "Be concise, constructive, and prioritize Android memory safety, Kotlin coroutine dispatchers, and Compose performance."
+
+reviews:
+  profile: "assertive" # Focus on genuine bugs, security, and performance
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false # Disable decorative poems
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false # Do not review draft PRs
+
+  path_filters:
+    - "!build/**"
+    - "!.gradle/**"
+    - "!**/*.json"
+    - "!graphify-out/**"
+    - "!_bmad-output/**"
+
+  path_instructions:
+    - path: "app/src/main/java/**"
+      instructions: |
+        - Enforce Kotlin best practices, strict null-safety, and immutability where appropriate.
+        - Verify Jetpack Compose performance: avoid heavy computations during recomposition; use remember and derivedStateOf where appropriate.
+        - Verify Coroutines: Room queries and Disk I/O MUST use Dispatchers.IO; regex/PBKDF2 MUST use Dispatchers.Default; UI state updates MUST be on Dispatchers.Main.
+        - Strict AI Action Boundary: Ensure no AI/STT components directly mutate Room DAOs; all mutations must pass through validated command pipelines.
+        - Security & Privacy: Verify that SQLCipher database keys, Keystore secrets, and sensitive user data are not logged via Log.d/println or leaked to disk.
+        - Non-punishing Gamification: Ensure no guilt copy, HP loss, character death, or punitive mechanics are introduced in companion/streak code.
+
+chat:
+  auto_reply: true

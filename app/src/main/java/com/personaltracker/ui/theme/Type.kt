@@ -55,6 +55,13 @@ data class PersonalTrackerTypography(
         lineHeight = 22.sp,
         letterSpacing = 0.01.em
     ),
+    val bodySecondary: TextStyle = TextStyle(
+        fontFamily = PlusJakartaSansFamily,
+        fontSize = 14.sp,
+        fontWeight = FontWeight.Normal,
+        lineHeight = 20.sp,
+        letterSpacing = 0.01.em
+    ),
     val label: TextStyle = TextStyle(
         fontFamily = PlusJakartaSansFamily,
         fontSize = 13.sp,
