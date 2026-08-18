@@ -26,7 +26,7 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -39,10 +39,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
-    kotlin {
-        jvmToolchain(21)
-    }
-
     buildFeatures {
         compose = true
     }
@@ -52,6 +48,10 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+}
+
+kotlin {
+    jvmToolchain(21)
 }
 
 dependencies {
@@ -89,11 +89,9 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
     implementation(libs.sqlcipher.android)
-    implementation(libs.androidx.sqlite.bundled)
     implementation(libs.androidx.datastore.preferences)
 
-    // Security & WorkManager
-    implementation(libs.androidx.security.crypto)
+    // Background Work
     implementation(libs.androidx.work.runtime.ktx)
 
     // Animation Runtimes

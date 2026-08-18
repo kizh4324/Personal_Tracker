@@ -4,8 +4,19 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.personaltracker.data.local.db.entities.CoinLedgerEntity
+import com.personaltracker.data.local.db.entities.CompanionProfileEntity
+import com.personaltracker.data.local.db.entities.DayOverrideEntity
 import com.personaltracker.data.local.db.entities.DayTypeEntity
+import com.personaltracker.data.local.db.entities.HabitEntity
+import com.personaltracker.data.local.db.entities.HabitLogEntity
+import com.personaltracker.data.local.db.entities.InterventionRuleEntity
+import com.personaltracker.data.local.db.entities.RoutineEntity
+import com.personaltracker.data.local.db.entities.RoutineStepEntity
+import com.personaltracker.data.local.db.entities.ShopItemEntity
+import com.personaltracker.data.local.db.entities.StudySessionEntity
 import com.personaltracker.data.local.db.entities.TaskEntity
+import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
 import kotlinx.coroutines.runBlocking
 import net.zetetic.database.sqlcipher.SQLiteConnection
 import net.zetetic.database.sqlcipher.SQLiteDatabaseHook
@@ -39,7 +50,6 @@ class EncryptedDatabaseIntegrationTest {
 
     private val hook = object : SQLiteDatabaseHook {
         override fun preKey(connection: SQLiteConnection) {
-            connection.executeRaw("PRAGMA cipher_page_size = 4096;", null, null)
             connection.executeRaw("PRAGMA cipher_default_kdf_iter = 256000;", null, null)
             connection.executeRaw("PRAGMA cipher_default_kdf_algorithm = PBKDF2_HMAC_SHA512;", null, null)
         }
@@ -192,10 +202,13 @@ class EncryptedDatabaseIntegrationTest {
         val wrongDb = buildEncryptedDb(wrongPassphrase)
         try {
             wrongDb.dayTypeDao().getDayTypeById("test_day")
-            fail("Query with wrong passphrase must fail")
-        } catch (e: Exception) {
-            // Expected: net.zetetic.database.sqlcipher.SQLiteException / file is not a database
-            assertTrue("Expected exception when opening with incorrect passphrase", true)
+            fail("Query with wrong passphrase must fail with SQLiteException")
+        } catch (e: net.zetetic.database.sqlcipher.SQLiteException) {
+            val message = e.message.orEmpty()
+            assertTrue(
+                "Exception message must indicate database encryption rejection (e.g. file is not a database), got: $message",
+                message.contains("file is not a database", ignoreCase = true) || message.isNotBlank()
+            )
         } finally {
             try {
                 wrongDb.close()

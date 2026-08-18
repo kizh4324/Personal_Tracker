@@ -1,10 +1,8 @@
 package com.personaltracker.data.local.db.daos
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Update
+import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.DayOverrideEntity
 import com.personaltracker.data.local.db.entities.DayTypeEntity
 import kotlinx.coroutines.flow.Flow
@@ -22,10 +20,10 @@ internal interface DayTypeDao {
     @Query("SELECT * FROM day_types")
     fun getAllDayTypes(): Flow<List<DayTypeEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertDayType(dayType: DayTypeEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertDayTypes(dayTypes: List<DayTypeEntity>)
 }
 
@@ -42,7 +40,7 @@ internal interface DayOverrideDao {
     @Query("SELECT * FROM day_overrides WHERE date = :date LIMIT 1")
     fun observeOverrideForDate(date: String): Flow<DayOverrideEntity?>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertOrUpdateOverride(override: DayOverrideEntity)
 
     @Query("DELETE FROM day_overrides WHERE date = :date")

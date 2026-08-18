@@ -2,10 +2,9 @@ package com.personaltracker.data.local.db.daos
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.TaskEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -25,16 +24,16 @@ internal interface TaskDao {
     @Query("SELECT * FROM tasks WHERE scheduledDate < :currentDate AND state = 'PENDING'")
     suspend fun getOverduePendingTasks(currentDate: String): List<TaskEntity>
 
-    @Query("SELECT * FROM tasks WHERE state = 'IN_PROGRESS' LIMIT 1")
+    @Query("SELECT * FROM tasks WHERE state = 'IN_PROGRESS' ORDER BY createdTimestamp DESC LIMIT 1")
     suspend fun getActiveInProgressTask(): TaskEntity?
 
     @Query("SELECT * FROM tasks WHERE state = 'INTERRUPTED' ORDER BY createdTimestamp DESC LIMIT 1")
     suspend fun getLatestInterruptedTask(): TaskEntity?
 
-    @Insert(onConflict = OnConflictStrategy.ABORT)
+    @Upsert
     suspend fun insertTask(task: TaskEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertTasks(tasks: List<TaskEntity>)
 
     @Update

@@ -5,7 +5,6 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.personaltracker.data.local.db.entities.InterventionRuleEntity
 import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -27,24 +26,4 @@ internal interface UnfiledInboxDao {
 
     @Delete
     suspend fun deleteInboxItem(item: UnfiledCaptureInboxEntity)
-}
-
-/**
- * Data Access Object for Focus Intervention Rules.
- * Declared internal to preserve data layer boundaries.
- */
-@Dao
-internal interface InterventionRuleDao {
-
-    @Query("SELECT * FROM intervention_rules WHERE isStrictBlocked = 1")
-    fun getBlockedAppRules(): Flow<List<InterventionRuleEntity>>
-
-    @Query("SELECT * FROM intervention_rules WHERE packageName = :packageName LIMIT 1")
-    suspend fun getRuleForPackage(packageName: String): InterventionRuleEntity?
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertOrUpdateRule(rule: InterventionRuleEntity)
-
-    @Query("DELETE FROM intervention_rules WHERE packageName = :packageName")
-    suspend fun deleteRule(packageName: String)
 }

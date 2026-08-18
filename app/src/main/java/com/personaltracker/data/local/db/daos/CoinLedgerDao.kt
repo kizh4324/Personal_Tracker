@@ -14,16 +14,16 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 internal interface CoinLedgerDao {
 
-    @Query("SELECT * FROM coin_ledger ORDER BY timestamp DESC")
+    @Query("SELECT * FROM coin_ledger ORDER BY timestamp DESC, id DESC")
     fun getAllTransactions(): Flow<List<CoinLedgerEntity>>
 
     @Query("SELECT * FROM coin_ledger WHERE idempotencyKey = :key LIMIT 1")
     suspend fun getTransactionByIdempotencyKey(key: String): CoinLedgerEntity?
 
-    @Query("SELECT balanceAfter FROM coin_ledger ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT balanceAfter FROM coin_ledger ORDER BY timestamp DESC, id DESC LIMIT 1")
     suspend fun getLatestBalance(): Int?
 
-    @Query("SELECT balanceAfter FROM coin_ledger ORDER BY timestamp DESC LIMIT 1")
+    @Query("SELECT balanceAfter FROM coin_ledger ORDER BY timestamp DESC, id DESC LIMIT 1")
     fun observeLatestBalance(): Flow<Int?>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)

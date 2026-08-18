@@ -1,8 +1,10 @@
 package com.personaltracker.data.local.security
 
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyPermanentlyInvalidatedException
 import android.security.keystore.KeyProperties
 import java.security.KeyStore
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -33,6 +35,9 @@ class SecurityKeyStoreManager @Inject constructor() {
 
     /**
      * Retrieves the existing Master SecretKey from Android Keystore or generates a new one.
+     *
+     * If the master key alias exists but cannot be loaded as a valid [KeyStore.SecretKeyEntry],
+     * an [IllegalStateException] is thrown rather than overwriting the key, protecting existing data.
      */
     @Synchronized
     fun getOrCreateMasterKey(): SecretKey {
@@ -40,6 +45,10 @@ class SecurityKeyStoreManager @Inject constructor() {
             val entry = keyStore.getEntry(MASTER_KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
             if (entry != null) {
                 return entry.secretKey
+            } else {
+                throw IllegalStateException(
+                    "Keystore alias '$MASTER_KEY_ALIAS' exists but could not be loaded as SecretKeyEntry."
+                )
             }
         }
 
@@ -65,6 +74,11 @@ class SecurityKeyStoreManager @Inject constructor() {
 
     /**
      * Encrypts plaintext bytes using the Keystore Master Key via AES-256-GCM.
+     *
+     * Note: Performs synchronous Keystore I/O. Callers should invoke off the main thread where appropriate.
+     *
+     * @param plaintext Raw bytes to encrypt.
+     * @return [EncryptedPayload] containing the 12-byte IV and ciphertext with 128-bit authentication tag.
      */
     fun encrypt(plaintext: ByteArray): EncryptedPayload {
         val masterKey = getOrCreateMasterKey()
@@ -76,7 +90,14 @@ class SecurityKeyStoreManager @Inject constructor() {
     }
 
     /**
-     * Decrypts an EncryptedPayload using the Keystore Master Key via AES-256-GCM.
+     * Decrypts an [EncryptedPayload] using the Keystore Master Key via AES-256-GCM.
+     *
+     * Note: Performs synchronous Keystore I/O. Callers should invoke off the main thread where appropriate.
+     *
+     * @param encryptedPayload [EncryptedPayload] containing IV and ciphertext.
+     * @return Decrypted plaintext bytes.
+     * @throws AEADBadTagException if ciphertext or tag was tampered with.
+     * @throws KeyPermanentlyInvalidatedException if Keystore master key was invalidated.
      */
     fun decrypt(encryptedPayload: EncryptedPayload): ByteArray {
         val masterKey = getOrCreateMasterKey()

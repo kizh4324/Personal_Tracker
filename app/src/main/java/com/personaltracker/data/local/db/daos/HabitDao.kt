@@ -1,10 +1,9 @@
 package com.personaltracker.data.local.db.daos
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.HabitEntity
 import com.personaltracker.data.local.db.entities.HabitLogEntity
 import kotlinx.coroutines.flow.Flow
@@ -28,12 +27,12 @@ internal interface HabitDao {
     @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY logDate DESC")
     fun getLogsForHabit(habitId: String): Flow<List<HabitLogEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertHabit(habit: HabitEntity)
 
     @Update
     suspend fun updateHabit(habit: HabitEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertLog(log: HabitLogEntity)
 }

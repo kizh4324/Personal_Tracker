@@ -15,7 +15,6 @@ import com.personaltracker.data.local.db.daos.StudySessionDao
 import com.personaltracker.data.local.db.daos.TaskDao
 import com.personaltracker.data.local.db.daos.UnfiledInboxDao
 import com.personaltracker.data.local.security.DatabaseKeyProvider
-import com.personaltracker.data.local.security.SecurityKeyStoreManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -37,21 +36,6 @@ internal object DatabaseModule {
 
     @Provides
     @Singleton
-    fun provideSecurityKeyStoreManager(): SecurityKeyStoreManager {
-        return SecurityKeyStoreManager()
-    }
-
-    @Provides
-    @Singleton
-    fun provideDatabaseKeyProvider(
-        @ApplicationContext context: Context,
-        keyStoreManager: SecurityKeyStoreManager
-    ): DatabaseKeyProvider {
-        return DatabaseKeyProvider(context, keyStoreManager)
-    }
-
-    @Provides
-    @Singleton
     fun provideAppDatabase(
         @ApplicationContext context: Context,
         keyProvider: DatabaseKeyProvider
@@ -60,7 +44,6 @@ internal object DatabaseModule {
 
         val hook = object : SQLiteDatabaseHook {
             override fun preKey(connection: SQLiteConnection) {
-                connection.executeRaw("PRAGMA cipher_page_size = 4096;", null, null)
                 connection.executeRaw("PRAGMA cipher_default_kdf_iter = 256000;", null, null)
                 connection.executeRaw("PRAGMA cipher_default_kdf_algorithm = PBKDF2_HMAC_SHA512;", null, null)
             }

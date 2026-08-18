@@ -65,21 +65,18 @@ class DatabaseSchemaTest {
         val routine = RoutineEntity(
             id = "morning_kickoff",
             dayTypeId = "weekday_standard",
-            name = "Morning Routine",
+            title = "Morning Routine",
             targetStartTime = "07:30",
-            isSequential = true,
-            iconIdentifier = "ic_routine_morning",
-            displayOrder = 1
+            totalEstimatedMinutes = 30
         )
         assertEquals("morning_kickoff", routine.id)
 
         val step = RoutineStepEntity(
             id = UUID.randomUUID().toString(),
             routineId = "morning_kickoff",
-            title = "Hydrate & Meditate",
-            durationMinutes = 15,
             orderIndex = 1,
-            isCompleted = false
+            title = "Hydrate & Meditate",
+            durationMinutes = 15
         )
         assertEquals("morning_kickoff", step.routineId)
 

@@ -10,7 +10,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Manages the generation, persistence, and recovery of the 256-bit database passphrase
+ * Manages the generation, atomic persistence, and recovery of the 256-bit database passphrase
  * used to encrypt the SQLCipher database.
  *
  * Implements ARCH-2 and Story 1.2 specifications.
@@ -26,6 +26,9 @@ class DatabaseKeyProvider @Inject constructor(
         private const val FORMAT_VERSION: Byte = 0x01
         private const val PASSPHRASE_LENGTH_BYTES = 32 // 256 bits entropy
         private const val GCM_IV_LENGTH_BYTES = 12
+        private const val GCM_TAG_LENGTH_BYTES = 16 // 128 bits
+        const val EXPECTED_VAULT_FILE_LENGTH_BYTES =
+            1 + GCM_IV_LENGTH_BYTES + PASSPHRASE_LENGTH_BYTES + GCM_TAG_LENGTH_BYTES // 61 bytes
     }
 
     private val vaultFile: File
@@ -46,7 +49,7 @@ class DatabaseKeyProvider @Inject constructor(
 
     /**
      * Generates a 32-byte cryptographic random passphrase, encrypts it with the
-     * Keystore Master Key, writes the vault file to private app storage, and returns the plaintext bytes.
+     * Keystore Master Key, writes atomically to private app storage, and returns the plaintext bytes.
      */
     private fun generateAndPersistPassphrase(): ByteArray {
         val passphrase = ByteArray(PASSPHRASE_LENGTH_BYTES)
@@ -54,12 +57,26 @@ class DatabaseKeyProvider @Inject constructor(
 
         val encrypted = keyStoreManager.encrypt(passphrase)
 
-        // Structure: [1 byte version][12 bytes IV][ciphertext + tag]
-        FileOutputStream(vaultFile).use { fos ->
-            fos.write(byteArrayOf(FORMAT_VERSION))
-            fos.write(encrypted.iv)
-            fos.write(encrypted.ciphertext)
-            fos.flush()
+        val tempFile = File.createTempFile("pt_vault_tmp", ".bin", context.filesDir)
+        try {
+            FileOutputStream(tempFile).use { fos ->
+                fos.write(byteArrayOf(FORMAT_VERSION))
+                fos.write(encrypted.iv)
+                fos.write(encrypted.ciphertext)
+                fos.flush()
+                fos.fd.sync()
+            }
+
+            if (!tempFile.renameTo(vaultFile)) {
+                // If renameTo fails (e.g. across mount points), copy atomically
+                tempFile.copyTo(vaultFile, overwrite = true)
+                tempFile.delete()
+            }
+        } catch (e: Exception) {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            throw e
         }
 
         return passphrase
@@ -70,23 +87,33 @@ class DatabaseKeyProvider @Inject constructor(
      * and decrypts the 32-byte passphrase via the Keystore Master Key.
      */
     private fun loadAndDecryptPassphrase(): ByteArray {
-        val fileBytes = FileInputStream(vaultFile).use { fis ->
-            fis.readBytes()
+        var fileBytes: ByteArray? = null
+        var iv: ByteArray? = null
+        var ciphertext: ByteArray? = null
+
+        try {
+            fileBytes = FileInputStream(vaultFile).use { fis ->
+                fis.readBytes()
+            }
+
+            require(fileBytes.size == EXPECTED_VAULT_FILE_LENGTH_BYTES) {
+                "Database vault file corrupted or invalid length: expected $EXPECTED_VAULT_FILE_LENGTH_BYTES bytes, got ${fileBytes.size} bytes."
+            }
+
+            val version = fileBytes[0]
+            require(version == FORMAT_VERSION) {
+                "Unsupported database vault format version: $version"
+            }
+
+            iv = fileBytes.copyOfRange(1, 1 + GCM_IV_LENGTH_BYTES)
+            ciphertext = fileBytes.copyOfRange(1 + GCM_IV_LENGTH_BYTES, fileBytes.size)
+
+            val payload = EncryptedPayload(iv = iv, ciphertext = ciphertext)
+            return keyStoreManager.decrypt(payload)
+        } finally {
+            fileBytes?.fill(0)
+            iv?.fill(0)
+            ciphertext?.fill(0)
         }
-
-        require(fileBytes.size > 1 + GCM_IV_LENGTH_BYTES) {
-            "Database vault file corrupted or truncated."
-        }
-
-        val version = fileBytes[0]
-        require(version == FORMAT_VERSION) {
-            "Unsupported database vault format version: $version"
-        }
-
-        val iv = fileBytes.copyOfRange(1, 1 + GCM_IV_LENGTH_BYTES)
-        val ciphertext = fileBytes.copyOfRange(1 + GCM_IV_LENGTH_BYTES, fileBytes.size)
-
-        val payload = EncryptedPayload(iv = iv, ciphertext = ciphertext)
-        return keyStoreManager.decrypt(payload)
     }
 }

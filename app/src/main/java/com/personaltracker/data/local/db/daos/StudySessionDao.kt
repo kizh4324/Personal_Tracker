@@ -17,7 +17,10 @@ internal interface StudySessionDao {
     @Query("SELECT * FROM study_sessions WHERE sessionDate = :date ORDER BY startTime ASC")
     fun getSessionsForDate(date: String): Flow<List<StudySessionEntity>>
 
-    @Query("SELECT * FROM study_sessions ORDER BY sessionDate DESC")
+    @Query("SELECT * FROM study_sessions ORDER BY sessionDate DESC, startTime DESC LIMIT :limit")
+    fun getRecentSessions(limit: Int = 50): Flow<List<StudySessionEntity>>
+
+    @Query("SELECT * FROM study_sessions ORDER BY sessionDate DESC, startTime DESC")
     fun getAllSessions(): Flow<List<StudySessionEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)

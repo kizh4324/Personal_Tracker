@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 
 /**
  * Routine template entity bound to a DayType (FR-2.3).
+ * Sourced 1:1 from architecture.md §2.1.
  */
 @Entity(
     tableName = "routines",
@@ -23,15 +24,14 @@ import androidx.room.PrimaryKey
 data class RoutineEntity(
     @PrimaryKey val id: String,
     val dayTypeId: String,
-    val name: String,
+    val title: String,
     val targetStartTime: String, // "HH:mm"
-    val isSequential: Boolean,
-    val iconIdentifier: String,
-    val displayOrder: Int
+    val totalEstimatedMinutes: Int
 )
 
 /**
- * Sequential step entity within a routine (FR-2.3).
+ * Sequential step entity within a routine template (FR-2.3).
+ * Sourced 1:1 from architecture.md §2.1.
  */
 @Entity(
     tableName = "routine_steps",
@@ -43,13 +43,15 @@ data class RoutineEntity(
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("routineId")]
+    indices = [
+        Index("routineId"),
+        Index(value = ["routineId", "orderIndex"], unique = true)
+    ]
 )
 data class RoutineStepEntity(
     @PrimaryKey val id: String,
     val routineId: String,
-    val title: String,
-    val durationMinutes: Int,
     val orderIndex: Int,
-    val isCompleted: Boolean
+    val title: String,
+    val durationMinutes: Int
 )

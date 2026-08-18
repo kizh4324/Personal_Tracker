@@ -20,15 +20,14 @@ hiltNavigationCompose = "1.2.0"
 # Local Database & Storage
 room = "2.7.0"
 sqlcipher = "4.6.1"
-sqliteBundled = "2.5.0"
 datastore = "1.1.2"
 
 # Background Work & System Services
 workManager = "2.10.0"
 
-# Serialization & Cryptography
+# Serialization & Coroutines
 kotlinxSerialization = "1.8.0"
-securityCrypto = "1.1.0-alpha06"
+coroutines = "1.10.1"
 
 # Animation & Media
 rive = "9.1.0"
@@ -37,14 +36,13 @@ lottie = "6.6.2"
 # Testing
 junit = "4.13.2"
 turbine = "1.2.0"
-coroutinesTest = "1.10.1"
 androidxTestExt = "1.2.1"
 espresso = "3.6.1"
 
 [libraries]
 # Kotlin & Coroutines
-kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutinesTest" }
-kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutinesTest" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 # AndroidX Core & Compose
@@ -74,11 +72,9 @@ androidx-room-runtime = { group = "androidx.room", name = "room-runtime", versio
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
 sqlcipher-android = { group = "net.zetetic", name = "sqlcipher-android", version.ref = "sqlcipher" }
-androidx-sqlite-bundled = { group = "androidx.sqlite", name = "sqlite-bundled", version.ref = "sqliteBundled" }
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
 # Security & Background Work
-androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "securityCrypto" }
 androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "workManager" }
 
 # Animation Runtimes
@@ -88,7 +84,7 @@ lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", versio
 # Testing Libraries
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
-kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestExt" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
