@@ -31,3 +31,8 @@ app/build/
 local.properties
 *.apk
 *.aab
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
