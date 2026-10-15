@@ -3,7 +3,8 @@ node_modules/
 .opencode/node_modules/
 
 # Local & Generated Tools Output
-graphify-out/
+graphify-out/cache/
+graphify-out/.graphify_python
 *.log
 
 # Environment & User Secrets
