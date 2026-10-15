@@ -15,11 +15,11 @@ inputDocuments:
   - _bmad-output/planning-artifacts/ux-designs/ux-Personal-Tracker-2026-08-15/EXPERIENCE.md
 ---
 
-# Personal-Tracker - Epic Breakdown
+# Personal-Tracker - Architecture Alignment Breakdown
 
 ## Overview
 
-This document provides the complete epic and story breakdown for Personal-Tracker v1, decomposing the requirements from the PRD (+ Addendum), UX Design contract (DESIGN.md & EXPERIENCE.md), and Architecture requirements into 6 vertical-slice epics and 29 implementable user stories with Gherkin acceptance criteria.
+This document provides the complete breakdown for Personal-Tracker v1, decomposing the requirements from the PRD (+ Addendum), UX Design contract (DESIGN.md & EXPERIENCE.md), and Architecture Spine (AD-1 to AD-8) into 6 vertical-slice epics and 36 implementable user stories with Gherkin acceptance criteria.
 
 ---
 
@@ -131,22 +131,22 @@ This document provides the complete epic and story breakdown for Personal-Tracke
 
 ### FR Coverage Map
 
-- **FR-1.1**: Epic 1 (Story 1.4) — Core Home Surface & State-Aware Hero Card (`UJ-1`, Decision 1, `UX-DR2`)
-- **FR-1.2**: Epic 1 (Story 1.4) — Subordinate Today's Schedule & Action List Views (Decision 1, `UX-DR18`)
+- **FR-1.1**: Epic 1 (Story 1.9) — Core Home Surface & State-Aware Hero Card (`UJ-1`, Decision 1, `UX-DR2`)
+- **FR-1.2**: Epic 1 (Story 1.9) — Subordinate Today's Schedule & Action List Views (Decision 1, `UX-DR18`)
 - **FR-1.3**: Epic 3 (Story 3.5) — Interrupted Item Resumption Card on Hero Card (`UJ-3`, PRD Rule 1, `UX-DR8`)
 - **FR-1.4**: Epic 3 (Story 3.5) — Prohibition of Auto-Completion on Scheduled Block Expiry (PRD Rule 1)
 - **FR-1.5**: Epic 3 (Story 3.5) — Prohibition of Silent Rescheduling of Interrupted Items (PRD Rule 1)
-- **FR-2.1**: Epic 1 (Story 1.5) — Unified Capture Entry with Specialized Domain Persistence (`UJ-1`, Decision 2, `ARCH-2`)
-- **FR-2.2**: Epic 1 (Story 1.5) — Task Delivery-Intensity Classification and Model Baseline (Decision 2, `UX-DR4`)
-- **FR-2.3**: Epic 1 (Story 1.6) — Sequential RoutineStep Domain Model & DayType Binding (Decision 2, `UX-DR4`)
+- **FR-2.1**: Epic 1 (Story 1.10) — Unified Capture Entry with Specialized Domain Persistence (`UJ-1`, Decision 2, `ARCH-2`)
+- **FR-2.2**: Epic 1 (Story 1.10) — Task Delivery-Intensity Classification and Model Baseline (Decision 2, `UX-DR4`)
+- **FR-2.3**: Epic 1 (Story 1.11) — Sequential RoutineStep Domain Model & DayType Binding (Decision 2, `UX-DR4`)
 - **FR-2.4**: Epic 4 (Story 4.1) — Habit Cadence Tracking, Streak Slack Bank & Miss-Tolerant Recovery (Decision 2, `UX-DR4`)
 - **FR-2.5**: Epic 3 (Story 3.1) — Study Session Subject Tags, Duration Timers & Heatmaps (Decision 2, `UX-DR4`)
 - **FR-2.6**: Epic 4 (Story 4.2) — Cross-Domain Shared Service Operation (Scheduling, Coins, History) (Decision 2, `ARCH-6`)
-- **FR-3.1**: Epic 1 (Story 1.3) — DayType Resolution Hierarchy: User Override > Day Default (`UJ-1`, Decision 3, `ARCH-2`)
-- **FR-3.2**: Epic 1 (Story 1.3) — Zero-Tap Automatic DayType Schedule Activation on Launch (`UJ-1`, Decision 3, `AC-1`)
-- **FR-3.3**: Epic 1 (Story 1.3) — Non-Blocking Morning DayType Banner with 1-Tap Swap Option (`UJ-1`, Decision 3, `UX-DR3`)
-- **FR-3.4**: Epic 1 (Story 1.3) — Single-Date Scope for DayType Swapping without Template Mutation (`UJ-1`, Decision 3, `UX-DR3`)
-- **FR-3.5**: Epic 1 (Story 1.6) — Mid-Day Swap Immutable History Preservation & Remaining Schedule Recalculation (PRD Rule 4, `UX-DR3`)
+- **FR-3.1**: Epic 1 (Story 1.8) — DayType Resolution Hierarchy: User Override > Day Default (`UJ-1`, Decision 3, `ARCH-2`)
+- **FR-3.2**: Epic 1 (Story 1.8) — Zero-Tap Automatic DayType Schedule Activation on Launch (`UJ-1`, Decision 3, `AC-1`)
+- **FR-3.3**: Epic 1 (Story 1.8) — Non-Blocking Morning DayType Banner with 1-Tap Swap Option (`UJ-1`, Decision 3, `UX-DR3`)
+- **FR-3.4**: Epic 1 (Story 1.8) — Single-Date Scope for DayType Swapping without Template Mutation (`UJ-1`, Decision 3, `UX-DR3`)
+- **FR-3.5**: Epic 1 (Story 1.11) — Mid-Day Swap Immutable History Preservation & Remaining Schedule Recalculation (PRD Rule 4, `UX-DR3`)
 - **FR-4.1**: Epic 3 (Story 3.1) — Scheduled Focus/Study Block Hero Card Prompt (`UJ-3`, Decision 4, `UX-DR7`)
 - **FR-4.2**: Epic 3 (Story 3.4) — Contextual Single-Prompt JITAI Distraction Intercept (`UJ-3`, Decision 4, `UX-DR7`)
 - **FR-4.3**: Epic 3 (Story 3.2) — AccessibilityService Active Focus Distraction Overlay Blocking (`UJ-3`, Decision 4, `ARCH-5`)
@@ -186,13 +186,13 @@ This document provides the complete epic and story breakdown for Personal-Tracke
 
 ---
 
-## Epic List
+## Milestone Roadmaps
 
-### Epic 1: Project Foundation, DayType Schedule Engine & Core Home Experience
-Users can launch the app to their automatically resolved daily schedule, view their time-blocked schedule and action list beneath a dynamic Hero Card, perform 1-tap single-date DayType template swaps, and create/manage core Tasks and sequential Routines in an encrypted, dark/light theme environment.
-- **FRs Covered:** FR-1.1, FR-1.2, FR-2.1, FR-2.2, FR-2.3, FR-3.1, FR-3.2, FR-3.3, FR-3.4, FR-3.5
+### Epic 1: Project Foundation, Architectural Substrate & Core Home Experience
+Users can launch the app to their automatically resolved daily schedule, view their time-blocked schedule and action list beneath a dynamic Hero Card, perform 1-tap single-date DayType template swaps, and create/manage core Tasks and sequential Routines in an encrypted, dark/light theme environment built upon a clean 4-layer MVI architecture with Flow-based SSOT repositories, pure Kotlin behavioral engines, and platform services.
+- **FRs Covered:** FR-1.1, FR-1.2, FR-2.1, FR-2.2, FR-2.3, FR-3.1, FR-3.2, FR-3.3, FR-3.4, FR-3.5, FR-9.1
 - **NFRs Covered:** NFR-1 (Cold launch < 1.5s `[ENGINEERING TARGET]`), NFR-2 (Offline reliability `[CONFIRMED]`), NFR-4 (Encrypted storage baseline `[CONFIRMED]`)
-- **ARCH / UX-DR Mapping:** ARCH-1, ARCH-2, ARCH-9, UX-DR1, UX-DR2, UX-DR3, UX-DR4, UX-DR18
+- **ARCH / UX-DR Mapping:** ARCH-1, ARCH-2, ARCH-6, ARCH-8, ARCH-9, AD-1, AD-2, AD-3, AD-4, AD-5, AD-6, AD-7, AD-8, UX-DR1, UX-DR2, UX-DR3, UX-DR4, UX-DR18
 - **Acceptance Criteria & User Journeys:** AC-1, UJ-1
 
 ### Epic 2: Low-Friction Multimodal Capture & Confidence Routing Pipeline
@@ -232,11 +232,13 @@ Users maintain full, private ownership of their data through AES-256-GCM encrypt
 
 ---
 
-## Epic 1: Project Foundation, DayType Schedule Engine & Core Home Experience
+## Epic 1: Project Foundation, Architectural Substrate & Core Home Experience
 
-**Epic Goal:** Users can launch the app to their automatically resolved daily schedule, view their time-blocked schedule and action list beneath a dynamic Hero Card, perform 1-tap single-date DayType template swaps, and create/manage core Tasks and sequential Routines in an encrypted, dark/light theme environment.
+**Epic Goal:** Users can launch the app to their automatically resolved daily schedule, view their time-blocked schedule and action list beneath a dynamic Hero Card, perform 1-tap single-date DayType template swaps, and create/manage core Tasks and sequential Routines in an encrypted, dark/light theme environment built upon a clean 4-layer MVI architecture with Flow-based SSOT repositories, pure Kotlin behavioral engines, and platform services.
 
 ### Story 1.1: Android Greenfield Project Setup, Compose Theme & Design Tokens
+
+*(Completed Foundation)*
 
 As a user,
 I want the application to launch into a beautifully themed, responsive Android interface supporting dark and light modes,
@@ -245,12 +247,15 @@ So that I have a consistent, accessible visual foundation for managing my daily 
 **Acceptance Criteria:**
 
 **Given** a clean development environment targeting Android 13–16 (API 33–36 baseline `[PROVISIONAL TECHNICAL TARGET]`)
-**When** the project is initialized with Gradle Kotlin DSL, Version Catalog (`libs.versions.toml`), AGP 8.8.0, Kotlin 2.4.0, KSP, and Jetpack Compose BOM 2026.02.00
-**Then** the project compiles with zero legacy KAPT dependencies and configures Hilt DI (`com.google.dagger:hilt-android:2.55`)
-**And** Jetpack Compose Material 3 theme tokens are fully implemented from `design-system.md` and `DESIGN.md` (Surfaces, Primary `#2563EB`/`#60A5FA`, Secondary `#6366F1`/`#A5B4FC`, Warm Accent `#D97706`/`#FBBF24`, Companion Green `#059669`/`#34D399`, Semantic colors, Ink hierarchy, Plus Jakarta Sans UI typography, Inter tabular typography, 4dp spacing grid, and shapes `xs` to `xxl`)
-**And** 5-tab Bottom Navigation (`Home`, `Habits`, `Study`, `Companion`, `Settings`) is rendered with edge-to-edge `WindowInsets` handling and minimum 48dp touch targets (`UX-DR1`, `UX-DR18`, `ARCH-1`).
+**When** the project is initialized with Gradle Kotlin DSL, Version Catalog (`libs.versions.toml`), AGP 8.10.1, Kotlin 2.1.0, KSP, and Jetpack Compose BOM 2026.02.00
+**Then** the project compiles with zero legacy KAPT dependencies and configures Hilt DI (`com.google.dagger:hilt-android:2.58`)
+**And** Jetpack Compose Material 3 theme tokens are fully implemented in `com.personaltracker.ui.theme` from `DESIGN.md` (Surfaces, Primary `#2563EB`/`#60A5FA`, Secondary `#6366F1`/`#A5B4FC`, Warm Accent `#D97706`/`#FBBF24`, Companion Green `#059669`/`#34D399`, Semantic colors, Ink hierarchy, Plus Jakarta Sans UI typography, Inter tabular typography, 4dp spacing grid, and shapes `xs` to `xxl`)
+**And** 5-tab Bottom Navigation (`Home`, `Habits`, `Study`, `Companion`, `Settings`) is rendered with edge-to-edge `WindowInsets` handling and minimum 48dp touch targets (`UX-DR1`, `UX-DR18`, `ARCH-1`)
+**And** Lottie reward animations and VSYNC-aligned Bézier coin arc animation (`CoinArcAnimation.kt`) are initialized in `ui/components/animation/` (`UX-DR12`, `AD-7`).
 
 ### Story 1.2: SQLCipher Encrypted Database Baseline & Master Key Management
+
+*(Completed Foundation)*
 
 As a user,
 I want all my local data stored in a hardware-isolated, encrypted database on my device,
@@ -261,11 +266,110 @@ So that my private tasks and schedules are completely protected at rest without 
 **Given** an Android device with Android Keystore capability
 **When** the app initializes for the first time
 **Then** `SecurityKeyStoreManager` creates an AES-256-GCM hardware-backed master key under alias `PersonalTracker_MasterDB_Key` with `setUserAuthenticationRequired(false)` to allow background alarm dispatching
-**And** a 32-byte randomized passphrase is generated via `SecureRandom`, encrypted by the Keystore master key, and stored in app-private storage
+**And** a 32-byte randomized passphrase is generated via `SecureRandom`, encrypted by the Keystore master key, and stored in app-private storage (`pt_db_vault.bin`)
 **And** Room initializes over SQLCipher (`net.zetetic:sqlcipher-android:4.6.1` with 16 KB native ELF page alignment `[ARCHITECTURE RESOLVED]`, 4096-byte page size, and `PBKDF2WithHmacSHA512` at 256,000 iterations)
-**And** all Room DAOs are declared internal within `:data:local:db` and bounded strictly to `Dispatchers.IO` (`ARCH-2`, `ARCH-9`, `FR-9.1`, `NFR-4`, `AC-7`).
+**And** all Room DAOs (`DayTypeDao`, `TaskDao`, `RoutineDao`, `HabitDao`, `StudySessionDao`, `CoinLedgerDao`, `CompanionProfileDao`, `UnfiledInboxDao`, `InterventionRuleDao`) are declared internal within `:data:local:db` and bounded strictly to `Dispatchers.IO` (`ARCH-2`, `ARCH-9`, `FR-9.1`, `NFR-4`, `AC-7`).
 
-### Story 1.3: DayType Entity Models, Resolution Engine & Morning Swap
+### Story 1.3: Data & Schema Completion, Flow-Based SSOT Repositories & Idempotency Architecture
+
+As a developer,
+I want the Room database schema completed with standalone entity definitions and a Flow-based Single Source of Truth (SSOT) Repository layer enforcing `{DOMAIN}_{ACTION}_{ID}` idempotency keys,
+So that presentation and platform components access encrypted data exclusively through clean, reactive repository facades without direct DAO coupling.
+
+**Acceptance Criteria:**
+
+**Given** the existing database baseline in `:data:local:db`
+**When** the schema is finalized
+**Then** `InterventionRuleEntity.kt` is extracted into a standalone entity file in `com.personaltracker.data.local.db.entities` matching `InterventionRuleDao.kt` (`packageName` PK, `appDisplayName`, `isStrictBlocked`, `dailyLimitMinutes`)
+**And** completion audit log entities (`HabitLogEntity`, `StudySessionEntity`, and `TaskEntity.completionTimestamp`) are fully supported with foreign keys and cascade rules
+**When** Flow-based SSOT Repository interfaces and implementations are built in `com.personaltracker.data.repository`:
+  - `DayTypeRepository` (exposes reactive Flows for active DayType, templates, single-date overrides)
+  - `TaskRepository` (exposes reactive Flows for tasks by date, delivery intensity, completion states)
+  - `RoutineRepository` (exposes reactive Flows for routines and sequential steps)
+  - `HabitRepository` (exposes reactive Flows for habits, streaks, and completion logs)
+  - `StudySessionRepository` (exposes reactive Flows for study sessions and heatmaps)
+  - `EconomyRepository` (exposes reactive Flows for verified coin ledger sums, companion profile, shop catalog)
+  - `UnfiledInboxRepository` (exposes reactive Flows for unfiled voice/text capture transcripts)
+  - `InterventionRuleRepository` (exposes reactive Flows for blocked distraction packages)
+**Then** Hilt `RepositoryModule.kt` binds all repository interfaces to `@Singleton` implementations
+**And** every coin earning or deduction commits to `CoinLedgerEntity` with a deterministic, unique compound `idempotencyKey` (`{DOMAIN}_{ACTION}_{ID}`, e.g., `TASK_COMP_<id>`, `HABIT_LOG_<id>_<date>`)
+**And** all repository mutations spanning multiple entities execute inside Room `@Transaction` blocks on `Dispatchers.IO` without `OnConflictStrategy.REPLACE` cascade deletions (`AD-1`, `AD-4`, `AD-5`, `AD-6`).
+
+### Story 1.4: Pure Kotlin Behavioral Engines & Deterministic NLP Command Parser
+
+As a developer,
+I want all core scheduling, streak, gamification, and distraction heuristics implemented as pure Kotlin engines in `domain/engine/` and `domain/parser/`,
+So that business calculations execute deterministically with zero Android framework dependencies and 100% JVM unit testability.
+
+**Acceptance Criteria:**
+
+**Given** the business and game design requirements in `ARCHITECTURE-SPINE.md` (AD-3, AD-4) and `EXPERIENCE.md`
+**When** behavioral engines are implemented in `com.personaltracker.domain.engine` and `com.personaltracker.domain.parser`
+**Then** all engine classes have ZERO imports from `android.*` or `androidx.*` packages (pure Kotlin: `kotlin.*`, `kotlinx.coroutines.*`, `java.time.*`)
+**And** `AdaptiveScheduleEngine`: Dynamically scales routine step durations, targets, and study quotas when swapping `DayType` templates or performing mid-day adjustments
+**And** `StreakStateMachine`: Computes non-punitive 4-state flame transitions (`COLD` -> `WARMING` -> `BURNING` -> `BLAZING`) enforcing miss-tolerant slack banking and freeze grace rules with zero guilt resets (`AD-4`)
+**And** `GamificationLedgerEngine`: Calculates coin payouts from completions, generates deterministic `{DOMAIN}_{ACTION}_{ID}` idempotency keys, updates companion energy, and produces reward animation payloads
+**And** `FocusRescheduleEngine`: Recalibrates remaining study blocks upon pauses or interruptions without guilt copy (`PRD RULE 1`)
+**And** `InterventionRuleEngine`: Evaluates distraction rule cooldowns to generate single-prompt Just-In-Time Adaptive Intervention (JITAI) nudges (`FR-4.2`)
+**And** `NaturalLanguageCommandParser` & `ConfidenceScorer`: Deterministic regex/rule NLP parser processing raw transcripts in < 300ms on `Dispatchers.Default` (`NFR-1`) into `UnvalidatedTaskProposal` DTOs with 3-tier confidence scoring (`High >= 0.85`, `Medium 0.50-0.84`, `Low < 0.50`; `AD-8`)
+**And** 100% JVM unit test suite passes without Robolectric or emulator overhead.
+
+### Story 1.5: UI Shell & Atomic Component Library
+
+As a user,
+I want a unified global application scaffold featuring a persistent top context bar, unclipped viewport-hoisted animations, a universal quick capture sheet, and token-strict cards,
+So that my interactions are seamless, predictable, and visually consistent across every tab.
+
+**Acceptance Criteria:**
+
+**Given** the Compose theme tokens in `ui/theme/` and visual specs in `DESIGN.md`
+**When** the UI Shell is constructed in `ui/components/overlays/`
+**Then** `AppShellScaffold.kt` hosts:
+  1. Persistent Top Context Bar (`DayTypeChip`, `StreakFlameBadge`, and live `CoinPill` target coordinates)
+  2. Viewport-hoisted `RewardMotionStage.kt` at root scaffold level, preventing animation clipping across nested scroll containers (`AD-7`)
+  3. Ubiquitous `QuickCaptureSheet.kt` floating capture drawer with live waveform visualizer (`WaveformVisualizer.kt`) and dual voice/text inputs
+  4. 5-tab bottom navigation with 48dp minimum touch targets
+**And** `HeroCard.kt` container state machine in `ui/components/cards/` manages 6 priority states (Active Focus, Interrupted/Resumable, Morning DayType Banner, Upcoming Scheduled Item, Carry-Forward Review, Intentional Idle) with 300ms `FastOutSlowIn` cross-fade transitions
+**And** token-strict atomic components are created in `ui/components/atoms/` and `cards/` (`TaskCard.kt` with delivery intensity accent stripes, `RoutineCard.kt` with sequential progress, `HabitCard.kt` with 4-state flame)
+**And** zero hardcoded colors, `dp`, or `sp` literals are used in any composable (`AD-7`).
+
+### Story 1.6: Platform Runtime Services & Background Workers
+
+As a user,
+I want background focus timers, midnight date rollovers, tiered exact alarms, and microphone voice recording handled reliably by Android system services,
+So that my schedule updates automatically and focus sessions persist across app backgrounding and phone restarts.
+
+**Acceptance Criteria:**
+
+**Given** Android 13–16 system execution environments
+**When** background platform components are initialized in `com.personaltracker.platform`:
+**Then** `StudySessionForegroundService` (`platform/timer/`) manages high-precision countdown timers across lock-screen states with ongoing notification action intents (`Pause`, `End`; `AD-1`)
+**And** `DayRolloverWorker` (`platform/worker/`) executes via `WorkManager` at the user's custom midnight boundary to evaluate daily routine rollover, update habit streaks via `StreakStateMachine`, and resolve morning DayType templates
+**And** `ExactAlarmScheduler` (`platform/alarm/`) registers tiered notifications via `AlarmManager.setAlarmClock()` without battery-draining polling (`NFR-3`)
+**And** `QuickCaptureVoiceRecorder` (`platform/voice/`) streams microphone input to memory buffers, emits live RMS amplitude to `WaveformVisualizer`, and immediately purges raw audio buffers post-transcription with zero disk writes (`AD-8`, `NFR-4`)
+**And** `BootCompletedReceiver` restores scheduled alarms and reconstructs interrupted focus sessions into `INTERRUPTED/RESUMABLE` state upon phone reboot (`ARCH-8`).
+
+### Story 1.7: Unidirectional MVI Screen Wiring & ViewModels Baseline
+
+As a developer,
+I want all 5 main feature screens wired to unidirectional MVI ViewModels emitting immutable `UiState`, handling `UiIntent`, and broadcasting `Flow<UiEffect>`,
+So that user interactions and reactive database flows are completely decoupled from UI rendering.
+
+**Acceptance Criteria:**
+
+**Given** the 4-layer architecture defined in `ARCHITECTURE-SPINE.md` (AD-1, AD-2)
+**When** the 5 primary feature screens in `com.personaltracker.ui.screens` are wired:
+  - `home/`: `HomeScreen.kt`, `HomeViewModel.kt`, `HomeUiState.kt`, `HomeUiIntent.kt`, `HomeUiEffect.kt`
+  - `habits/`: `HabitsScreen.kt`, `HabitsViewModel.kt`, `HabitsUiState.kt`, `HabitsUiIntent.kt`, `HabitsUiEffect.kt`
+  - `study/`: `StudyScreen.kt`, `StudyViewModel.kt`, `StudyUiState.kt`, `StudyUiIntent.kt`, `StudyUiEffect.kt`
+  - `companion/`: `CompanionScreen.kt`, `CompanionViewModel.kt`, `CompanionUiState.kt`, `CompanionUiIntent.kt`, `CompanionUiEffect.kt`
+  - `settings/`: `SettingsScreen.kt`, `SettingsViewModel.kt`, `SettingsUiState.kt`, `SettingsUiIntent.kt`, `SettingsUiEffect.kt`
+**Then** each ViewModel exposes a single `StateFlow<UiState>` for persistent rendering and a Channel-backed `Flow<UiEffect>` (via `receiveAsFlow()`) for one-shot transient events (haptics, coin arcs, navigation)
+**And** ViewModels interact exclusively with Repository interfaces (`data/repository/`) and Domain Engines (`domain/engine/`), never directly referencing Room DAOs or system services (`AD-1`)
+**And** all composables are stateless, accepting `UiState` and emitting user intents via lambda parameters
+**And** the existing screen placeholders in `ui/screens/` are updated to render their structured MVI layouts within `AppShellScaffold`.
+
+### Story 1.8: DayType Schedule Resolution & Morning Template Swap
 
 As a user,
 I want the app to automatically determine today's active schedule template upon launch with an option to swap it for today only,
@@ -273,16 +377,16 @@ So that my schedule adapts to my day without requiring repetitive daily setup.
 
 **Acceptance Criteria:**
 
-**Given** default saved DayType templates (`Weekday Routine`, `Weekend`, `Heavy Study`) and day-of-week mappings
+**Given** default saved DayType templates (`Weekday Routine`, `Weekend`, `Heavy Study`) and day-of-week mappings in `DayTypeRepository`
 **When** the app opens or a new day begins
 **Then** `ResolveDayTypeUseCase` evaluates the v1 resolution hierarchy: `1) Date-Specific User Override > 2) Day-of-Week Default` `[CONFIRMED]` with zero mandatory taps (`FR-3.1`, `FR-3.2`, `AC-1`)
 **And** calendar synchronization is excluded from v1 resolution (`[EXCLUDED]`)
-**And** a non-blocking morning DayType banner appears on Home displaying active template and 1-tap swap option (`FR-3.3`)
+**And** a non-blocking morning DayType banner appears on Home displaying the active template and a 1-tap swap option (`FR-3.3`)
 **When** the user taps swap and selects a different DayType
 **Then** a `DayOverrideEntity` is saved for today's date only, leaving base templates unmutated (`FR-3.4`, `AC-1`)
-**And** the active schedule refreshes to reflect the newly selected template (`UX-DR3`, `UJ-1`).
+**And** the active schedule refreshes reactively through `DayTypeRepository` to reflect the newly selected template (`UX-DR3`, `UJ-1`).
 
-### Story 1.4: Dynamic State-Aware Hero Card Container & Intentional Idle State
+### Story 1.9: Dynamic State-Aware Hero Card Integration & Action List
 
 As a user,
 I want a dynamic Hero Card at the top of my Home screen that clearly shows my current actionable priority,
@@ -290,14 +394,14 @@ So that I know what to focus on immediately without visual clutter.
 
 **Acceptance Criteria:**
 
-**Given** the Home screen surface
+**Given** the Home screen surface and `HomeViewModel` observing repository streams
 **When** `HeroViewModel` evaluates current system state
 **Then** the Hero Card renders the highest-priority active state among: 1) Active Focus/Task, 2) Interrupted/Resumable, 3) Morning DayType Banner, 4) Upcoming Scheduled Item, 5) Carry-Forward Review, 6) Intentional Idle State (`FR-1.1`, `UX-DR2`)
 **And** state transitions animate with 300ms `FastOutSlowIn` cross-fade while card container dimensions remain stable
 **And** when no items are active, upcoming, or interrupted, the Hero Card displays the Intentional Idle state featuring the resting companion and calm copy ("All caught up for today. Rest well.")
 **And** Today's Schedule and Action List views sit as subordinate layouts below the Hero Card (`FR-1.2`, `NFR-1`, `UJ-1`).
 
-### Story 1.5: Core Task Management & Delivery-Intensity Classification
+### Story 1.10: Core Task Management & Delivery-Intensity Classification
 
 As a user,
 I want to create, classify, and complete discrete tasks using delivery-intensity levels (Routine, Important, Urgent),
@@ -305,15 +409,16 @@ So that I can organize and execute my daily actionable workload while keeping ta
 
 **Acceptance Criteria:**
 
-**Given** `TaskEntity` persisted in the local encrypted database (`id`, `title`, `description`, `scheduledDate`, `scheduledTime`, `estimatedDurationMinutes`, `deliveryIntensity`, `state`, `isCarryForward`, `carryForwardCount`, `completionTimestamp`, `createdTimestamp`)
+**Given** `TaskEntity` persisted in the local encrypted database through `TaskRepository`
 **When** the user creates or edits a Task
 **Then** the Task supports delivery intensity classes (`ROUTINE`, `IMPORTANT`, `URGENT` `[CONFIRMED]`) which drive distinct visual left accent stripes (Routine: 3dp `{colors.info}`, Important: 3dp `{colors.warning}`, Urgent: 6dp `{colors.danger}` + lightning badge; `FR-2.1`, `FR-2.2`, `UX-DR4`)
 **And** delivery intensity is decoupled from arbitrary numeric priority scales (P1-P4 scales are prohibited)
 **When** the user toggles a task checkbox or swipes right
 **Then** the task transitions to `COMPLETED` state with a 300ms subtle background fill, strikethrough text in `{colors.ink-tertiary}`, and a satisfying haptic pulse
+**And** completing a task triggers `GamificationLedgerEngine` to emit an idempotent coin reward transaction (`TASK_COMP_<id>`) and dispatches a `CoinArc` effect to `RewardMotionStage` (`AD-4`, `AD-7`)
 **And** flexible tasks support manual ordering within the Action List.
 
-### Story 1.6: Sequential Routine Domain Engine & Mid-Day Schedule Recalculation
+### Story 1.11: Sequential Routine Domain Engine & Mid-Day Schedule Recalculation
 
 As a user,
 I want to execute structured multi-step routines bound to my DayType, and have my schedule intelligently adapt if I swap templates mid-day,
@@ -321,11 +426,11 @@ So that I can build structured habits without losing credit for steps already co
 
 **Acceptance Criteria:**
 
-**Given** `RoutineEntity` and sequential `RoutineStepEntity` linked to a `DayTypeEntity` (`FR-2.3`, `UX-DR4`)
+**Given** `RoutineEntity` and sequential `RoutineStepEntity` linked to a `DayTypeEntity` in `RoutineRepository` (`FR-2.3`, `UX-DR4`)
 **When** the user starts a routine from the Home surface
 **Then** the Routine Execution UI displays sequential step progression, highlighting the current step and dimming future steps
 **When** the user performs a mid-day DayType swap after completing some routine steps or tasks
-**Then** the mid-day swap engine preserves all completed and in-progress items as immutable historical records (`FR-3.5`, `PRD RULE 4`)
+**Then** `AdaptiveScheduleEngine` preserves all completed and in-progress items as immutable historical records (`FR-3.5`, `PRD RULE 4`)
 **And** recalculates only the remaining unstarted schedule for today from the newly selected DayType
 **And** the persistent bottom sheet timeline (Peek ~100dp, Half ~50%, Full ~100%) updates to reflect remaining unstarted blocks (`UX-DR3`, `AC-1`).
 

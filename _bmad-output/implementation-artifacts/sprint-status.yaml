@@ -4,23 +4,23 @@
 #   - backlog: Epic not yet started
 #   - in-progress: Epic actively being worked on
 #   - done: All stories in epic completed
-
+# 
 # Story Status:
 #   - backlog: Story only exists in epic file
 #   - ready-for-dev: Story file created, ready for development
 #   - in-progress: Developer actively working on implementation
 #   - review: Implementation complete, ready for review
 #   - done: Story completed
-
+# 
 # Retrospective Status:
 #   - optional: Can be completed but not required
 #   - done: Retrospective has been completed
-
+# 
 # Action Item Status:
 #   - open: Committed during a retrospective, not yet addressed
 #   - in-progress: Actively being worked on
 #   - done: Completed
-
+# 
 # WORKFLOW NOTES:
 # ===============
 # - Epic transitions to 'in-progress' automatically when its first story starts (via build's sprint sync)
@@ -29,19 +29,24 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-15-2026 22:07
-last_updated: 08-16-2026 13:41
+last_updated: 10-15-2026 12:28
 project: Personal-Tracker
 project_key: NOKEY
 tracking_system: file-system
 story_location: _bmad-output/implementation-artifacts
 development_status:
   epic-1: in-progress
-  1-1-android-greenfield-project-setup-compose-theme-design-tokens: review
-  1-2-sqlcipher-encrypted-database-baseline-master-key-management: backlog
-  1-3-daytype-entity-models-resolution-engine-morning-swap: backlog
-  1-4-dynamic-state-aware-hero-card-container-intentional-idle-sta: backlog
-  1-5-core-task-management-delivery-intensity-classification: backlog
-  1-6-sequential-routine-domain-engine-mid-day-schedule-recalculat: backlog
+  1-1-android-greenfield-project-setup-compose-theme-design-tokens: done
+  1-2-sqlcipher-encrypted-database-baseline-master-key-management: done
+  1-3-data-schema-completion-flow-based-ssot-repositories-idempote: ready-for-dev
+  1-4-pure-kotlin-behavioral-engines-deterministic-nlp-command-par: backlog
+  1-5-ui-shell-atomic-component-library: backlog
+  1-6-platform-runtime-services-background-workers: backlog
+  1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline: backlog
+  1-8-daytype-schedule-resolution-morning-template-swap: backlog
+  1-9-dynamic-state-aware-hero-card-integration-action-list: backlog
+  1-10-core-task-management-delivery-intensity-classification: backlog
+  1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat: backlog
   epic-1-retrospective: optional
 
   epic-2: backlog
