@@ -57,48 +57,95 @@ class StreakStateMachine {
 
     /**
      * Evaluates a missed habit day using non-punitive slack-banking and freeze preservation.
+     * When current streak is 0, no active streak exists to protect, so freeze and slack days are preserved.
      *
      * Resolution order:
-     * 1. Active freeze day: streak preserved, freeze consumed, status "FROZEN"
-     * 2. Available slack bank: streak preserved, slackBankDays decremented by 1, status "SLACK_USED"
-     * 3. No protection: streak resets to 0, status "MISSED"
+     * 1. Current streak is 0: streak remains 0, protections preserved, status "MISSED"
+     * 2. Active freeze day: streak preserved, freeze consumed, status "FROZEN"
+     * 3. Available slack bank: streak preserved, slackBankDays decremented by 1, status "SLACK_USED"
+     * 4. No protection: streak resets to 0, status "MISSED"
      *
      * In all cases, bestStreak is unconditionally preserved.
      */
     fun evaluateMissedDay(habit: Habit): StreakEvaluationResult {
+        return evaluateMissedDays(habit, 1)
+    }
+
+    /**
+     * Evaluates multiple consecutive missed days (e.g. across multi-day gap or absence).
+     *
+     * Order of protection consumption:
+     * 1. If current streak is 0, streak remains 0 and zero freeze or slack is consumed.
+     * 2. If isFreezeActive is true, 1 missed day is absorbed by freeze grace.
+     * 3. Remaining missed days consume available slackBankDays 1-for-1.
+     * 4. If remaining missed days exceed available slack days, protections are exhausted and streak resets to 0.
+     * 5. If all missed days were absorbed, streak is preserved.
+     *
+     * @param habit Habit to evaluate
+     * @param missedDays Total number of missed days in the gap
+     * @return StreakEvaluationResult after processing the multi-day gap
+     */
+    fun evaluateMissedDays(habit: Habit, missedDays: Int): StreakEvaluationResult {
+        require(missedDays >= 0) { "missedDays must be non-negative: $missedDays" }
         require(habit.currentStreak >= 0) { "Habit currentStreak must be non-negative" }
         require(habit.slackBankDays >= 0) { "Habit slackBankDays must be non-negative" }
 
+        if (missedDays == 0) {
+            return StreakEvaluationResult(
+                updatedHabit = habit,
+                resultingStatus = "NO_CHANGE",
+                flameState = getFlameState(habit.currentStreak)
+            )
+        }
+
         val bestStreak = maxOf(habit.bestStreak, habit.currentStreak)
 
-        val (updatedHabit, status) = when {
-            habit.isFreezeActive -> {
-                // Freeze grace consumed, streak preserved
-                habit.copy(
-                    isFreezeActive = false,
-                    bestStreak = bestStreak
-                ) to "FROZEN"
-            }
-            habit.slackBankDays > 0 -> {
-                // Slack bank used, streak preserved
-                habit.copy(
-                    slackBankDays = habit.slackBankDays - 1,
-                    bestStreak = bestStreak
-                ) to "SLACK_USED"
-            }
-            else -> {
-                // Unprotected miss resets current streak to 0, preserves bestStreak
-                habit.copy(
-                    currentStreak = 0,
-                    bestStreak = bestStreak
-                ) to "MISSED"
-            }
+        if (habit.currentStreak == 0) {
+            return StreakEvaluationResult(
+                updatedHabit = habit.copy(bestStreak = bestStreak),
+                resultingStatus = "MISSED",
+                flameState = FlameState.COLD
+            )
         }
+
+        var remainingMissed = missedDays
+        var freezeActive = habit.isFreezeActive
+        var slackBank = habit.slackBankDays
+        var streak = habit.currentStreak
+        var status = "MISSED"
+
+        // 1. Consume freeze if available
+        if (remainingMissed > 0 && freezeActive) {
+            freezeActive = false
+            remainingMissed--
+            status = "FROZEN"
+        }
+
+        // 2. Consume slack days if available
+        if (remainingMissed > 0 && slackBank > 0) {
+            val slackUsed = minOf(slackBank, remainingMissed)
+            slackBank -= slackUsed
+            remainingMissed -= slackUsed
+            status = "SLACK_USED"
+        }
+
+        // 3. If missed days still remain, protections exhausted -> reset streak
+        if (remainingMissed > 0) {
+            streak = 0
+            status = "MISSED"
+        }
+
+        val updatedHabit = habit.copy(
+            currentStreak = streak,
+            bestStreak = bestStreak,
+            slackBankDays = slackBank,
+            isFreezeActive = freezeActive
+        )
 
         return StreakEvaluationResult(
             updatedHabit = updatedHabit,
             resultingStatus = status,
-            flameState = getFlameState(updatedHabit.currentStreak)
+            flameState = getFlameState(streak)
         )
     }
 

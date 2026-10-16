@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-15-2026 22:07
-last_updated: 10-16-2026 19:30
+last_updated: 10-16-2026 20:55
 project: Personal-Tracker
 project_key: NOKEY
 tracking_system: file-system
@@ -39,8 +39,8 @@ development_status:
   1-1-android-greenfield-project-setup-compose-theme-design-tokens: done
   1-2-sqlcipher-encrypted-database-baseline-master-key-management: done
   1-3-data-schema-completion-flow-based-ssot-repositories-idempote: done
-  1-4-pure-kotlin-behavioral-engines-deterministic-nlp-command-par: review
-  1-5-ui-shell-atomic-component-library: backlog
+  1-4-pure-kotlin-behavioral-engines-deterministic-nlp-command-par: done
+  1-5-ui-shell-atomic-component-library: ready-for-dev
   1-6-platform-runtime-services-background-workers: backlog
   1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline: backlog
   1-8-daytype-schedule-resolution-morning-template-swap: backlog

@@ -84,6 +84,19 @@ class AdaptiveScheduleEngine {
     )
 
     /**
+     * Increments LocalTime by minutes, safely clamping at 23:59 to prevent cross-day midnight wrap-around.
+     */
+    private fun safePlusMinutes(time: LocalTime, minutes: Int): LocalTime {
+        if (minutes <= 0) return time
+        val totalMinutes = time.hour * 60 + time.minute + minutes
+        return if (totalMinutes >= 24 * 60 - 1) {
+            LocalTime.of(23, 59)
+        } else {
+            LocalTime.of(totalMinutes / 60, totalMinutes % 60)
+        }
+    }
+
+    /**
      * Recalculates routine steps sequentially.
      * When delayed, completed steps remain unchanged at their original time,
      * while uncompleted steps are shifted sequentially forward starting from the delayed time.
@@ -121,7 +134,7 @@ class AdaptiveScheduleEngine {
                 if (currentUncompletedTime != null && stepStart.isBefore(currentUncompletedTime)) {
                     stepStart = currentUncompletedTime
                 }
-                val stepEnd = stepStart.plusMinutes(duration.toLong())
+                val stepEnd = safePlusMinutes(stepStart, duration)
                 result.add(
                     ScheduledStep(
                         stepId = step.id,
@@ -140,10 +153,10 @@ class AdaptiveScheduleEngine {
             } else {
                 // Initialize uncompleted timeline cursor if not yet initialized
                 if (currentUncompletedTime == null) {
-                    currentUncompletedTime = originalTimelineCursor.plusMinutes(delayMinutes.toLong().coerceAtLeast(0L))
+                    currentUncompletedTime = safePlusMinutes(originalTimelineCursor, delayMinutes.coerceAtLeast(0))
                 }
                 val stepStart = currentUncompletedTime
-                val stepEnd = stepStart.plusMinutes(duration.toLong())
+                val stepEnd = safePlusMinutes(stepStart, duration)
                 result.add(
                     ScheduledStep(
                         stepId = step.id,
@@ -156,7 +169,7 @@ class AdaptiveScheduleEngine {
                     )
                 )
                 currentUncompletedTime = stepEnd
-                originalTimelineCursor = originalTimelineCursor.plusMinutes(duration.toLong())
+                originalTimelineCursor = safePlusMinutes(originalTimelineCursor, duration)
             }
         }
 

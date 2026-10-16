@@ -219,4 +219,95 @@ class StreakStateMachineTest {
         assertEquals("REST_DAY", result.resultingStatus)
         assertEquals(FlameState.BURNING, result.flameState)
     }
+
+    // ==========================================
+    // 6. Zero Streak & Multi-Day Gap Tests
+    // ==========================================
+
+    @Test
+    fun testZeroStreakMissPreservesFreezeAndSlackBankWithoutWastingProtection() {
+        val habit = Habit(
+            id = "h8",
+            name = "Morning Stretch",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 0,
+            bestStreak = 10,
+            slackBankDays = 2,
+            isFreezeActive = true
+        )
+
+        val result = stateMachine.evaluateMissedDay(habit)
+
+        // When streak is 0, freeze and slack bank must NOT be burned
+        assertEquals(0, result.updatedHabit.currentStreak)
+        assertTrue(result.updatedHabit.isFreezeActive)
+        assertEquals(2, result.updatedHabit.slackBankDays)
+        assertEquals(10, result.updatedHabit.bestStreak)
+        assertEquals("MISSED", result.resultingStatus)
+        assertEquals(FlameState.COLD, result.flameState)
+    }
+
+    @Test
+    fun testMultiDayGapAbsorbedByFreezeAndSlackBank() {
+        val habit = Habit(
+            id = "h9",
+            name = "Meditation",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 10,
+            bestStreak = 10,
+            slackBankDays = 2,
+            isFreezeActive = true
+        )
+
+        // Miss 3 consecutive days: Day 1 consumes freeze, Days 2 & 3 consume 2 slack days
+        val result = stateMachine.evaluateMissedDays(habit, 3)
+
+        assertEquals(10, result.updatedHabit.currentStreak)
+        assertFalse(result.updatedHabit.isFreezeActive)
+        assertEquals(0, result.updatedHabit.slackBankDays)
+        assertEquals(10, result.updatedHabit.bestStreak)
+        assertEquals("SLACK_USED", result.resultingStatus)
+        assertEquals(FlameState.BLAZING, result.flameState)
+    }
+
+    @Test
+    fun testMultiDayGapExceedingProtectionResetsStreak() {
+        val habit = Habit(
+            id = "h10",
+            name = "Reading",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 10,
+            bestStreak = 15,
+            slackBankDays = 2,
+            isFreezeActive = true
+        )
+
+        // Miss 4 consecutive days: 1 freeze + 2 slack = 3 protected; 4th day unprotected miss
+        val result = stateMachine.evaluateMissedDays(habit, 4)
+
+        assertEquals(0, result.updatedHabit.currentStreak)
+        assertFalse(result.updatedHabit.isFreezeActive)
+        assertEquals(0, result.updatedHabit.slackBankDays)
+        assertEquals(15, result.updatedHabit.bestStreak)
+        assertEquals("MISSED", result.resultingStatus)
+        assertEquals(FlameState.COLD, result.flameState)
+    }
+
+    @Test
+    fun testMultiDayGapZeroDaysReturnsNoChange() {
+        val habit = Habit(
+            id = "h11",
+            name = "Water",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 5,
+            bestStreak = 5,
+            slackBankDays = 1,
+            isFreezeActive = true
+        )
+
+        val result = stateMachine.evaluateMissedDays(habit, 0)
+
+        assertEquals(5, result.updatedHabit.currentStreak)
+        assertEquals("NO_CHANGE", result.resultingStatus)
+    }
 }

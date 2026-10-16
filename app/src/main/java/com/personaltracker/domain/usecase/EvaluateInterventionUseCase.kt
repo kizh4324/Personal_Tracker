@@ -3,7 +3,7 @@ package com.personaltracker.domain.usecase
 import com.personaltracker.domain.engine.InterventionRuleEngine
 import com.personaltracker.domain.engine.InterventionRuleEngine.InterventionDecision
 import com.personaltracker.domain.repository.InterventionRuleRepository
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 /**
@@ -18,7 +18,7 @@ class EvaluateInterventionUseCase @Inject constructor(
         lastPromptTimestamp: Long? = null,
         currentTimestamp: Long = System.currentTimeMillis()
     ): InterventionDecision {
-        val rules = ruleRepository.getBlockedAppRules().first()
+        val rules = ruleRepository.getBlockedAppRules().firstOrNull() ?: emptyList()
         return ruleEngine.evaluateAppIntervention(
             packageName = packageName,
             rules = rules,

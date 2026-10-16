@@ -165,10 +165,41 @@ class DomainUseCasesTest {
         val useCase = CompleteTaskUseCase(fakeTaskRepo, fakeEconomyRepo, ledgerEngine)
         val result = useCase("t_already_done")
 
-        // Zero coins awarded, empty idempotency key, null companion update
+        // Zero coins awarded, deterministic compound idempotency key preserved
         assertEquals(0, result.coinReward)
-        assertEquals("", result.idempotencyKey)
-        assertNull(result.updatedCompanionProfile)
+        assertEquals("TASK_COMP_t_already_done", result.idempotencyKey)
+    }
+
+    @Test
+    fun testCompleteTaskUseCaseRejectsInvalidInputs() = runTest {
+        val useCase = CompleteTaskUseCase(fakeTaskRepo, fakeEconomyRepo, ledgerEngine)
+        try {
+            useCase("  ")
+            fail("Expected IllegalArgumentException for blank taskId")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("blank") == true)
+        }
+
+        try {
+            useCase("t1", completionTimestamp = -1)
+            fail("Expected IllegalArgumentException for non-positive timestamp")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("positive") == true)
+        }
+    }
+
+    @Test
+    fun testLogHabitUseCaseRejectsInvalidLogDate() = runTest {
+        val habit = Habit("h_date", "Habit", targetDaysOfWeek = "1,2,3,4,5,6,7")
+        fakeHabitRepo.saveHabit(habit)
+        val useCase = LogHabitUseCase(fakeHabitRepo, fakeEconomyRepo, streakMachine, ledgerEngine)
+
+        try {
+            useCase("h_date", "invalid-date")
+            fail("Expected IllegalArgumentException for invalid ISO-8601 date")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("ISO-8601") == true)
+        }
     }
 
     // ==========================================

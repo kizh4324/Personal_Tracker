@@ -1,6 +1,7 @@
 package com.personaltracker.domain.parser
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -121,5 +122,55 @@ class DeterministicNlpCommandParserTest {
 
         val parsed24 = parser.parse("Submit report at 14:15 today", referenceDate = fixedReferenceDate)
         assertEquals("14:15", parsed24.time)
+    }
+
+    // ==========================================
+    // 5. Exact Boundary & Time Parsing Edge Cases
+    // ==========================================
+
+    @Test
+    fun testExactBoundaryScoresAlignWithAd8() {
+        // At exactly 0.85 confidence (e.g. task + title >= 3 (0.50) + date (0.15) + time (0.15) + intensity (0.05) = 0.85)
+        // input: "Study math today at 14:00 urgent" -> intent=CREATE_TASK, title="math" (>=3: 0.50), date (0.15), time (0.15), urgent (0.05) = 0.85
+        val atBoundary85 = parser.parse("Study math today at 14:00 urgent", referenceDate = fixedReferenceDate)
+        assertEquals(0.85f, atBoundary85.confidence, 0.001f)
+        // AD-8 strictly states High is > 0.85; 0.85 must be MEDIUM (requires 1-tap confirmation chips)
+        assertEquals(ConfidenceTier.MEDIUM, atBoundary85.tier)
+
+        // At exactly 0.50 confidence (e.g. task + title >= 3 (0.50), no other attributes)
+        val atBoundary50 = parser.parse("Study math", referenceDate = fixedReferenceDate)
+        assertEquals(0.50f, atBoundary50.confidence, 0.001f)
+        assertEquals(ConfidenceTier.MEDIUM, atBoundary50.tier)
+
+        // Below 0.50 confidence (e.g. task + title < 3: 0.20, or unknown intent: 0.25)
+        val shortTitle = parser.parse("add a", referenceDate = fixedReferenceDate)
+        assertEquals(0.20f, shortTitle.confidence, 0.001f)
+        assertEquals(ConfidenceTier.LOW, shortTitle.tier)
+
+        val unknownIntent = parser.parse("random chatter", referenceDate = fixedReferenceDate)
+        assertEquals(0.25f, unknownIntent.confidence, 0.001f)
+        assertEquals(ConfidenceTier.LOW, unknownIntent.tier)
+    }
+
+    @Test
+    fun testMidnightAndNoon12HourTimeParsing() {
+        val midnight = parser.parse("Meditation at 12:00 am today", referenceDate = fixedReferenceDate)
+        assertEquals("00:00", midnight.time)
+
+        val noon = parser.parse("Lunch with team at 12:00 pm today", referenceDate = fixedReferenceDate)
+        assertEquals("12:00", noon.time)
+
+        val pastMidnight = parser.parse("Read at 12:45 am today", referenceDate = fixedReferenceDate)
+        assertEquals("00:45", pastMidnight.time)
+
+        val afternoon = parser.parse("Walk at 12:30 pm today", referenceDate = fixedReferenceDate)
+        assertEquals("12:30", afternoon.time)
+    }
+
+    @Test
+    fun testTokenStrippingCollapsesWhitespaceAndRemovesTrailingPrepositions() {
+        val parsed = parser.parse("Finish report for 30 minutes at 3pm tomorrow urgent", referenceDate = fixedReferenceDate)
+        assertEquals("Finish report", parsed.title)
+        assertFalse(parsed.title.contains("  "))
     }
 }

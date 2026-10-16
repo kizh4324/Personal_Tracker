@@ -93,6 +93,19 @@ context:
 - [x] `app/src/main/java/com/personaltracker/di/DomainEngineModule.kt` -- Wire all engines and parser as `@Singleton` bindings in Hilt DI.
 - [x] `app/src/test/java/com/personaltracker/domain/` -- Implement comprehensive JVM unit tests for all 5 engines, NLP parser tiers, and use cases.
 
+### Review Findings
+
+- [x] [Review][Patch] Prevent midnight cross-day overflow in sequential routine recalculation by clamping step start/end times at 23:59 day boundary [`AdaptiveScheduleEngine.kt:89`]
+- [x] [Review][Patch] Prevent midnight cross-day overflow in study session break overrun and pause recalculation by clamping adjusted end time at 23:59 with calm non-punitive advisory copy [`FocusRescheduleEngine.kt:44`]
+- [x] [Review][Patch] Prevent zero-streak miss from wasting active freeze grace or decrementing slack bank days when no active streak exists [`StreakStateMachine.kt:74`]
+- [x] [Review][Patch] Implement multi-day gap evaluation across missed days with ordered freeze and slack bank consumption [`StreakStateMachine.kt:84`]
+- [x] [Review][Patch] Align NLP confidence tier boundaries with AD-8 invariant: High is strictly >0.85, Medium is 0.50..0.85, Low is <0.50 [`DeterministicNlpCommandParser.kt:180`]
+- [x] [Review][Patch] Tighten 12h AM/PM time regex to valid hour range (1..12) and minute range (00..59), collapse multi-space gaps, and strip trailing prepositions [`DeterministicNlpCommandParser.kt:37`]
+- [x] [Review][Patch] Return valid deterministic `{DOMAIN}_{ACTION}_{ID}` idempotency key on already completed tasks and validate non-blank taskId and positive completionTimestamp [`CompleteTaskUseCase.kt:33`]
+- [x] [Review][Patch] Add integer overflow protection and non-negative sanitization to companion XP progression and leveling [`GamificationLedgerEngine.kt:151`]
+- [x] [Review][Patch] Validate logDate ISO-8601 format and non-blank input in habit logging [`LogHabitUseCase.kt:42`]
+- [x] [Review][Patch] Protect against NoSuchElementException in flow collection with firstOrNull() fallback [`EvaluateInterventionUseCase.kt:21`, `ResolveDayTypeUseCase.kt:35`]
+
 **Acceptance Criteria:**
 - Given a date with a user override, when `AdaptiveScheduleEngine.resolveActiveDayType` is invoked, then the override DayType is selected over the day-of-week template.
 - Given a habit with slackBankDays > 0, when a missed day is evaluated, then the streak is preserved, slackBankDays is decremented, and the state does not reset to 0.

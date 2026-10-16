@@ -147,9 +147,21 @@ class GamificationLedgerEngine {
         require(energyDelta >= 0) { "Energy earned cannot be negative: $energyDelta" }
         if (energyDelta == 0) return profile
 
-        val totalEnergy = profile.currentEnergyUnits + energyDelta
+        val safeCurrentEnergy = maxOf(0, profile.currentEnergyUnits)
+        val safeLevel = maxOf(1, profile.level)
+
+        val totalEnergy = try {
+            Math.addExact(safeCurrentEnergy, energyDelta)
+        } catch (_: ArithmeticException) {
+            Int.MAX_VALUE
+        }
+
         val levelsGained = totalEnergy / ENERGY_PER_LEVEL
-        val newLevel = profile.level + levelsGained
+        val newLevel = try {
+            Math.addExact(safeLevel, levelsGained)
+        } catch (_: ArithmeticException) {
+            Int.MAX_VALUE
+        }
         val remainderEnergy = totalEnergy % ENERGY_PER_LEVEL
 
         val newMood = if (levelsGained > 0) CompanionMood.EXCITED.ordinalValue else profile.currentExpressionOrdinal

@@ -34,7 +34,7 @@ class DeterministicNlpCommandParser {
     // Regex patterns
     private val intensityRegex = Regex("""\b(urgent|asap|critical|important|priority|routine)\b""", RegexOption.IGNORE_CASE)
     private val durationRegex = Regex("""\b(?:for\s+)?(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)\b""", RegexOption.IGNORE_CASE)
-    private val timeAmPmRegex = Regex("""\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b""", RegexOption.IGNORE_CASE)
+    private val timeAmPmRegex = Regex("""\b(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b""", RegexOption.IGNORE_CASE)
     private val time24Regex = Regex("""\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b""", RegexOption.IGNORE_CASE)
     private val dateRelativeRegex = Regex("""\b(today|tomorrow|tonight|day after tomorrow)\b""", RegexOption.IGNORE_CASE)
 
@@ -86,6 +86,7 @@ class DeterministicNlpCommandParser {
         // 3. Extract Time ("HH:mm")
         var timeStr: String? = null
         val timeAmPmMatch = timeAmPmRegex.find(lower)
+        val time24Match = if (timeAmPmMatch == null) time24Regex.find(lower) else null
         if (timeAmPmMatch != null) {
             val hour = timeAmPmMatch.groupValues[1].toIntOrNull() ?: 0
             val minute = timeAmPmMatch.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: 0
@@ -96,13 +97,10 @@ class DeterministicNlpCommandParser {
                 else -> hour
             }
             timeStr = String.format(Locale.ROOT, "%02d:%02d", normalizedHour, minute)
-        } else {
-            val time24Match = time24Regex.find(lower)
-            if (time24Match != null) {
-                val hour = time24Match.groupValues[1].toIntOrNull() ?: 0
-                val minute = time24Match.groupValues[2].toIntOrNull() ?: 0
-                timeStr = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
-            }
+        } else if (time24Match != null) {
+            val hour = time24Match.groupValues[1].toIntOrNull() ?: 0
+            val minute = time24Match.groupValues[2].toIntOrNull() ?: 0
+            timeStr = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
         }
 
         // 4. Extract Date ("YYYY-MM-DD")
@@ -140,11 +138,8 @@ class DeterministicNlpCommandParser {
         }
         if (timeAmPmMatch != null) {
             cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(timeAmPmMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
-        } else {
-            val time24Match = time24Regex.find(lower)
-            if (time24Match != null) {
-                cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(time24Match.value)}\b""", RegexOption.IGNORE_CASE), "")
-            }
+        } else if (time24Match != null) {
+            cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(time24Match.value)}\b""", RegexOption.IGNORE_CASE), "")
         }
         if (dateMatch != null) {
             cleaned = cleaned.replace(Regex("""\b${Regex.escape(dateMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
@@ -154,9 +149,10 @@ class DeterministicNlpCommandParser {
         cleaned = cleaned.replace(Regex("""^(?:remind me to|add\s+task|schedule|add|task)\s+""", RegexOption.IGNORE_CASE), "")
         // Remove habit prefixes if any
         cleaned = cleaned.replace(Regex("""^(?:log\s+habit|track\s+habit|habit)\s+""", RegexOption.IGNORE_CASE), "")
-        // Clean leftover prepositions and punctuation
-        cleaned = cleaned.replace(Regex("""\s+for\s*$""", RegexOption.IGNORE_CASE), "")
-        cleaned = cleaned.replace(Regex("""\s+at\s*$""", RegexOption.IGNORE_CASE), "")
+        // Clean leftover trailing prepositions
+        cleaned = cleaned.replace(Regex("""\s+(?:for|at|on|by|in)\s*$""", RegexOption.IGNORE_CASE), "")
+        // Collapse multiple whitespace gaps into a single space
+        cleaned = cleaned.replace(Regex("""\s+"""), " ")
         cleaned = cleaned.trim().trim(',', '.', '!', '?').trim()
 
         val title = if (cleaned.isNotBlank()) cleaned else trimmed
@@ -182,8 +178,9 @@ class DeterministicNlpCommandParser {
 
         confidence = confidence.coerceIn(0.0f, 1.0f)
 
+        // AD-8 exact boundary tiers: High (>0.85), Medium (0.50..0.85), Low (<0.50)
         val tier = when {
-            confidence >= 0.85f -> ConfidenceTier.HIGH
+            confidence > 0.85f -> ConfidenceTier.HIGH
             confidence >= 0.50f -> ConfidenceTier.MEDIUM
             else -> ConfidenceTier.LOW
         }

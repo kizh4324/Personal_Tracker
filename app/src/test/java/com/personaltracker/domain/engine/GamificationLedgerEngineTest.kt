@@ -156,4 +156,34 @@ class GamificationLedgerEngineTest {
         assertEquals(CompanionMood.ENCOURAGING, engine.resolveMoodForEvent(CompanionTriggerEvent.FreezeUsed))
         assertEquals(CompanionMood.ENCOURAGING, engine.resolveMoodForEvent(CompanionTriggerEvent.ReturnAfterAbsence))
     }
+
+    @Test
+    fun testCompanionProgressionProtectsAgainstIntegerOverflow() {
+        val profile = CompanionProfile(
+            id = 1,
+            speciesName = "Fox",
+            level = Int.MAX_VALUE - 1,
+            currentEnergyUnits = 90
+        )
+
+        // Adding large energy should not throw ArithmeticException and safely cap at Int.MAX_VALUE
+        val updated = engine.addEnergy(profile, Int.MAX_VALUE)
+        assertEquals(Int.MAX_VALUE, updated.level)
+        assertTrue(updated.currentEnergyUnits >= 0)
+    }
+
+    @Test
+    fun testCompanionProgressionSanitizesNegativeEnergyInProfile() {
+        // Corrupted DB state where energy was negative
+        val corruptedProfile = CompanionProfile(
+            id = 1,
+            speciesName = "Fox",
+            level = 1,
+            currentEnergyUnits = -20
+        )
+
+        val updated = engine.addEnergy(corruptedProfile, 50)
+        assertEquals(1, updated.level)
+        assertEquals(50, updated.currentEnergyUnits)
+    }
 }

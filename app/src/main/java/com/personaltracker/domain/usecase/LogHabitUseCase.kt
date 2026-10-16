@@ -39,6 +39,11 @@ class LogHabitUseCase @Inject constructor(
         logDate: String,
         isCompleted: Boolean = true
     ): LogHabitResult {
+        require(logDate.isNotBlank()) { "logDate must not be blank" }
+        require(runCatching { java.time.LocalDate.parse(logDate) }.isSuccess) {
+            "logDate must be a valid ISO-8601 date (YYYY-MM-DD): $logDate"
+        }
+
         val habit = habitRepository.getHabitById(habitId)
             ?: throw IllegalArgumentException("Habit with id '$habitId' does not exist.")
 

@@ -89,4 +89,36 @@ class FocusRescheduleEngineTest {
         assertTrue(summary.advisoryMessage.contains("25 min remaining"))
         assertTrue(summary.advisoryMessage.contains("resume anytime"))
     }
+
+    // ==========================================
+    // 3. Midnight Overflow Clamping Tests
+    // ==========================================
+
+    @Test
+    fun testCalculateBreakOverrunClampsAtMidnightBoundary() {
+        val adjustment = engine.calculateBreakOverrun(
+            plannedSessionDuration = 50,
+            elapsedFocusMinutes = 20,
+            plannedBreakMinutes = 5,
+            actualBreakMinutes = 45, // 40m overrun
+            scheduledEndTime = "23:30" // 23:30 + 40m would be 00:10 next day
+        )
+
+        assertEquals("23:30", adjustment.originalEndTime)
+        assertEquals("23:59", adjustment.adjustedEndTime)
+        assertTrue(adjustment.advisoryMessage.contains("capped at 23:59 day boundary"))
+    }
+
+    @Test
+    fun testCalculatePauseAdjustmentClampsAtMidnightBoundary() {
+        val pauseAdjustment = engine.calculatePauseAdjustment(
+            remainingMinutes = 20,
+            pauseDurationMinutes = 60, // 23:15 + 60m = 00:15 next day
+            currentScheduledEndTime = "23:15"
+        )
+
+        assertEquals("23:15", pauseAdjustment.originalEndTime)
+        assertEquals("23:59", pauseAdjustment.adjustedEndTime)
+        assertTrue(pauseAdjustment.advisoryMessage.contains("capped at 23:59 day boundary"))
+    }
 }

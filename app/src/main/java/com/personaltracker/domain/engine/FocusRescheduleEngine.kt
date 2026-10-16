@@ -39,6 +39,20 @@ class FocusRescheduleEngine {
     )
 
     /**
+     * Increments LocalTime by minutes, safely clamping at 23:59 to prevent cross-day midnight wrap-around.
+     * Returns the adjusted time and a boolean flag indicating if clamping occurred.
+     */
+    private fun safePlusMinutes(time: LocalTime, minutes: Int): Pair<LocalTime, Boolean> {
+        if (minutes <= 0) return time to false
+        val totalMinutes = time.hour * 60 + time.minute + minutes
+        return if (totalMinutes >= 24 * 60 - 1) {
+            LocalTime.of(23, 59) to true
+        } else {
+            LocalTime.of(totalMinutes / 60, totalMinutes % 60) to false
+        }
+    }
+
+    /**
      * Recalculates remaining session timeline when a planned break overruns.
      *
      * @param plannedSessionDuration Total planned focus session minutes (e.g. 25)
@@ -66,10 +80,14 @@ class FocusRescheduleEngine {
         val baseEnd = runCatching {
             LocalTime.parse(scheduledEndTime, timeFormatter)
         }.getOrDefault(LocalTime.of(12, 0))
-        val adjustedEnd = baseEnd.plusMinutes(overrunMinutes.toLong())
+        val (adjustedEnd, wasClamped) = safePlusMinutes(baseEnd, overrunMinutes)
 
         val message = if (overrunMinutes > 0) {
-            "Break finished. End time adjusted by $overrunMinutes min. Ready when you are."
+            if (wasClamped) {
+                "Break finished. End time capped at 23:59 day boundary. Ready when you are."
+            } else {
+                "Break finished. End time adjusted by $overrunMinutes min. Ready when you are."
+            }
         } else {
             "Break complete. $remainingFocusMinutes minutes remaining in your session."
         }
@@ -103,14 +121,20 @@ class FocusRescheduleEngine {
         val baseEnd = runCatching {
             LocalTime.parse(currentScheduledEndTime, timeFormatter)
         }.getOrDefault(LocalTime.of(12, 0))
-        val adjustedEnd = baseEnd.plusMinutes(pauseDurationMinutes.toLong())
+        val (adjustedEnd, wasClamped) = safePlusMinutes(baseEnd, pauseDurationMinutes)
+
+        val message = if (wasClamped) {
+            "Session paused. End time capped at 23:59 day boundary."
+        } else {
+            "Session paused. End time adjusted calmly to ${adjustedEnd.format(timeFormatter)}."
+        }
 
         return PauseAdjustment(
             remainingMinutes = remainingMinutes,
             pauseDurationMinutes = pauseDurationMinutes,
             originalEndTime = currentScheduledEndTime,
             adjustedEndTime = adjustedEnd.format(timeFormatter),
-            advisoryMessage = "Session paused. End time adjusted calmly to ${adjustedEnd.format(timeFormatter)}."
+            advisoryMessage = message
         )
     }
 

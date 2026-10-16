@@ -251,4 +251,31 @@ class AdaptiveScheduleEngineTest {
         val scaled = engine.scaleRoutineDurations(originalRoutine, targetTotalMinutes = 40)
         assertEquals(40, scaled.steps.sumOf { it.durationMinutes })
     }
+
+    @Test
+    fun testRecalculateSequentialRoutineClampsAtMidnightBoundaryWithoutWrapAround() {
+        val steps = listOf(
+            RoutineStep(id = "s1", routineId = "r1", orderIndex = 0, title = "Night Prep", durationMinutes = 20),
+            RoutineStep(id = "s2", routineId = "r1", orderIndex = 1, title = "Reading", durationMinutes = 30),
+            RoutineStep(id = "s3", routineId = "r1", orderIndex = 2, title = "Meditation", durationMinutes = 20)
+        )
+
+        // Starting at 23:30 with 20 min delay: uncompleted start shifts to 23:50
+        val scheduled = engine.recalculateSequentialRoutine(
+            steps = steps,
+            targetStartTime = "23:30",
+            delayMinutes = 20
+        )
+
+        assertEquals(3, scheduled.size)
+        // Step 1: starts at 23:50, ends capped at 23:59 (since 23:50 + 20 min exceeds 23:59)
+        assertEquals("23:50", scheduled[0].startTime)
+        assertEquals("23:59", scheduled[0].endTime)
+
+        // Step 2 & 3: remain capped at 23:59 without wrapping around to 00:xx
+        assertEquals("23:59", scheduled[1].startTime)
+        assertEquals("23:59", scheduled[1].endTime)
+        assertEquals("23:59", scheduled[2].startTime)
+        assertEquals("23:59", scheduled[2].endTime)
+    }
 }

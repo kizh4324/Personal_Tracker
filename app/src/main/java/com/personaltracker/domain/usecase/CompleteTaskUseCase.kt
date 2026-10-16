@@ -30,20 +30,24 @@ class CompleteTaskUseCase @Inject constructor(
         taskId: String,
         completionTimestamp: Long = System.currentTimeMillis()
     ): CompleteTaskResult {
+        require(taskId.isNotBlank()) { "taskId must not be blank" }
+        require(completionTimestamp > 0) { "completionTimestamp must be positive: $completionTimestamp" }
+
         val task = taskRepository.getTaskById(taskId)
             ?: throw IllegalArgumentException("Task with id '$taskId' does not exist.")
+
+        val idempotencyKey = ledgerEngine.generateTaskIdempotencyKey(taskId)
 
         if (task.state.equals("COMPLETED", ignoreCase = true)) {
             return CompleteTaskResult(
                 taskId = taskId,
                 coinReward = 0,
-                idempotencyKey = "",
-                updatedCompanionProfile = null
+                idempotencyKey = idempotencyKey,
+                updatedCompanionProfile = economyRepository.getCompanionProfile()
             )
         }
 
         val coinReward = ledgerEngine.calculateTaskReward(task)
-        val idempotencyKey = ledgerEngine.generateTaskIdempotencyKey(taskId)
 
         // Atomically complete task and commit coin ledger entry
         taskRepository.completeTaskWithReward(

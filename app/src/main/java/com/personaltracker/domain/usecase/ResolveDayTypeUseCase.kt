@@ -3,7 +3,7 @@ package com.personaltracker.domain.usecase
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.repository.DayTypeRepository
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -32,7 +32,7 @@ class ResolveDayTypeUseCase @Inject constructor(
 
     suspend operator fun invoke(date: String = LocalDate.now().toString()): DayType {
         val override = dayTypeRepository.getOverrideForDate(date)
-        val allDayTypes = dayTypeRepository.getAllDayTypes().first()
+        val allDayTypes = dayTypeRepository.getAllDayTypes().firstOrNull() ?: emptyList()
         if (allDayTypes.isEmpty()) {
             return SAFE_DEFAULT_DAY_TYPE
         }
