@@ -31,7 +31,14 @@ internal class RoutineRepositoryImpl @Inject constructor(
 
     override suspend fun saveRoutine(routine: Routine) =
         withContext(ioDispatcher) {
-            routineDao.upsertRoutine(routine.toEntity())
+            if (routine.steps.isNotEmpty()) {
+                routineDao.saveRoutineWithSteps(
+                    routine.toEntity(),
+                    routine.steps.map { it.copy(routineId = routine.id).toEntity() }
+                )
+            } else {
+                routineDao.upsertRoutine(routine.toEntity())
+            }
         }
 
     override suspend fun saveSteps(steps: List<RoutineStep>) =

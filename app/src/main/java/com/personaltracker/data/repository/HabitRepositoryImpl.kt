@@ -56,7 +56,9 @@ internal class HabitRepositoryImpl @Inject constructor(
 
     override suspend fun logHabit(log: HabitLog) =
         withContext(ioDispatcher) {
-            habitDao.insertLog(log.toEntity())
+            val existingLog = habitDao.getLogForDate(log.habitId, log.logDate)
+            val logToInsert = if (existingLog != null) log.copy(id = existingLog.id) else log
+            habitDao.insertLog(logToInsert.toEntity())
         }
 
     override suspend fun logHabitWithReward(
@@ -76,10 +78,15 @@ internal class HabitRepositoryImpl @Inject constructor(
             val existingLog = habitDao.getLogForDate(log.habitId, log.logDate)
             check(existingLog?.status != "COMPLETED") { "Habit already completed for date ${log.logDate}" }
 
-            habitDao.insertLog(log.toEntity())
+            val logToInsert = if (existingLog != null) log.copy(id = existingLog.id) else log
+            habitDao.insertLog(logToInsert.toEntity())
 
             val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
-            val newBalance = currentBalance + coinReward
+            val newBalance = try {
+                Math.addExact(currentBalance, coinReward)
+            } catch (_: ArithmeticException) {
+                throw IllegalStateException("Coin balance arithmetic overflow")
+            }
 
             val ledgerEntry = CoinLedgerEntity(
                 id = UUID.randomUUID().toString(),

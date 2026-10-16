@@ -581,6 +581,73 @@ class RepositoryTest {
         } catch (e: IllegalArgumentException) {
             assertTrue(e.message?.contains("without whitespace") == true)
         }
+
+        // 8. Habit log updates reuse existing ID to prevent unique index collision on (habitId, logDate)
+        val initialLog = HabitLog(id = "log-original-1", habitId = "habit-patch", logDate = "2026-10-16", status = "MISSED")
+        habitRepo.logHabit(initialLog)
+        val updateLog = HabitLog(id = "log-new-2", habitId = "habit-patch", logDate = "2026-10-16", status = "SLACK_USED")
+        habitRepo.logHabit(updateLog)
+        val fetchedLog = habitRepo.getLogForDate("habit-patch", "2026-10-16")
+        assertNotNull(fetchedLog)
+        assertEquals("log-original-1", fetchedLog?.id)
+        assertEquals("SLACK_USED", fetchedLog?.status)
+
+        // 9. Cancelled task cannot be completed with reward
+        val cancelledTask = Task(id = "task-cancelled", title = "Cancelled Task", scheduledDate = "2026-10-15", state = "CANCELLED")
+        taskRepo.saveTask(cancelledTask)
+        try {
+            taskRepo.completeTaskWithReward("task-cancelled", System.currentTimeMillis(), 10, "TASK_COMP_cancelled_1")
+            fail("Completing a cancelled task must fail")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("cancelled task") == true)
+        }
+
+        // 10. Non-positive completion timestamp rejected
+        val pendingTask = Task(id = "task-pending-ts", title = "Pending TS Task", scheduledDate = "2026-10-15")
+        taskRepo.saveTask(pendingTask)
+        try {
+            taskRepo.completeTaskWithReward("task-pending-ts", 0L, 10, "TASK_COMP_ts_zero")
+            fail("Non-positive completion timestamp must fail")
+        } catch (e: IllegalArgumentException) {
+            assertTrue(e.message?.contains("completionTimestamp must be positive") == true)
+        }
+
+        // 11. RoutineRepository.saveRoutine persists embedded steps
+        val routineDao = FakeRoutineDao()
+        val routineRepo = RoutineRepositoryImpl(routineDao, testDispatcher)
+        val routineWithSteps = Routine(
+            id = "routine-embedded",
+            dayTypeId = "dt-default",
+            title = "Morning Flow",
+            targetStartTime = "07:00",
+            totalEstimatedMinutes = 45,
+            steps = listOf(
+                RoutineStep(id = "step-1", routineId = "routine-embedded", orderIndex = 0, title = "Drink Water", durationMinutes = 5),
+                RoutineStep(id = "step-2", routineId = "routine-embedded", orderIndex = 1, title = "Stretch", durationMinutes = 15)
+            )
+        )
+        routineRepo.saveRoutine(routineWithSteps)
+        routineRepo.getStepsForRoutine("routine-embedded").test {
+            val stepsList = awaitItem()
+            assertEquals(2, stepsList.size)
+            assertEquals("Drink Water", stepsList[0].title)
+            assertEquals("Stretch", stepsList[1].title)
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        // 12. Coin ledger balance arithmetic overflow protection
+        val overflowTx = CoinTransaction(
+            id = "tx-overflow",
+            idempotencyKey = "ECO_OVERFLOW_1",
+            deltaAmount = Int.MAX_VALUE,
+            eventType = "BONUS"
+        )
+        try {
+            ecoRepo.recordTransaction(overflowTx)
+            fail("Coin transaction causing integer overflow must fail")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("overflow") == true)
+        }
     }
 }
 

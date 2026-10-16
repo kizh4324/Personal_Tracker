@@ -2,9 +2,8 @@ package com.personaltracker.data.local.db.daos
 
 import androidx.room.Dao
 import androidx.room.Delete
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -21,7 +20,7 @@ internal interface UnfiledInboxDao {
     @Query("SELECT * FROM unfiled_capture_inbox WHERE id = :id LIMIT 1")
     suspend fun getInboxItemById(id: String): UnfiledCaptureInboxEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertInboxItem(item: UnfiledCaptureInboxEntity)
 
     @Delete

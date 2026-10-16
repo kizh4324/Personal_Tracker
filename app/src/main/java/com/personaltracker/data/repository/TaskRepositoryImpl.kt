@@ -76,6 +76,7 @@ internal class TaskRepositoryImpl @Inject constructor(
     ) = withContext(ioDispatcher) {
         IdempotencyValidator.validate(idempotencyKey)
         require(coinReward >= 0) { "Coin reward cannot be negative: $coinReward" }
+        require(completionTimestamp > 0) { "completionTimestamp must be positive: $completionTimestamp" }
         transactionRunner {
             val existing = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
             if (existing != null) {
@@ -86,6 +87,7 @@ internal class TaskRepositoryImpl @Inject constructor(
                 ?: throw IllegalArgumentException("Task not found with id: $taskId")
 
             check(task.state != "COMPLETED") { "Task is already completed: $taskId" }
+            check(task.state != "CANCELLED") { "Cannot complete a cancelled task: $taskId" }
 
             val updatedTask = task.copy(
                 state = "COMPLETED",
@@ -94,7 +96,11 @@ internal class TaskRepositoryImpl @Inject constructor(
             taskDao.updateTask(updatedTask)
 
             val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
-            val newBalance = currentBalance + coinReward
+            val newBalance = try {
+                Math.addExact(currentBalance, coinReward)
+            } catch (_: ArithmeticException) {
+                throw IllegalStateException("Coin balance arithmetic overflow")
+            }
 
             val ledgerEntry = CoinLedgerEntity(
                 id = UUID.randomUUID().toString(),

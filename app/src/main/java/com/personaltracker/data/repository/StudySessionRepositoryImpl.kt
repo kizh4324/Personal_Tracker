@@ -54,6 +54,8 @@ internal class StudySessionRepositoryImpl @Inject constructor(
     ) = withContext(ioDispatcher) {
         IdempotencyValidator.validate(idempotencyKey)
         require(session.coinsEarned >= 0) { "coinsEarned cannot be negative: ${session.coinsEarned}" }
+        require(session.durationMinutes >= 0) { "durationMinutes cannot be negative: ${session.durationMinutes}" }
+        require(session.createdTimestamp > 0) { "createdTimestamp must be positive: ${session.createdTimestamp}" }
         transactionRunner {
             val existing = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
             if (existing != null) {
@@ -63,7 +65,11 @@ internal class StudySessionRepositoryImpl @Inject constructor(
             studySessionDao.insertSession(session.toEntity())
 
             val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
-            val newBalance = currentBalance + session.coinsEarned
+            val newBalance = try {
+                Math.addExact(currentBalance, session.coinsEarned)
+            } catch (_: ArithmeticException) {
+                throw IllegalStateException("Coin balance arithmetic overflow")
+            }
 
             val ledgerEntry = CoinLedgerEntity(
                 id = UUID.randomUUID().toString(),

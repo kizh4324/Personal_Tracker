@@ -57,7 +57,11 @@ internal class EconomyRepositoryImpl @Inject constructor(
                 }
 
                 val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
-                val newBalance = currentBalance + transaction.deltaAmount
+                val newBalance = try {
+                    Math.addExact(currentBalance, transaction.deltaAmount)
+                } catch (_: ArithmeticException) {
+                    throw IllegalStateException("Coin balance arithmetic overflow")
+                }
                 check(newBalance >= 0) { "Insufficient coin balance: $newBalance" }
 
                 val entity = transaction.toEntity().copy(balanceAfter = newBalance)

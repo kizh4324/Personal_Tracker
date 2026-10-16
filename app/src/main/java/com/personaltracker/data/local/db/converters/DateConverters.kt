@@ -22,7 +22,13 @@ class DateConverters {
     }
 
     @TypeConverter
-    fun fromInstant(instant: Instant?): Long? = instant?.toEpochMilli()
+    fun fromInstant(instant: Instant?): Long? = instant?.let {
+        try {
+            it.toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
 
     @TypeConverter
     fun toInstant(millis: Long?): Instant? = millis?.let {

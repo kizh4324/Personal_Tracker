@@ -106,4 +106,11 @@ class ConvertersTest {
         assertNull(dateConverters.fromInstant(null))
         assertNull(dateConverters.toInstant(null))
     }
+
+    @Test
+    fun testInstantOutOfRangeHandling() {
+        // Instant.MAX has seconds beyond epoch milli and throws ArithmeticException if unhandled
+        assertNull("Instant.MAX must return null instead of throwing", dateConverters.fromInstant(Instant.MAX))
+        assertNull("Instant.MIN must return null instead of throwing", dateConverters.fromInstant(Instant.MIN))
+    }
 }

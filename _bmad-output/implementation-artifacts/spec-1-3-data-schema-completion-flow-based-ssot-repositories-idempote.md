@@ -81,6 +81,16 @@ context:
 - [x] `app/src/test/java/com/personaltracker/data/local/db/converters/ConvertersTest.kt` -- Test TypeConverters round-trip -- Verifies payload serialization integrity.
 - [x] `app/src/test/java/com/personaltracker/data/repository/RepositoryTest.kt` -- Test repository mappings, Flow emissions, and idempotency key enforcement -- Verifies AD-1, AD-4, AD-6 invariants.
 
+### Review Findings
+
+- [x] [Review][Patch] Fix HabitLog unique index collision by preserving existing row ID during updates [`HabitRepositoryImpl.kt:59`]
+- [x] [Review][Patch] Reject task completion on cancelled tasks and enforce positive completionTimestamp [`TaskRepositoryImpl.kt:79`]
+- [x] [Review][Patch] Persist embedded routine steps when saving Routine via RoutineRepository [`RoutineRepositoryImpl.kt:34`]
+- [x] [Review][Patch] Prevent integer overflow in coin balance computations with Math.addExact [`EconomyRepositoryImpl.kt:60`, `HabitRepositoryImpl.kt:82`, `TaskRepositoryImpl.kt:95`, `StudySessionRepositoryImpl.kt:65`]
+- [x] [Review][Patch] Wrap Instant.toEpochMilli() in try-catch to protect against ArithmeticException on out-of-range Instant values [`DateConverters.kt:25`]
+- [x] [Review][Patch] Replace deprecated OnConflictStrategy.REPLACE with @Upsert in UnfiledInboxDao [`UnfiledInboxDao.kt:20`]
+- [x] [Review][Patch] Validate durationMinutes and createdTimestamp non-negative in recordSessionWithReward [`StudySessionRepositoryImpl.kt:57`]
+
 **Acceptance Criteria:**
 - Given the Room database entities, when `InterventionRuleEntity.kt` is extracted and converters are registered, then Room database builds cleanly with all 13 entities and converters.
 - Given domain models and repository interfaces in `com.personaltracker.domain`, when compiled, then there are zero imports from `android.*` or `androidx.room.*`.
