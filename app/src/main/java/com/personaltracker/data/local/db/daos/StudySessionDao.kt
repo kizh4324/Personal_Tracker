@@ -1,9 +1,8 @@
 package com.personaltracker.data.local.db.daos
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.StudySessionEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -23,7 +22,7 @@ internal interface StudySessionDao {
     @Query("SELECT * FROM study_sessions ORDER BY sessionDate DESC, startTime DESC")
     fun getAllSessions(): Flow<List<StudySessionEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertSession(session: StudySessionEntity)
 
     @Query("SELECT SUM(durationMinutes) FROM study_sessions WHERE sessionDate = :date")

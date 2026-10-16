@@ -165,4 +165,65 @@ class DatabaseSchemaTest {
         )
         assertEquals("com.social.distraction", rule.packageName)
     }
+
+    @Test
+    fun verifyAppDatabaseAll11DaoMethodsPresent() {
+        val methods = AppDatabase::class.java.declaredMethods.map { it.name }.toSet()
+        val expectedDaos = listOf(
+            "dayTypeDao",
+            "dayOverrideDao",
+            "taskDao",
+            "routineDao",
+            "habitDao",
+            "studySessionDao",
+            "coinLedgerDao",
+            "companionProfileDao",
+            "shopItemDao",
+            "unfiledInboxDao",
+            "interventionRuleDao"
+        )
+        for (daoName in expectedDaos) {
+            assertTrue(
+                "AppDatabase must declare DAO accessor: $daoName (found methods: $methods)",
+                methods.any { it == daoName || it.startsWith("${daoName}\$") }
+            )
+        }
+    }
+
+    @Test
+    fun verifyStandaloneInterventionRuleEntityIntegrity() {
+        val rule = InterventionRuleEntity(
+            packageName = "com.distraction.app",
+            appDisplayName = "Distraction App",
+            isStrictBlocked = true,
+            dailyLimitMinutes = 45
+        )
+        assertEquals("com.distraction.app", rule.packageName)
+        assertEquals("Distraction App", rule.appDisplayName)
+        assertTrue(rule.isStrictBlocked)
+        assertEquals(45, rule.dailyLimitMinutes)
+
+        assertEquals(
+            "com.personaltracker.data.local.db.entities.InterventionRuleEntity",
+            InterventionRuleEntity::class.java.name
+        )
+    }
+
+    @Test
+    fun verifyTypeConvertersRegistrationAndOperation() {
+        val payloadConverter = com.personaltracker.data.local.db.converters.EncryptedPayloadConverter()
+        val dateConverters = com.personaltracker.data.local.db.converters.DateConverters()
+        assertNotNull(payloadConverter)
+        assertNotNull(dateConverters)
+
+        val date = java.time.LocalDate.of(2026, 10, 15)
+        assertEquals("2026-10-15", dateConverters.fromLocalDate(date))
+        assertEquals(date, dateConverters.toLocalDate("2026-10-15"))
+
+        val payload = com.personaltracker.data.local.security.EncryptedPayload(ByteArray(12) { 1 }, ByteArray(16) { 2 })
+        val bytes = payloadConverter.fromEncryptedPayload(payload)
+        assertNotNull(bytes)
+        assertEquals(payload, payloadConverter.toEncryptedPayload(bytes))
+    }
 }
+

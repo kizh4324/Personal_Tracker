@@ -2,6 +2,9 @@ package com.personaltracker.data.local.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
+import com.personaltracker.data.local.db.converters.DateConverters
+import com.personaltracker.data.local.db.converters.EncryptedPayloadConverter
 import com.personaltracker.data.local.db.daos.CoinLedgerDao
 import com.personaltracker.data.local.db.daos.CompanionProfileDao
 import com.personaltracker.data.local.db.daos.DayOverrideDao
@@ -52,6 +55,7 @@ import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
     version = 1,
     exportSchema = false
 )
+@TypeConverters(EncryptedPayloadConverter::class, DateConverters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     internal abstract fun dayTypeDao(): DayTypeDao

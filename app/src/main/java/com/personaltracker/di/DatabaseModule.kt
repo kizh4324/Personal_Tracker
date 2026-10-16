@@ -97,4 +97,9 @@ internal object DatabaseModule {
 
     @Provides
     fun provideInterventionRuleDao(db: AppDatabase): InterventionRuleDao = db.interventionRuleDao()
+
+    @Provides
+    @Singleton
+    fun provideTransactionRunner(db: AppDatabase): com.personaltracker.data.repository.TransactionRunner =
+        com.personaltracker.data.repository.RoomTransactionRunner(db)
 }
