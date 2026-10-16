@@ -14,7 +14,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.unit.dp
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 import kotlin.math.max
 import kotlin.math.min
@@ -50,6 +49,7 @@ fun CoinArcAnimation(
 ) {
     val coinColor = PersonalTrackerTheme.colors.coinGold
     val coinGlowColor = PersonalTrackerTheme.colors.coinGlow
+    val coinIconSize = PersonalTrackerTheme.spacing.coinIconSize
 
     // Track progress of each coin (0f to 1f)
     val coinAnimatables = remember(coinCount) {
@@ -114,7 +114,7 @@ fun CoinArcAnimation(
                     
                     // Dynamic scaling: scale up slightly in mid-air (1.15), settle to 1.0
                     val scale = 1f + 0.25f * (1f - (2f * t - 1f).pow(2))
-                    val coinRadius = 10.dp.toPx() * scale
+                    val coinRadius = (coinIconSize / 2f).toPx() * scale
 
                     // Draw outer subtle glow
                     drawCircle(

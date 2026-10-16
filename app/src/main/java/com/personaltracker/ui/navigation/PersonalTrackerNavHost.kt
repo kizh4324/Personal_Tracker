@@ -13,13 +13,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -47,7 +45,8 @@ fun PersonalTrackerDestination.icon(): ImageVector {
 }
 
 /**
- * Root Composable scaffolding the 5-tab Bottom Navigation bar and Screen container.
+ * Root Composable scaffolding the AppShellScaffold container and 5-tab Screen navigation graph.
+ * Strictly adheres to AD-7 with zero hardcoded literals and viewport-hoisted animations.
  */
 @Composable
 fun PersonalTrackerApp(
@@ -57,24 +56,16 @@ fun PersonalTrackerApp(
     val currentRoute = navBackStackEntry?.destination?.route
     val currentDestination = PersonalTrackerDestination.fromRoute(currentRoute)
 
-    val colors = PersonalTrackerTheme.colors
-
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = colors.surfaceBase,
-        bottomBar = {
-            PersonalTrackerBottomBar(
-                currentDestination = currentDestination,
-                onNavigateToDestination = { destination ->
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+    AppShellScaffold(
+        currentDestination = currentDestination,
+        onNavigateToDestination = { destination ->
+            navController.navigate(destination.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    saveState = true
                 }
-            )
+                launchSingleTop = true
+                restoreState = true
+            }
         }
     ) { innerPadding ->
         NavHost(
@@ -114,9 +105,10 @@ fun PersonalTrackerBottomBar(
 ) {
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
+    val spacing = PersonalTrackerTheme.spacing
 
     NavigationBar(
-        modifier = modifier.defaultMinSize(minHeight = 48.dp),
+        modifier = modifier.defaultMinSize(minHeight = spacing.minTouchTarget),
         containerColor = colors.surfaceRaised,
         contentColor = colors.inkPrimary
     ) {
@@ -144,7 +136,10 @@ fun PersonalTrackerBottomBar(
                     unselectedTextColor = colors.inkSecondary,
                     indicatorColor = colors.surfaceOverlay
                 ),
-                modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                modifier = Modifier.defaultMinSize(
+                    minWidth = spacing.minTouchTarget,
+                    minHeight = spacing.minTouchTarget
+                )
             )
         }
     }
