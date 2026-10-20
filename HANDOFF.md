@@ -1,3 +1,17 @@
+---
+type: handoff
+title: "Personal-Tracker Session Handoff & State Snapshot"
+description: "Authoritative project state, completed architecture phases, next-up Story 1.6 platform services, and runbook for Personal-Tracker."
+tags:
+  - android
+  - kotlin
+  - architecture
+  - handoff
+  - state
+verified: human-reviewed
+status: active
+---
+
 # HANDOFF.md — Personal-Tracker
 
 ## 1. Snapshot

@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@google/stitch-mcp"
+      ],
+      "env": {
+        "STITCH_PROJECT_PATH": "${workspaceFolder}"
+      }
+    },
+    "figma": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-figma"
+      ],
+      "env": {
+        "FIGMA_PERSONAL_ACCESS_TOKEN": "REPLACE_WITH_FIGMA_PERSONAL_ACCESS_TOKEN"
+      }
+    }
+  }
+}

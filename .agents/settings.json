@@ -1,0 +1,27 @@
+{
+  "agentMode": "accept-edits",
+  "toolPermission": "always-proceed",
+  "permissions": {
+    "allow": [
+      "command(python)",
+      "command(python3)",
+      "command(git)",
+      "command(./gradlew)",
+      "command(gradlew.bat)",
+      "command(gradle)",
+      "command(adb)"
+    ],
+    "ask": [
+      "command(git push --force)",
+      "command(git reset --hard)",
+      "command(git clean -fd)"
+    ],
+    "deny": [
+      "command(rm -rf /)",
+      "command(rm -rf .git)",
+      "command(Remove-Item -Recurse -Force)",
+      "command(format)",
+      "command(mkfs)"
+    ]
+  }
+}
