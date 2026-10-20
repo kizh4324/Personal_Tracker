@@ -17,7 +17,7 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-16 22:55:00 +05:30
+*   **Date/Time:** 2026-10-20 17:00:00 +05:30
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
@@ -34,7 +34,7 @@ status: active
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~45% of Epic 1 completed). Stories 1.1 through 1.5 fully implemented and verified; physical mobile testing completed on `iQOO I2223`.
+*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~55% of Epic 1 completed). Stories 1.1 through 1.6 fully implemented and verified; JVM unit tests (61 executed) and Android lint pass with 0 errors.
 
 ---
 
@@ -128,40 +128,24 @@ flowchart TD
 | **Story 1.5: Overlays & Shell** | `ui/components/overlays/*`, `ui/navigation/*` | Done | `QuickCaptureSheet` (3-tier confidence), `AppShellScaffold`, `PersonalTrackerNavHost`. |
 | **Story 1.5: Animation Systems** | `ui/components/animation/*`, `ui/components/companion/*` | Done | `CoinArcAnimation` (VSYNC Bézier), `RewardAnimation` (Lottie), `RewardMotionStage`, `CompanionView` (Rive 7-state). |
 | **UI Integration & Polish** | `ui/screens/HomeScreen.kt`, `ui/screens/CompanionScreen.kt` | Done | Wired interactive cards, Rive state machine switcher, and coin arc reward triggers. |
+| **Story 1.6: Platform Runtime Services & Background Workers** | `platform/*`, `di/PlatformModule.kt`, `AndroidManifest.xml` | Done | `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder` (RAM-only zeroing), `BootCompletedReceiver`. 100% pure domain preserved. |
 
 ---
 
 ## 5. In Progress
-*   **Currently Paused At:** Completion and verification of Story 1.5. Git commit `87fe6bd` pushed to `main`.
-*   **Exact Next Step:** Begin **Story 1.6 (`1-6-platform-runtime-services-background-workers`)**.
-    *   Target Package: `com.personaltracker.platform`
-    *   Files to create:
-        1.  `app/src/main/java/com/personaltracker/platform/timer/StudySessionForegroundService.kt`
-        2.  `app/src/main/java/com/personaltracker/platform/worker/DayRolloverWorker.kt`
-        3.  `app/src/main/java/com/personaltracker/platform/alarm/ExactAlarmScheduler.kt`
-        4.  `app/src/main/java/com/personaltracker/platform/voice/QuickCaptureVoiceRecorder.kt`
-        5.  `app/src/main/java/com/personaltracker/platform/receiver/BootCompletedReceiver.kt`
-    *   Update `AndroidManifest.xml` with service, receiver, and worker declarations.
+*   **Currently Paused At:** Completion and verification of Story 1.6. All unit tests, Android lint, domain purity, and architecture spine checks passed with 0 errors.
+*   **Exact Next Step:** Begin **Story 1.7 (`1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline`)**.
+    *   Target: Replace demo Compose state in `HomeScreen` and `CompanionScreen` with `@HiltViewModel` MVI classes collecting from Flow repositories.
 
 ---
 
 ## 6. Pending Work (Prioritized)
 
-### P0: Story 1.6 — Platform Runtime Services & Background Workers
-*   **Goal:** Background focus timers, midnight date rollovers, tiered exact alarms, and microphone voice recording handled reliably by Android system services.
-*   **Acceptance Criteria:**
-    1.  `StudySessionForegroundService` maintains countdown across lock-screen with `Pause`/`End` notification intents (`AD-1`).
-    2.  `DayRolloverWorker` scheduled via `WorkManager` at user's custom midnight boundary to update habit streaks and resolve DayTypes.
-    3.  `ExactAlarmScheduler` registers notifications via `AlarmManager.setAlarmClock()`.
-    4.  `QuickCaptureVoiceRecorder` streams microphone input to memory, emits RMS amplitude to `WaveformVisualizer`, and purges raw audio buffers post-transcription (`AD-8`, zero disk writes).
-    5.  `BootCompletedReceiver` restores alarms and flags interrupted focus sessions as `INTERRUPTED/RESUMABLE`.
+### P0: Story 1.7 — Unidirectional MVI Screen Wiring & ViewModels Baseline
+*   **Goal:** Replace ephemeral demo states in `HomeScreen` and `CompanionScreen` with production Hilt `@HiltViewModel` MVI classes (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`) collecting from Flow repositories.
 *   **Blockers:** None.
 
-### P1: Story 1.7 — Unidirectional MVI Screen Wiring & ViewModels Baseline
-*   **Goal:** Replace ephemeral demo states in `HomeScreen` and `CompanionScreen` with production Hilt `@HiltViewModel` MVI classes (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`) collecting from Flow repositories.
-*   **Blockers:** Story 1.6.
-
-### P2: Stories 1.8 – 1.11 (Epic 1 Completion)
+### P1: Stories 1.8 – 1.11 (Epic 1 Completion)
 *   **1.8:** DayType schedule resolution & morning template swap.
 *   **1.9:** Dynamic state-aware Hero Card integration with action list.
 *   **1.10:** Core task management & delivery intensity classification.
@@ -230,9 +214,9 @@ flowchart TD
     .\gradlew test
     python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .
     ```
-2.  **Inspect Story 1.6 Requirements:** Read `epics.md` § Story 1.6 (`Platform Runtime Services & Background Workers`).
-3.  **Create Platform Package & Components:** Implement `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder`, and `BootCompletedReceiver` in `com.personaltracker.platform`.
-4.  **Register Services & Permissions in AndroidManifest.xml:** Declare `FOREGROUND_SERVICE`, `RECORD_AUDIO`, `SCHEDULE_EXACT_ALARM`, and `RECEIVE_BOOT_COMPLETED`.
+2.  **Inspect Story 1.7 Requirements:** Read `epics.md` § Story 1.7 (`Unidirectional MVI Screen Wiring & ViewModels Baseline`).
+3.  **Create MVI ViewModels & Contract Interfaces:** Implement `HomeViewModel`, `CompanionViewModel`, and `QuickCaptureViewModel` under `ui/screens/` or `ui/viewmodel/` consuming domain use cases and Flow repositories.
+4.  **Wire Screens to ViewModels:** Refactor `HomeScreen.kt` and `CompanionScreen.kt` to bind to ViewModel `StateFlow<UiState>` and dispatch `UiIntent`s.
 
 ### Kickoff Verification Checklist:
 *   [ ] Read this `HANDOFF.md` completely.

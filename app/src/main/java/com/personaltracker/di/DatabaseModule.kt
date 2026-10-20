@@ -102,4 +102,8 @@ internal object DatabaseModule {
     @Singleton
     fun provideTransactionRunner(db: AppDatabase): com.personaltracker.data.repository.TransactionRunner =
         com.personaltracker.data.repository.RoomTransactionRunner(db)
+
+    @Provides
+    @Singleton
+    fun provideIoDispatcher(): kotlinx.coroutines.CoroutineDispatcher = kotlinx.coroutines.Dispatchers.IO
 }
