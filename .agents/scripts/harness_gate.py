@@ -137,13 +137,20 @@ def main():
             tool_name = tool_call.get("name", "")
             args = tool_call.get("args", {})
 
-            if tool_name == "run_command":
-                cmd = args.get("CommandLine") or args.get("commandLine") or args.get("command", "")
+            EXEC_TOOLS = {"run_command", "bash", "execute_command"}
+            if tool_name in EXEC_TOOLS:
+                cmd = (
+                    args.get("CommandLine")
+                    or args.get("commandLine")
+                    or args.get("command")
+                    or args.get("cmd")
+                    or ""
+                )
                 result = evaluate_command(cmd)
                 print(json.dumps(result))
                 sys.exit(0)
 
-            # Non run_command tool calls are allowed by default
+            # Non-command execution tool calls are allowed by default
             print(json.dumps({"decision": "allow", "allow_tool": True}))
             sys.exit(0)
         except Exception as e:

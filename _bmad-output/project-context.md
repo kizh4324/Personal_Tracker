@@ -198,3 +198,19 @@ Before submitting or reviewing any implementation story:
 4. **Unpinned Gradle Daemon JVM:** Never execute Gradle commands without ensuring `JAVA_HOME` or `org.gradle.java.home` points to JDK 21. Java 26 on PATH will break Gradle 8.11.1 tooling model syncs.
 5. **Direct DB Mutations in ViewModels:** ViewModels must never inject DAOs directly. All persistence calls must traverse Repository interfaces to preserve caching, encryption, and transactional boundaries.
 6. **Microcopy Guilt Traps:** Never use guilt language, punitive streak resets, or alarmist copy anywhere in notification or UI strings. Always follow the microcopy guidelines in `EXPERIENCE.md`.
+
+---
+
+## 7. Google Agent Harness & OKF v0.2 Activation Protocols
+
+Every developer, automated tool, and AI agent operating in this repository must adhere to the following startup and execution protocols:
+
+1. **Progressive OKF v0.2 Context Loading:**
+   - At the beginning of every session, task, or `/bmad-build` invocation, read `docs/okf/index.md` and `HANDOFF.md` first.
+   - The Open Knowledge Format index acts as the authoritative knowledge catalog cross-linking `ARCHITECTURE-SPINE.md`, `project-context.md`, `HANDOFF.md`, and `sprint-status.yaml`.
+
+2. **Subagent Harness Delegation Policy:**
+   - Strictly follow `.agents/rules/harness-subagents.md`.
+   - **`Workspace: "inherit"` Mode:** Use `invoke_subagent` when implementing multi-component or multi-service features (such as Story 1.6's 5 platform runtime services: `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder`, and `BootCompletedReceiver`) or executing heavy test suites so the parent context window remains compact.
+   - **`Workspace: "branch"` Mode:** Use `invoke_subagent` with isolated branching for risky refactorings, exploratory spikes, or database schema migrations to prevent contaminating the active worktree.
+
