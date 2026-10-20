@@ -87,6 +87,14 @@ def check_ui_token_conformance(repo_root: Path) -> list:
                                     break
     return violations
 
+FILE_MUTATION_TOOLS = {
+    "write_to_file",
+    "replace_file_content",
+    "multi_replace_file_content",
+    "edit_file",
+    "write_file",
+}
+
 def run_all_checks(repo_root: Path) -> tuple:
     domain_violations = check_domain_purity(repo_root)
     ui_violations = check_ui_token_conformance(repo_root)
@@ -113,24 +121,25 @@ def main():
         tool_name = tool_call.get("name", "")
 
         # PostToolUse contract expects empty dict {}
-        # PreToolUse contract expects {"decision": ...}
+        # PreToolUse contract expects {"decision": ..., "allow_tool": ...}
         if len(all_violations) == 0:
-            if "stepIdx" in hook_data and tool_name in ("edit_file", "write_file"):
+            if "stepIdx" in hook_data and tool_name in FILE_MUTATION_TOOLS:
                 print(json.dumps({}))
             else:
-                print(json.dumps({"decision": "allow"}))
+                print(json.dumps({"decision": "allow", "allow_tool": True}))
             sys.exit(0)
         else:
             summary = f"Detected {len(all_violations)} architectural violations: " + "; ".join(
                 f"{v['rule']} in {v['file']}:{v['line']}" for v in all_violations[:3]
             )
-            if "stepIdx" in hook_data and tool_name in ("edit_file", "write_file"):
+            if "stepIdx" in hook_data and tool_name in FILE_MUTATION_TOOLS:
                 sys.stderr.write(f"Architecture Warning: {summary}\n")
                 print(json.dumps({}))
                 sys.exit(0)
             else:
                 print(json.dumps({
                     "decision": "deny",
+                    "allow_tool": False,
                     "reason": summary
                 }))
                 sys.exit(0)

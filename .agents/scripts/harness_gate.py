@@ -18,6 +18,7 @@ def evaluate_command(command_line: str) -> dict:
        re.search(r'\badb\b.*screencap.*>', cmd, re.IGNORECASE):
         return {
             "decision": "deny",
+            "allow_tool": False,
             "reason": (
                 "PowerShell binary redirection trap detected! Redirecting 'adb exec-out screencap -p > ...' "
                 "creates corrupted UTF-16LE files on Windows. "
@@ -41,6 +42,7 @@ def evaluate_command(command_line: str) -> dict:
         if re.search(pattern, cmd, re.IGNORECASE):
             return {
                 "decision": "deny",
+                "allow_tool": False,
                 "reason": f"Destructive command blocked by Harness safety gate: {reason}"
             }
 
@@ -55,11 +57,15 @@ def evaluate_command(command_line: str) -> dict:
         if re.search(pattern, cmd, re.IGNORECASE):
             return {
                 "decision": "force_ask",
+                "allow_tool": False,
                 "reason": reason
             }
 
     # c) Standard build, test, python, git, adb, and workspace utility commands
-    return {"decision": "allow"}
+    return {
+        "decision": "allow",
+        "allow_tool": True
+    }
 
 def run_self_tests() -> int:
     tests = [
@@ -102,14 +108,16 @@ def run_self_tests() -> int:
     for cmd, expected in tests:
         res = evaluate_command(cmd)
         actual = res.get("decision")
-        if actual != expected:
-            print(f"[FAIL] Cmd: '{cmd}' | Expected: {expected} | Actual: {actual}")
+        allow_tool = res.get("allow_tool")
+        expected_allow_tool = (expected == "allow")
+        if actual != expected or allow_tool != expected_allow_tool:
+            print(f"[FAIL] Cmd: '{cmd}' | Expected: {expected} (allow_tool={expected_allow_tool}) | Actual: {actual} (allow_tool={allow_tool})")
             failed += 1
         else:
-            print(f"[PASS] {expected.upper():<9} -> {cmd[:65]}")
+            print(f"[PASS] {expected.upper():<9} (allow_tool={str(allow_tool):<5}) -> {cmd[:55]}")
 
     if failed == 0:
-        print(f"\nAll {len(tests)} self-tests passed cleanly.")
+        print(f"\nAll {len(tests)} self-tests passed cleanly with valid decision & allow_tool verdicts.")
         return 0
     else:
         print(f"\n{failed} self-tests failed!")
@@ -121,7 +129,7 @@ def main():
         try:
             raw_input = sys.stdin.read()
             if not raw_input.strip():
-                print(json.dumps({"decision": "allow"}))
+                print(json.dumps({"decision": "allow", "allow_tool": True}))
                 sys.exit(0)
 
             data = json.loads(raw_input)
@@ -136,11 +144,11 @@ def main():
                 sys.exit(0)
 
             # Non run_command tool calls are allowed by default
-            print(json.dumps({"decision": "allow"}))
+            print(json.dumps({"decision": "allow", "allow_tool": True}))
             sys.exit(0)
         except Exception as e:
             sys.stderr.write(f"Harness gate error: {e}\n")
-            print(json.dumps({"decision": "ask", "reason": f"Harness gate input parsing error: {e}"}))
+            print(json.dumps({"decision": "ask", "allow_tool": False, "reason": f"Harness gate input parsing error: {e}"}))
             sys.exit(0)
 
     # If invoked with --test

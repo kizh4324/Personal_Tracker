@@ -7,6 +7,8 @@ Local-first, network-optional native Android personal productivity application w
 
 ## Policy
 
+- Always read `docs/okf/index.md` and `HANDOFF.md` first for progressive OKF context loading before starting work or invoking `/bmad-build`.
+- Enforce `.agents/rules/harness-subagents.md`: use `invoke_subagent` in `inherit` mode for multi-file/component stories (like Story 1.6's 5 platform services) and `branch` mode for risky refactors/UI swaps to keep primary context lean.
 - Never commit directly without passing `.\gradlew test` and `.\gradlew lint`.
 - Never use KAPT; use KSP only (`ksp` plugin and configurations).
 - Never import Android framework classes (`android.*`, `androidx.*`) into `com.personaltracker.domain`; domain logic must remain pure Kotlin.
@@ -17,6 +19,10 @@ Local-first, network-optional native Android personal productivity application w
 
 ## Where things are
 
+- OKF v0.2 Knowledge Catalog: `docs/okf/index.md`
+- Active Handoff & Runbook: `HANDOFF.md`
+- Subagent Harness Rules: `.agents/rules/harness-subagents.md`
+- Safety Hooks & Gates: `.agents/hooks.json`, `.agents/scripts/`
 - Architecture Spine: `ARCHITECTURE-SPINE.md` (AD-1 to AD-8 invariants)
 - Engineering Context & Rules: `_bmad-output/project-context.md`
 - Visual Design Tokens & Identity: `_bmad-output/planning-artifacts/ux-designs/ux-Personal-Tracker-2026-08-15/DESIGN.md`
@@ -49,3 +55,9 @@ Local-first, network-optional native Android personal productivity application w
 - Bypassing Repository interfaces in ViewModels causes state divergence and circumvents SQLCipher encryption hooks.
 
 <!-- /bmad:context -->
+
+## Google Agent Harness & OKF v0.2 Activation Rules
+
+- **Progressive Context Loading:** At the start of every session, task, or `/bmad-build` invocation, agents must read `docs/okf/index.md` and `HANDOFF.md` first.
+- **Subagent Delegation Policy:** Strictly follow `.agents/rules/harness-subagents.md`. Use `invoke_subagent` in `Workspace: "inherit"` mode when building multi-component features (such as Story 1.6's 5 platform services) or running heavy test suites. Use `Workspace: "branch"` mode for exploratory spikes, UI theme swaps, or database schema migrations to protect the primary context budget.
+

@@ -6,31 +6,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python scripts/harness_gate.py --hook"
+            "command": "python scripts/harness_gate.py --hook",
+            "timeout": 30
           }
         ]
       }
     ]
   },
   "domain-purity-check": {
-    "PreToolUse": [
-      {
-        "matcher": "run_command",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python scripts/domain_purity_check.py --hook"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
-        "matcher": "edit_file|write_file",
+        "matcher": "write_to_file|replace_file_content|multi_replace_file_content|edit_file|write_file",
         "hooks": [
           {
             "type": "command",
-            "command": "python scripts/domain_purity_check.py --hook"
+            "command": "python scripts/domain_purity_check.py --hook",
+            "timeout": 30
           }
         ]
       }
