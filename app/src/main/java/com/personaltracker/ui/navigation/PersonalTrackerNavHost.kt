@@ -18,17 +18,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.personaltracker.ui.screens.CompanionScreen
-import com.personaltracker.ui.screens.HabitsScreen
-import com.personaltracker.ui.screens.HomeScreen
-import com.personaltracker.ui.screens.SettingsScreen
-import com.personaltracker.ui.screens.StudyScreen
+import com.personaltracker.ui.screens.companion.CompanionRoute
+import com.personaltracker.ui.screens.habits.HabitsRoute
+import com.personaltracker.ui.screens.home.HomeRoute
+import com.personaltracker.ui.screens.quickcapture.QuickCaptureViewModel
+import com.personaltracker.ui.screens.settings.SettingsRoute
+import com.personaltracker.ui.screens.study.StudyRoute
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
 /**
@@ -50,23 +53,33 @@ fun PersonalTrackerDestination.icon(): ImageVector {
  */
 @Composable
 fun PersonalTrackerApp(
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    appShellViewModel: AppShellViewModel = hiltViewModel(),
+    quickCaptureViewModel: QuickCaptureViewModel = hiltViewModel()
 ) {
+    val shellState by appShellViewModel.uiState.collectAsStateWithLifecycle()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
     val currentDestination = PersonalTrackerDestination.fromRoute(currentRoute)
 
+    val navigateTo: (PersonalTrackerDestination) -> Unit = { destination ->
+        navController.navigate(destination.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
     AppShellScaffold(
         currentDestination = currentDestination,
-        onNavigateToDestination = { destination ->
-            navController.navigate(destination.route) {
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
-                }
-                launchSingleTop = true
-                restoreState = true
-            }
-        }
+        onNavigateToDestination = navigateTo,
+        onDayTypeClick = { navigateTo(PersonalTrackerDestination.SETTINGS) },
+        activeDayTypeName = shellState.activeDayTypeName,
+        streakCount = shellState.streakCount,
+        coinBalance = shellState.coinBalance,
+        quickCaptureViewModel = quickCaptureViewModel
     ) { innerPadding ->
         NavHost(
             navController = navController,
@@ -76,19 +89,19 @@ fun PersonalTrackerApp(
                 .padding(innerPadding)
         ) {
             composable(PersonalTrackerDestination.HOME.route) {
-                HomeScreen()
+                HomeRoute(onNavigate = navigateTo)
             }
             composable(PersonalTrackerDestination.HABITS.route) {
-                HabitsScreen()
+                HabitsRoute(onNavigate = navigateTo)
             }
             composable(PersonalTrackerDestination.STUDY.route) {
-                StudyScreen()
+                StudyRoute(onNavigate = navigateTo)
             }
             composable(PersonalTrackerDestination.COMPANION.route) {
-                CompanionScreen()
+                CompanionRoute(onNavigate = navigateTo)
             }
             composable(PersonalTrackerDestination.SETTINGS.route) {
-                SettingsScreen()
+                SettingsRoute(onNavigate = navigateTo)
             }
         }
     }

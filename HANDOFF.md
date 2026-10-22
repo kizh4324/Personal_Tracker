@@ -25,16 +25,17 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (61 tests, ~1m 10s, passes clean)
+    *   Unit Tests (JVM): `.\gradlew test` (174 tests, ~1m 30s, passes clean)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
+    *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
     *   Assemble Debug APK: `.\gradlew assembleDebug`
     *   Install & Launch on Connected Device:
         ```powershell
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~55% of Epic 1 completed). Stories 1.1 through 1.6 fully implemented and verified; JVM unit tests (61 executed) and Android lint pass with 0 errors.
+*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~65% of Epic 1 completed). Stories 1.1 through 1.7 fully implemented and verified; JVM unit tests (174 executed) and Android lint pass with 0 errors.
 
 ---
 
@@ -129,23 +130,24 @@ flowchart TD
 | **Story 1.5: Animation Systems** | `ui/components/animation/*`, `ui/components/companion/*` | Done | `CoinArcAnimation` (VSYNC Bézier), `RewardAnimation` (Lottie), `RewardMotionStage`, `CompanionView` (Rive 7-state). |
 | **UI Integration & Polish** | `ui/screens/HomeScreen.kt`, `ui/screens/CompanionScreen.kt` | Done | Wired interactive cards, Rive state machine switcher, and coin arc reward triggers. |
 | **Story 1.6: Platform Runtime Services & Background Workers** | `platform/*`, `di/PlatformModule.kt`, `AndroidManifest.xml` | Done | `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder` (RAM-only zeroing), `BootCompletedReceiver`. 100% pure domain preserved. |
+| **Story 1.7: Unidirectional MVI Screen Wiring & ViewModels Baseline** | `ui/screens/*`, `ui/navigation/*`, `app/src/test/java/com/personaltracker/ui/*` | Done | Full MVI ViewModels (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`, `HabitsViewModel`, `StudyViewModel`, `SettingsViewModel`, `AppShellViewModel`). Figma-ready Route/ScreenContent split, 3-tier quick capture routing, 6-state Hero Card hierarchy, pure domain & zero hardcoded token compliance. |
 
 ---
 
 ## 5. In Progress
-*   **Currently Paused At:** Completion and verification of Story 1.6. All unit tests, Android lint, domain purity, and architecture spine checks passed with 0 errors.
-*   **Exact Next Step:** Begin **Story 1.7 (`1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline`)**.
-    *   Target: Replace demo Compose state in `HomeScreen` and `CompanionScreen` with `@HiltViewModel` MVI classes collecting from Flow repositories.
+*   **Currently Paused At:** Completion and verification of Story 1.7. All unit tests (174 tests), Android lint, domain purity, and architecture spine checks passed with 0 errors.
+*   **Exact Next Step:** Begin **Story 1.8 (`1-8-daytype-schedule-resolution-morning-template-swap`)**.
+    *   Target: Morning DayType prompt and calendar date override resolution engine integration.
 
 ---
 
 ## 6. Pending Work (Prioritized)
 
-### P0: Story 1.7 — Unidirectional MVI Screen Wiring & ViewModels Baseline
-*   **Goal:** Replace ephemeral demo states in `HomeScreen` and `CompanionScreen` with production Hilt `@HiltViewModel` MVI classes (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`) collecting from Flow repositories.
+### P0: Story 1.8 — DayType Schedule Resolution & Morning Template Swap
+*   **Goal:** Implement DayType resolution logic, calendar date override management, and morning schedule template swap dialog.
 *   **Blockers:** None.
 
-### P1: Stories 1.8 – 1.11 (Epic 1 Completion)
+### P1: Stories 1.9 – 1.11 (Epic 1 Completion)
 *   **1.8:** DayType schedule resolution & morning template swap.
 *   **1.9:** Dynamic state-aware Hero Card integration with action list.
 *   **1.10:** Core task management & delivery intensity classification.
@@ -155,7 +157,7 @@ flowchart TD
 
 ## 7. Changes Needed
 *   `app/src/main/assets/rive/companion.riv`: Artist binary asset is currently absent. `CompanionView.kt` currently falls back to `PlaceholderCompanionView`. When production `.riv` is ready, place in `res/raw/companion.riv` or `assets/rive/companion.riv` (no code changes needed).
-*   `ui/screens/HomeScreen.kt` & `ui/screens/CompanionScreen.kt`: Currently utilize internal Compose state for presentation testing; will be refactored to consume MVI ViewModels in Story 1.7.
+*   `ui/screens/*`: All feature screens now fully refactored to production MVI ViewModels (`*Route` / `*ScreenContent` split) in Story 1.7.
 
 ---
 

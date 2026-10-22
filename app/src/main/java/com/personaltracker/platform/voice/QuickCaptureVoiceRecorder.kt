@@ -27,19 +27,19 @@ import kotlin.math.sqrt
  * zeroes audio memory buffers upon completion or cancellation.
  */
 @Singleton
-class QuickCaptureVoiceRecorder @Inject constructor(
-    @ApplicationContext private val context: Context
+open class QuickCaptureVoiceRecorder @Inject constructor(
+    @ApplicationContext internal val context: Context? = null
 ) {
-
     private val _isRecording = MutableStateFlow(false)
-    val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
+    open val isRecording: StateFlow<Boolean> = _isRecording.asStateFlow()
 
     /**
      * Checks if RECORD_AUDIO permission has been granted.
      */
-    fun hasRecordPermission(): Boolean {
+    open fun hasRecordPermission(): Boolean {
+        val ctx = context ?: return false
         return ContextCompat.checkSelfPermission(
-            context,
+            ctx,
             Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
     }
@@ -52,7 +52,7 @@ class QuickCaptureVoiceRecorder @Inject constructor(
      * @throws SecurityException If RECORD_AUDIO permission is not granted.
      */
     @SuppressLint("MissingPermission")
-    fun startRecording(
+    open fun startRecording(
         onAudioChunk: ((ShortArray, Int) -> Unit)? = null
     ): Flow<Float> = flow {
         if (!hasRecordPermission()) {
@@ -85,6 +85,10 @@ class QuickCaptureVoiceRecorder @Inject constructor(
 
             while (_isRecording.value) {
                 val readSamples = audioRecord.read(buffer, 0, buffer.size)
+                if (readSamples < 0) {
+                    _isRecording.value = false
+                    break
+                }
                 if (readSamples > 0) {
                     onAudioChunk?.invoke(buffer, readSamples)
                     val rms = calculateNormalizedRms(buffer, readSamples)
@@ -107,7 +111,7 @@ class QuickCaptureVoiceRecorder @Inject constructor(
     /**
      * Halts active recording loop.
      */
-    fun stopRecording() {
+    open fun stopRecording() {
         _isRecording.value = false
     }
 
