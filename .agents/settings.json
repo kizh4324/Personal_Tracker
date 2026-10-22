@@ -9,7 +9,11 @@
       "command(./gradlew)",
       "command(gradlew.bat)",
       "command(gradle)",
-      "command(adb)"
+      "command(adb)",
+      "command(harness2)",
+      "command(harness2-check)",
+      "command(harness2-demo)",
+      "command(uv)"
     ],
     "ask": [
       "command(git push --force)",

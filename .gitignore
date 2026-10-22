@@ -37,3 +37,7 @@ local.properties
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Google Research Harness2 (Isolated Third-Party Research Engine & Runs)
+.harness2/repo/
+.harness2/runs/

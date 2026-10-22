@@ -15,6 +15,8 @@ sources:
   - uri: "_bmad-output/project-context.md"
   - uri: "HANDOFF.md"
   - uri: "_bmad-output/implementation-artifacts/sprint-status.yaml"
+  - uri: ".harness2/EXPERIENCE.md"
+  - uri: ".harness2/h0_manifest.json"
 ---
 
 # Personal-Tracker Knowledge Base Index (OKF v0.2)
@@ -33,6 +35,8 @@ This index serves as the machine-readable and human-navigable entrypoint for aut
 | [**`_bmad-output/project-context.md`**](../../_bmad-output/project-context.md) | `system-context` | Engineering guidelines, technology stack baseline (Kotlin 2.1, Compose BOM, Room/SQLCipher), token rules, and pitfalls. | Verified (Human-Reviewed) |
 | [**`HANDOFF.md`**](../../HANDOFF.md) | `handoff` | Session snapshot, completed story inventory, exact kickoff instructions for Story 1.6, and runbook. | Verified (Human-Reviewed) |
 | [**`_bmad-output/implementation-artifacts/sprint-status.yaml`**](../../_bmad-output/implementation-artifacts/sprint-status.yaml) | `sprint-status` | Dynamic single source of truth for story lifecycle states across Epics 1 through 4. | Machine-Updated |
+| [**`.harness2/EXPERIENCE.md`**](../../.harness2/EXPERIENCE.md) | `harness2-experience` | Google Research Harness² experience library: verified engineering heuristics, anti-patterns, and debugging lessons. | Verified (H0 Baseline) |
+| [**`.agents/scripts/harness2_bridge.py`**](../../.agents/scripts/harness2_bridge.py) | `harness2-bridge` | Bridge orchestrating H0 component validation and single-pass Propose-Probe-Compose diagnostics. | Active |
 
 ---
 
@@ -80,4 +84,7 @@ python .agents/scripts/harness_gate.py --test
 
 # 5. Android Lint Check
 .\gradlew lintDebug
+
+# 6. Google Research Harness² H0 Baseline & Component Validation
+python .agents/scripts/harness2_bridge.py --check
 ```

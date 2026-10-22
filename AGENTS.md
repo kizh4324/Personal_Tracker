@@ -31,6 +31,9 @@ Local-first, network-optional native Android personal productivity application w
 - Database, DAOs & Entities: `app/src/main/java/com/personaltracker/data/local/db/`
 - Hardware Cryptography: `app/src/main/java/com/personaltracker/data/local/security/`
 - Compose Theme Tokens: `app/src/main/java/com/personaltracker/ui/theme/`
+- Google Research Harness² Bridge: `.agents/scripts/harness2_bridge.py`
+- Harness² Experience Library: `.harness2/EXPERIENCE.md`
+- H0 Baseline Manifest: `.harness2/h0_manifest.json`
 
 ## Running and verifying
 
@@ -60,4 +63,5 @@ Local-first, network-optional native Android personal productivity application w
 
 - **Progressive Context Loading:** At the start of every session, task, or `/bmad-build` invocation, agents must read `docs/okf/index.md` and `HANDOFF.md` first.
 - **Subagent Delegation Policy:** Strictly follow `.agents/rules/harness-subagents.md`. Use `invoke_subagent` in `Workspace: "inherit"` mode when building multi-component features (such as Story 1.6's 5 platform services) or running heavy test suites. Use `Workspace: "branch"` mode for exploratory spikes, UI theme swaps, or database schema migrations to protect the primary context budget.
+- **Harness² H0 Baseline & Experience Integration:** Validate harness components with `python .agents/scripts/harness2_bridge.py --check` and consult `.harness2/EXPERIENCE.md` for operational heuristics and anti-patterns before executing new stories.
 
