@@ -17,7 +17,7 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-20 17:00:00 +05:30
+*   **Date/Time:** 2026-10-23 11:10:00 +05:30
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
@@ -215,10 +215,11 @@ flowchart TD
     git status
     .\gradlew test
     python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .
+    python .agents/scripts/harness2_bridge.py --check
     ```
-2.  **Inspect Story 1.7 Requirements:** Read `epics.md` § Story 1.7 (`Unidirectional MVI Screen Wiring & ViewModels Baseline`).
-3.  **Create MVI ViewModels & Contract Interfaces:** Implement `HomeViewModel`, `CompanionViewModel`, and `QuickCaptureViewModel` under `ui/screens/` or `ui/viewmodel/` consuming domain use cases and Flow repositories.
-4.  **Wire Screens to ViewModels:** Refactor `HomeScreen.kt` and `CompanionScreen.kt` to bind to ViewModel `StateFlow<UiState>` and dispatch `UiIntent`s.
+2.  **Inspect Story 1.8 Requirements:** Read `epics.md` § Story 1.8 (`DayType Schedule Resolution & Morning Template Swap`).
+3.  **Execute Story 1.8 Plan:** Generate `spec-1-8-daytype-schedule-resolution-morning-template-swap.md` and implement date-specific user overrides and morning template swap dialog.
+4.  **Wire to Home & Settings:** Integrate morning template swap banner with `HomeViewModel` and `DayTypeChip`.
 
 ### Kickoff Verification Checklist:
 *   [ ] Read this `HANDOFF.md` completely.

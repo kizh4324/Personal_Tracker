@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-15-2026 22:07
-last_updated: 10-22-2026 10:55
+last_updated: 10-23-2026 11:10
 project: Personal-Tracker
 project_key: NOKEY
 tracking_system: file-system
@@ -42,7 +42,7 @@ development_status:
   1-4-pure-kotlin-behavioral-engines-deterministic-nlp-command-par: done
   1-5-ui-shell-atomic-component-library: review
   1-6-platform-runtime-services-background-workers: done
-  1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline: review
+  1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline: done
   1-8-daytype-schedule-resolution-morning-template-swap: backlog
   1-9-dynamic-state-aware-hero-card-integration-action-list: backlog
   1-10-core-task-management-delivery-intensity-classification: backlog

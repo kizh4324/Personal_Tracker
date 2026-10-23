@@ -101,3 +101,34 @@ Authoritative repository of verified engineering heuristics, operational invaria
   ```powershell
   adb shell screencap -p /sdcard/temp.png; adb pull /sdcard/temp.png screenshot.png; adb shell rm /sdcard/temp.png
   ```
+
+---
+
+## 7. MVI, StateFlow & Turbine Testing
+
+### EXP-014: StateFlow Testing with Turbine & Dispatcher Rules
+* **Context:** Unit-testing `@HiltViewModel` classes with `StateFlow<UiState>` and Channel-backed `Flow<UiEffect>`.
+* **Heuristic:** `StateFlow` conflates duplicate values and operates over active coroutine scopes. Testing without a deterministic `TestDispatcher` causes timing races and missed emissions.
+* **Rule:** Use a `MainDispatcherRule` (with `StandardTestDispatcher` or `UnconfinedTestDispatcher`) in every ViewModel test suite. In Turbine blocks (`viewModel.uiState.test { ... }`), call `testScheduler.advanceUntilIdle()` before checking expected state transitions.
+
+### EXP-015: Static Service State Cleanup in Unit Tests (@After Teardown)
+* **Context:** ViewModels observing static companion StateFlows (e.g., `StudySessionForegroundService.timerState`).
+* **Heuristic:** Mutating companion object `StateFlow` instances during test runs pollutes state for subsequent test classes running in the same JVM process, causing unpredictable test order flakiness.
+* **Rule:** Every test class that modifies static service or platform state must provide an `@After fun tearDown()` resetting `_timerState.value = StudySessionTimerState()`.
+
+### EXP-016: Figma-Ready Route/ScreenContent Decoupling (AD-2)
+* **Context:** Screen presentation architecture and upcoming Figma/Stitch MCP UI synchronization.
+* **Heuristic:** Mixing Hilt ViewModel injection and state collection inside rendering composables prevents design tools and subagents from swapping visual components without breaking state contracts.
+* **Rule:** Strictly maintain two composables per screen:
+  1. `*Route(viewModel: *ViewModel = hiltViewModel(), onNavigate: ...)`: Stateful Hilt collector utilizing `collectAsStateWithLifecycle()` and launching effect collectors.
+  2. `*ScreenContent(state: *UiState, onIntent: (*UiIntent) -> Unit)`: 100% stateless Compose UI with zero ViewModel or repository dependencies.
+
+### EXP-017: Multi-Flow Reactive Aggregation with Dynamic Date Resolution
+* **Context:** Persistent top context bars (`AppShellViewModel`) and schedule resolution.
+* **Heuristic:** Capturing `val today = LocalDate.now().toString()` at ViewModel instantiation freezes date resolution. The app remains on the previous day's schedule after crossing midnight.
+* **Rule:** Always evaluate `LocalDate.now().toString()` dynamically inside the `combine(...) { ... }` transform lambda across `DayTypeRepository`, `HabitRepository`, and `EconomyRepository` streams.
+
+### EXP-018: Job Cancellation on UI Refresh Intents
+* **Context:** ViewModels handling explicit `UiIntent.Refresh` actions.
+* **Heuristic:** Re-launching repository collection coroutines on `Refresh` without cancelling prior observers creates duplicate concurrent collectors, memory leaks, and multiplied database load.
+* **Rule:** Store references to observation `Job`s and cancel them prior to launching new observations upon receiving `UiIntent.Refresh`.
