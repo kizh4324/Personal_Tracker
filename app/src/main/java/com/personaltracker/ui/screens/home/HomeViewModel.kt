@@ -1,8 +1,11 @@
 package com.personaltracker.ui.screens.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personaltracker.domain.engine.StreakStateMachine
+import com.personaltracker.domain.model.DayOverride
+import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.Task
@@ -14,13 +17,13 @@ import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
+import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import com.personaltracker.ui.components.cards.HeroCardState
 import com.personaltracker.ui.components.cards.RoutineStepStatus
 import com.personaltracker.ui.components.cards.resolveHeroPriority
-import android.content.Context
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -40,6 +43,14 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
+private data class BaseHomeData(
+    val tasks: List<Task>,
+    val habits: List<Habit>,
+    val balance: Int,
+    val dayTypes: List<DayType>,
+    val override: DayOverride?
+)
+
 /**
  * Production MVI ViewModel driving the Home feed (AD-1, AD-2).
  * Combines reactive Flow repositories into a single immutable [HomeUiState]
@@ -53,6 +64,7 @@ class HomeViewModel @Inject constructor(
     private val economyRepository: EconomyRepository,
     private val dayTypeRepository: DayTypeRepository,
     private val resolveDayTypeUseCase: ResolveDayTypeUseCase,
+    private val switchDayTypeUseCase: SwitchDayTypeUseCase,
     private val completeTaskUseCase: CompleteTaskUseCase,
     private val logHabitUseCase: LogHabitUseCase,
     private val streakStateMachine: StreakStateMachine,
@@ -67,6 +79,7 @@ class HomeViewModel @Inject constructor(
 
     private val isMorningBannerDismissed = MutableStateFlow(false)
     private val activeRoutineStepStatus = MutableStateFlow(RoutineStepStatus.ACTIVE)
+    private val isDayTypeSelectorOpen = MutableStateFlow(false)
 
     private var observeDataJob: Job? = null
 
@@ -81,25 +94,42 @@ class HomeViewModel @Inject constructor(
         val tasksFlow = taskRepository.getTasksForDate(today)
         val habitsFlow = habitRepository.getAllHabits()
         val balanceFlow = economyRepository.observeLatestBalance()
+        val dayTypesFlow = dayTypeRepository.getAllDayTypes()
+        val overrideFlow = dayTypeRepository.observeOverrideForDate(today)
         val timerFlow = StudySessionForegroundService.timerState
 
-        val topDataFlow = combine(tasksFlow, habitsFlow, balanceFlow) { tasks, habits, balance ->
-            Triple(tasks, habits, balance)
+        val baseDataFlow = combine(
+            tasksFlow,
+            habitsFlow,
+            balanceFlow,
+            dayTypesFlow,
+            overrideFlow
+        ) { tasks, habits, balance, dayTypes, override ->
+            BaseHomeData(tasks, habits, balance, dayTypes, override)
         }
 
         observeDataJob = combine(
-            topDataFlow,
+            baseDataFlow,
             timerFlow,
             isMorningBannerDismissed,
-            activeRoutineStepStatus
-        ) { (tasks, habits, balance), timer, bannerDismissed, routineStatus ->
-            val resolvedDayType = runCatching { resolveDayTypeUseCase(today) }.getOrNull()
-            val dayTypeName = resolvedDayType?.name ?: "Weekday Routine"
-            val dayTypeId = resolvedDayType?.id
+            activeRoutineStepStatus,
+            isDayTypeSelectorOpen
+        ) { baseData, timer, bannerDismissed, routineStatus, selectorOpen ->
+            val currentDate = LocalDate.now().toString()
+            val tasks = baseData.tasks
+            val habits = baseData.habits
+            val balance = baseData.balance
+            val dayTypes = if (baseData.dayTypes.isNotEmpty()) baseData.dayTypes else DayType.BUILT_IN_DAY_TYPES
+            val override = baseData.override
+
+            val resolvedDayType = resolveDayTypeUseCase.resolve(currentDate, override, dayTypes)
+            val dayTypeName = resolvedDayType.name
+            val dayTypeId = resolvedDayType.id
+            val isOverrideActive = override != null
 
             // Habits item states
             val habitItemStates = habits.map { habit ->
-                val log = habitRepository.getLogForDate(habit.id, today)
+                val log = habitRepository.getLogForDate(habit.id, currentDate)
                 val isCompleted = log != null && log.status.equals("COMPLETED", ignoreCase = true)
                 HomeHabitItemState(
                     habit = habit,
@@ -113,7 +143,7 @@ class HomeViewModel @Inject constructor(
             val overallFlameState = streakStateMachine.getFlameState(maxStreak)
 
             // Overdue tasks for carry forward
-            val overdueTasks = runCatching { taskRepository.getOverduePendingTasks(today) }.getOrDefault(emptyList())
+            val overdueTasks = runCatching { taskRepository.getOverduePendingTasks(currentDate) }.getOrDefault(emptyList())
 
             // Interrupted task
             val interruptedTask = runCatching { taskRepository.getLatestInterruptedTask() }.getOrNull()
@@ -161,7 +191,7 @@ class HomeViewModel @Inject constructor(
                 heroCandidates.add(
                     HeroCardState.MorningBanner(
                         dayTypeName = dayTypeName,
-                        onSwapDayType = { onIntent(HomeUiIntent.SwapDayType) },
+                        onSwapDayType = { onIntent(HomeUiIntent.OpenDayTypeSelector) },
                         onDismiss = { onIntent(HomeUiIntent.DismissMorningBanner) }
                     )
                 )
@@ -213,6 +243,10 @@ class HomeViewModel @Inject constructor(
             HomeUiState(
                 activeDayTypeName = dayTypeName,
                 activeDayTypeId = dayTypeId,
+                activeDayType = resolvedDayType,
+                availableDayTypes = dayTypes,
+                isDayOverrideActive = isOverrideActive,
+                isDayTypeSelectorOpen = selectorOpen,
                 streakCount = maxStreak,
                 flameState = overallFlameState,
                 coinBalance = balance,
@@ -239,9 +273,41 @@ class HomeViewModel @Inject constructor(
             is HomeUiIntent.ResumeInterruptedTask -> handleResumeTask(intent)
             is HomeUiIntent.ReviewCarryForward -> handleReviewCarryForward()
             is HomeUiIntent.DismissMorningBanner -> isMorningBannerDismissed.value = true
-            is HomeUiIntent.SwapDayType -> handleSwapDayType()
-            is HomeUiIntent.DayTypeClicked -> handleDayTypeClicked()
+            is HomeUiIntent.SwapDayType -> isDayTypeSelectorOpen.value = true
+            is HomeUiIntent.DayTypeClicked -> isDayTypeSelectorOpen.value = true
+            is HomeUiIntent.OpenDayTypeSelector -> isDayTypeSelectorOpen.value = true
+            is HomeUiIntent.DismissDayTypeSelector -> isDayTypeSelectorOpen.value = false
+            is HomeUiIntent.SelectDayType -> handleSelectDayType(intent)
+            is HomeUiIntent.ResetDayTypeOverride -> handleResetDayTypeOverride()
             is HomeUiIntent.Refresh -> observeDataStreams()
+        }
+    }
+
+    private fun handleSelectDayType(intent: HomeUiIntent.SelectDayType) {
+        isDayTypeSelectorOpen.value = false
+        viewModelScope.launch {
+            runCatching {
+                val today = LocalDate.now().toString()
+                val result = switchDayTypeUseCase(intent.dayTypeId, today)
+                _uiEffect.send(HomeUiEffect.DayTypeChanged(result.activeDayType.name))
+                _uiEffect.send(HomeUiEffect.ShowSnackbar(result.message))
+            }.onFailure {
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not update schedule. Please try again."))
+            }
+        }
+    }
+
+    private fun handleResetDayTypeOverride() {
+        isDayTypeSelectorOpen.value = false
+        viewModelScope.launch {
+            runCatching {
+                val today = LocalDate.now().toString()
+                val result = switchDayTypeUseCase.resetOverride(today)
+                _uiEffect.send(HomeUiEffect.DayTypeChanged(result.activeDayType.name))
+                _uiEffect.send(HomeUiEffect.ShowSnackbar(result.message))
+            }.onFailure {
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not reset schedule. Please try again."))
+            }
         }
     }
 
@@ -306,18 +372,6 @@ class HomeViewModel @Inject constructor(
     private fun handleReviewCarryForward() {
         viewModelScope.launch {
             _uiEffect.send(HomeUiEffect.NavigateTo(PersonalTrackerDestination.HOME))
-        }
-    }
-
-    private fun handleSwapDayType() {
-        viewModelScope.launch {
-            _uiEffect.send(HomeUiEffect.NavigateTo(PersonalTrackerDestination.SETTINGS))
-        }
-    }
-
-    private fun handleDayTypeClicked() {
-        viewModelScope.launch {
-            _uiEffect.send(HomeUiEffect.NavigateTo(PersonalTrackerDestination.SETTINGS))
         }
     }
 }

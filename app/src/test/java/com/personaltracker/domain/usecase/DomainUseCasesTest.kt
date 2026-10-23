@@ -411,6 +411,12 @@ private class FakeDayTypeRepository : DayTypeRepository {
     override suspend fun getDayTypeById(id: String): DayType? = dayTypes.value.find { it.id == id }
     override suspend fun saveDayType(dayType: DayType) { dayTypes.value = dayTypes.value.filter { it.id != dayType.id } + dayType }
     override suspend fun saveDayTypes(dayTypes: List<DayType>) { this.dayTypes.value = dayTypes }
+    override suspend fun ensureDefaultDayTypes(): List<DayType> {
+        if (dayTypes.value.isEmpty()) {
+            dayTypes.value = DayType.BUILT_IN_DAY_TYPES
+        }
+        return dayTypes.value
+    }
     override suspend fun getOverrideForDate(date: String): DayOverride? = overrides[date]
     override fun observeOverrideForDate(date: String): Flow<DayOverride?> = MutableStateFlow(overrides[date])
     override suspend fun setOverrideForDate(override: DayOverride) { overrides[override.date] = override }

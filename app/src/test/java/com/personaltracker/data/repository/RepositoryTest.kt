@@ -422,6 +422,14 @@ class RepositoryTest {
         dayTypeRepo.saveDayType(dt)
         assertEquals("Heavy Study", dayTypeRepo.getDayTypeById("focus_heavy")?.name)
 
+        // Verify ensureDefaultDayTypes seeds built-ins on empty repo
+        val freshDayTypeDao = FakeDayTypeDao()
+        val freshDayTypeRepo = DayTypeRepositoryImpl(freshDayTypeDao, dayOverrideDao, testDispatcher)
+        val seeded = freshDayTypeRepo.ensureDefaultDayTypes()
+        assertEquals(4, seeded.size)
+        assertEquals(4, freshDayTypeDao.getDayTypeCount())
+        assertEquals("Standard Routine", freshDayTypeRepo.getDayTypeById("dt_standard")?.name)
+
         // Routine with steps
         val routine = Routine(
             id = "routine-1",
@@ -720,6 +728,10 @@ private class FakeDayTypeDao : DayTypeDao {
         dayTypes.value.find { it.id == id }
 
     override fun getAllDayTypes(): Flow<List<DayTypeEntity>> = dayTypes
+
+    override suspend fun getDayTypesList(): List<DayTypeEntity> = dayTypes.value
+
+    override suspend fun getDayTypeCount(): Int = dayTypes.value.size
 
     override suspend fun insertDayType(dayType: DayTypeEntity) {
         dayTypes.value = dayTypes.value.filter { it.id != dayType.id } + dayType

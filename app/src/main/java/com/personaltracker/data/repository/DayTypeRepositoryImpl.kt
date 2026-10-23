@@ -10,6 +10,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -23,6 +24,7 @@ internal class DayTypeRepositoryImpl @Inject constructor(
 
     override fun getAllDayTypes(): Flow<List<DayType>> =
         dayTypeDao.getAllDayTypes()
+            .onStart { ensureDefaultDayTypes() }
             .map { list -> list.map { it.toDomain() } }
             .flowOn(ioDispatcher)
 
@@ -39,6 +41,17 @@ internal class DayTypeRepositoryImpl @Inject constructor(
     override suspend fun saveDayTypes(dayTypes: List<DayType>) =
         withContext(ioDispatcher) {
             dayTypeDao.insertDayTypes(dayTypes.map { it.toEntity() })
+        }
+
+    override suspend fun ensureDefaultDayTypes(): List<DayType> =
+        withContext(ioDispatcher) {
+            val count = dayTypeDao.getDayTypeCount()
+            if (count == 0) {
+                dayTypeDao.insertDayTypes(DayType.BUILT_IN_DAY_TYPES.map { it.toEntity() })
+                DayType.BUILT_IN_DAY_TYPES
+            } else {
+                dayTypeDao.getDayTypesList().map { it.toDomain() }
+            }
         }
 
     override suspend fun getOverrideForDate(date: String): DayOverride? =

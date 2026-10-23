@@ -29,6 +29,8 @@ import androidx.navigation.compose.rememberNavController
 import com.personaltracker.ui.screens.companion.CompanionRoute
 import com.personaltracker.ui.screens.habits.HabitsRoute
 import com.personaltracker.ui.screens.home.HomeRoute
+import com.personaltracker.ui.screens.home.HomeUiIntent
+import com.personaltracker.ui.screens.home.HomeViewModel
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureViewModel
 import com.personaltracker.ui.screens.settings.SettingsRoute
 import com.personaltracker.ui.screens.study.StudyRoute
@@ -55,7 +57,8 @@ fun PersonalTrackerDestination.icon(): ImageVector {
 fun PersonalTrackerApp(
     navController: NavHostController = rememberNavController(),
     appShellViewModel: AppShellViewModel = hiltViewModel(),
-    quickCaptureViewModel: QuickCaptureViewModel = hiltViewModel()
+    quickCaptureViewModel: QuickCaptureViewModel = hiltViewModel(),
+    homeViewModel: HomeViewModel = hiltViewModel()
 ) {
     val shellState by appShellViewModel.uiState.collectAsStateWithLifecycle()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -75,7 +78,13 @@ fun PersonalTrackerApp(
     AppShellScaffold(
         currentDestination = currentDestination,
         onNavigateToDestination = navigateTo,
-        onDayTypeClick = { navigateTo(PersonalTrackerDestination.SETTINGS) },
+        onDayTypeClick = {
+            if (currentDestination == PersonalTrackerDestination.HOME) {
+                homeViewModel.onIntent(HomeUiIntent.OpenDayTypeSelector)
+            } else {
+                navigateTo(PersonalTrackerDestination.SETTINGS)
+            }
+        },
         activeDayTypeName = shellState.activeDayTypeName,
         streakCount = shellState.streakCount,
         coinBalance = shellState.coinBalance,
@@ -89,7 +98,10 @@ fun PersonalTrackerApp(
                 .padding(innerPadding)
         ) {
             composable(PersonalTrackerDestination.HOME.route) {
-                HomeRoute(onNavigate = navigateTo)
+                HomeRoute(
+                    viewModel = homeViewModel,
+                    onNavigate = navigateTo
+                )
             }
             composable(PersonalTrackerDestination.HABITS.route) {
                 HabitsRoute(onNavigate = navigateTo)

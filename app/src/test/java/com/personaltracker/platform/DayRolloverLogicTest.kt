@@ -227,6 +227,13 @@ class DayRolloverLogicTest {
             dayTypes.forEach { this.dayTypes[it.id] = it }
         }
 
+        override suspend fun ensureDefaultDayTypes(): List<DayType> {
+            if (dayTypes.isEmpty()) {
+                DayType.BUILT_IN_DAY_TYPES.forEach { dayTypes[it.id] = it }
+            }
+            return dayTypes.values.toList()
+        }
+
         override suspend fun getOverrideForDate(date: String): DayOverride? = overrides[date]
 
         override fun observeOverrideForDate(date: String): Flow<DayOverride?> = flowOf(overrides[date])

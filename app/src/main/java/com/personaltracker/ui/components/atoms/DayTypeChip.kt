@@ -29,9 +29,9 @@ import com.personaltracker.ui.theme.PersonalTrackerTheme
 fun resolveDayTypeColor(nameOrId: String, colors: PersonalTrackerColors): Color {
     val key = nameOrId.uppercase()
     return when {
-        key.contains("WEEKEND") -> colors.daytypeWeekend
-        key.contains("COLLEGE") -> colors.daytypeCollege
-        key.contains("SPECIAL") -> colors.daytypeSpecial
+        key.contains("WEEKEND") || key.contains("REST") -> colors.daytypeWeekend
+        key.contains("COLLEGE") || key.contains("CRUNCH") -> colors.daytypeCollege
+        key.contains("SPECIAL") || key.contains("LOW") -> colors.daytypeSpecial
         else -> colors.daytypeWeekday
     }
 }

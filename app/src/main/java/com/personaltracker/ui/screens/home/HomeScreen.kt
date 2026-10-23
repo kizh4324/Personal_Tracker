@@ -29,6 +29,7 @@ import com.personaltracker.ui.components.cards.HabitStreakCard
 import com.personaltracker.ui.components.cards.HeroActionCard
 import com.personaltracker.ui.components.cards.RoutineStepStatus
 import com.personaltracker.ui.components.cards.TaskIntensityCard
+import com.personaltracker.ui.components.overlays.DayTypeSelectorDialog
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -45,6 +46,7 @@ fun HomeRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val rewardMotionStage = LocalRewardMotionStage.current
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
@@ -59,7 +61,10 @@ fun HomeRoute(
                     rewardMotionStage.dispatchLottieReward(effect.type)
                 }
                 is HomeUiEffect.ShowSnackbar -> {
-                    // Handled via scaffold or toast
+                    android.widget.Toast.makeText(context, effect.message, android.widget.Toast.LENGTH_SHORT).show()
+                }
+                is HomeUiEffect.DayTypeChanged -> {
+                    // Handled reactively via StateFlow updates
                 }
                 is HomeUiEffect.NavigateTo -> {
                     onNavigate(effect.destination)
@@ -90,6 +95,22 @@ fun HomeScreenContent(
     val spacing = PersonalTrackerTheme.spacing
 
     var taskCardOffset by remember { mutableStateOf(Offset.Zero) }
+
+    DayTypeSelectorDialog(
+        isOpen = state.isDayTypeSelectorOpen,
+        availableDayTypes = state.availableDayTypes,
+        activeDayTypeId = state.activeDayTypeId,
+        isOverrideActive = state.isDayOverrideActive,
+        onSelectDayType = { dayTypeId ->
+            onIntent(HomeUiIntent.SelectDayType(dayTypeId))
+        },
+        onResetOverride = {
+            onIntent(HomeUiIntent.ResetDayTypeOverride)
+        },
+        onDismiss = {
+            onIntent(HomeUiIntent.DismissDayTypeSelector)
+        }
+    )
 
     Column(
         modifier = modifier

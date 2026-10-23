@@ -197,6 +197,13 @@ class TestDayTypeRepository : DayTypeRepository {
         this.dayTypesFlow.value = dayTypes
     }
 
+    override suspend fun ensureDefaultDayTypes(): List<DayType> {
+        if (dayTypesFlow.value.isEmpty()) {
+            dayTypesFlow.value = DayType.BUILT_IN_DAY_TYPES
+        }
+        return dayTypesFlow.value
+    }
+
     override suspend fun getOverrideForDate(date: String): DayOverride? =
         overridesFlow.value[date]
 

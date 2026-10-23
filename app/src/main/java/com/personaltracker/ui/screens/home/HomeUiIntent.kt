@@ -16,5 +16,9 @@ sealed interface HomeUiIntent {
     object DismissMorningBanner : HomeUiIntent
     object SwapDayType : HomeUiIntent
     object DayTypeClicked : HomeUiIntent
+    object OpenDayTypeSelector : HomeUiIntent
+    object DismissDayTypeSelector : HomeUiIntent
+    data class SelectDayType(val dayTypeId: String) : HomeUiIntent
+    object ResetDayTypeOverride : HomeUiIntent
     object Refresh : HomeUiIntent
 }

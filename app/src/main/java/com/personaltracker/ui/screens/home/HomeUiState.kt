@@ -1,6 +1,7 @@
 package com.personaltracker.ui.screens.home
 
 import com.personaltracker.domain.engine.FlameState
+import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.Task
@@ -11,8 +12,12 @@ import com.personaltracker.ui.components.cards.RoutineStepStatus
  * Single immutable UI state representing the entire Home screen surface (AD-2).
  */
 data class HomeUiState(
-    val activeDayTypeName: String = "Weekday Routine",
+    val activeDayTypeName: String = "Standard Routine",
     val activeDayTypeId: String? = null,
+    val activeDayType: DayType? = null,
+    val availableDayTypes: List<DayType> = emptyList(),
+    val isDayOverrideActive: Boolean = false,
+    val isDayTypeSelectorOpen: Boolean = false,
     val streakCount: Int = 0,
     val flameState: FlameState = FlameState.COLD,
     val coinBalance: Int = 0,

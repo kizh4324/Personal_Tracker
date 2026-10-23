@@ -132,3 +132,18 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Context:** ViewModels handling explicit `UiIntent.Refresh` actions.
 * **Heuristic:** Re-launching repository collection coroutines on `Refresh` without cancelling prior observers creates duplicate concurrent collectors, memory leaks, and multiplied database load.
 * **Rule:** Store references to observation `Job`s and cancel them prior to launching new observations upon receiving `UiIntent.Refresh`.
+
+---
+
+## 8. Schedule Adaptation & Persistence Invariants
+
+### EXP-019: Non-Destructive Schedule Adaptation & Template Immutability (AD-6)
+* **Context:** Dynamic schedule recalculation and mid-day DayType template swaps (`SwitchDayTypeUseCase`).
+* **Heuristic:** Overwriting `RoutineStepEntity` durations in SQLite when scaling routines for a day-override permanently corrupts baseline templates, causing mathematical distortion and preventing clean schedule resets.
+* **Rule:** Routine duration scaling must be calculated dynamically for the active schedule; base template steps in `routine_steps` must remain immutable in persistent storage.
+
+### EXP-020: Foreign Key Constraint Safety on Single-Date Overrides (AD-3)
+* **Context:** Creating date-specific schedule overrides (`DayOverrideEntity` -> `DayTypeEntity`).
+* **Heuristic:** Room enforces `ForeignKey(onDelete = RESTRICT)` on `dayTypeId`. Inserting an override with a fallback ID or unseeded DayType throws `SQLiteConstraintException`.
+* **Rule:** Always ensure the target `DayType` exists and is confirmed in SQLite persistence before writing a `DayOverrideEntity`.
+

@@ -11,5 +11,6 @@ sealed interface HomeUiEffect {
     data class ShowCoinReward(val startOffset: Offset, val coinCount: Int) : HomeUiEffect
     data class ShowLottieReward(val type: RewardAnimationType) : HomeUiEffect
     data class ShowSnackbar(val message: String) : HomeUiEffect
+    data class DayTypeChanged(val dayTypeName: String) : HomeUiEffect
     data class NavigateTo(val destination: PersonalTrackerDestination) : HomeUiEffect
 }

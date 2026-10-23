@@ -38,7 +38,7 @@ class AdaptiveScheduleEngine {
         require(availableDayTypes.isNotEmpty()) { "availableDayTypes list must not be empty" }
 
         // 1. User override for this specific date
-        if (override != null) {
+        if (override != null && override.date == date) {
             val matchedOverride = availableDayTypes.find { it.id == override.dayTypeId }
             if (matchedOverride != null) {
                 return matchedOverride

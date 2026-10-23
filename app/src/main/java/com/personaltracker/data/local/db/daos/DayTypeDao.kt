@@ -20,6 +20,12 @@ internal interface DayTypeDao {
     @Query("SELECT * FROM day_types")
     fun getAllDayTypes(): Flow<List<DayTypeEntity>>
 
+    @Query("SELECT * FROM day_types")
+    suspend fun getDayTypesList(): List<DayTypeEntity>
+
+    @Query("SELECT COUNT(*) FROM day_types")
+    suspend fun getDayTypeCount(): Int
+
     @Upsert
     suspend fun insertDayType(dayType: DayTypeEntity)
 

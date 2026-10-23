@@ -12,6 +12,7 @@ import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
+import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
@@ -21,6 +22,7 @@ import com.personaltracker.ui.screens.home.HomeUiIntent
 import com.personaltracker.ui.screens.home.HomeViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -48,6 +50,7 @@ class HomeViewModelTest {
     private lateinit var streakMachine: StreakStateMachine
     private lateinit var ledgerEngine: GamificationLedgerEngine
     private lateinit var resolveDayTypeUseCase: ResolveDayTypeUseCase
+    private lateinit var switchDayTypeUseCase: SwitchDayTypeUseCase
     private lateinit var completeTaskUseCase: CompleteTaskUseCase
     private lateinit var logHabitUseCase: LogHabitUseCase
 
@@ -66,6 +69,12 @@ class HomeViewModelTest {
         ledgerEngine = GamificationLedgerEngine()
 
         resolveDayTypeUseCase = ResolveDayTypeUseCase(dayTypeRepository, adaptiveEngine)
+        switchDayTypeUseCase = SwitchDayTypeUseCase(
+            dayTypeRepository = dayTypeRepository,
+            routineRepository = routineRepository,
+            resolveDayTypeUseCase = resolveDayTypeUseCase,
+            adaptiveScheduleEngine = adaptiveEngine
+        )
         completeTaskUseCase = CompleteTaskUseCase(taskRepository, economyRepository, ledgerEngine)
         logHabitUseCase = LogHabitUseCase(habitRepository, economyRepository, streakMachine, ledgerEngine)
         resetTimerState()
@@ -92,6 +101,7 @@ class HomeViewModelTest {
             economyRepository = economyRepository,
             dayTypeRepository = dayTypeRepository,
             resolveDayTypeUseCase = resolveDayTypeUseCase,
+            switchDayTypeUseCase = switchDayTypeUseCase,
             completeTaskUseCase = completeTaskUseCase,
             logHabitUseCase = logHabitUseCase,
             streakStateMachine = streakMachine
@@ -105,9 +115,99 @@ class HomeViewModelTest {
         viewModel.uiState.test {
             val state = awaitItem()
             assertFalse(state.isLoading)
-            assertEquals("Default Routine", state.activeDayTypeName)
+            assertEquals("Standard Routine", state.activeDayTypeName)
             assertEquals(0, state.coinBalance)
+            assertFalse(state.isDayOverrideActive)
+            assertFalse(state.isDayTypeSelectorOpen)
             assertTrue(state.heroCardState is HeroCardState.MorningBanner)
+        }
+    }
+
+    @Test
+    fun testDayTypeSelectorOpenAndDismissIntents() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.isDayTypeSelectorOpen)
+
+            // Open dialog
+            viewModel.onIntent(HomeUiIntent.OpenDayTypeSelector)
+            val openState = awaitItem()
+            assertTrue(openState.isDayTypeSelectorOpen)
+
+            // Dismiss dialog
+            viewModel.onIntent(HomeUiIntent.DismissDayTypeSelector)
+            val dismissedState = awaitItem()
+            assertFalse(dismissedState.isDayTypeSelectorOpen)
+
+            // Open via DayTypeClicked
+            viewModel.onIntent(HomeUiIntent.DayTypeClicked)
+            val clickedState = awaitItem()
+            assertTrue(clickedState.isDayTypeSelectorOpen)
+
+            viewModel.onIntent(HomeUiIntent.DismissDayTypeSelector)
+            val dismissedState2 = awaitItem()
+            assertFalse(dismissedState2.isDayTypeSelectorOpen)
+        }
+    }
+
+    @Test
+    fun testSelectDayTypeAppliesOverrideAndEmitsEffect() = runTest {
+        dayTypeRepository.saveDayTypes(DayType.BUILT_IN_DAY_TYPES)
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.SelectDayType("dt_rest"))
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is HomeUiEffect.DayTypeChanged)
+            assertEquals("Rest / Recovery", (effect1 as HomeUiEffect.DayTypeChanged).dayTypeName)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is HomeUiEffect.ShowSnackbar)
+            assertTrue((effect2 as HomeUiEffect.ShowSnackbar).message.contains("Rest well today"))
+        }
+
+        // Verify state update
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertEquals("Rest / Recovery", state.activeDayTypeName)
+            assertTrue(state.isDayOverrideActive)
+            assertFalse(state.isDayTypeSelectorOpen)
+        }
+    }
+
+    @Test
+    fun testResetDayTypeOverrideRevertsToDefault() = runTest {
+        dayTypeRepository.saveDayTypes(DayType.BUILT_IN_DAY_TYPES)
+        dayTypeRepository.setOverrideForDate(
+            com.personaltracker.domain.model.DayOverride(
+                date = today,
+                dayTypeId = "dt_crunch",
+                isUserModified = true,
+                createdTimestamp = System.currentTimeMillis()
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Reset override
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.ResetDayTypeOverride)
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is HomeUiEffect.DayTypeChanged)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is HomeUiEffect.ShowSnackbar)
+            assertTrue((effect2 as HomeUiEffect.ShowSnackbar).message.contains("reset"))
+        }
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertFalse(state.isDayOverrideActive)
+            assertEquals("Standard Routine", state.activeDayTypeName)
         }
     }
 

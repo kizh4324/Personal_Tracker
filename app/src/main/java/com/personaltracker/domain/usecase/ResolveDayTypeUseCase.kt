@@ -1,6 +1,7 @@
 package com.personaltracker.domain.usecase
 
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
+import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.repository.DayTypeRepository
 import kotlinx.coroutines.flow.firstOrNull
@@ -12,6 +13,7 @@ import javax.inject.Inject
  * 1. Date-specific user override
  * 2. Day-of-week default
  * 3. Default template fallback
+ * 4. Safe fallback
  *
  * Implements FR-3, AD-1, AD-3.
  */
@@ -37,5 +39,16 @@ class ResolveDayTypeUseCase @Inject constructor(
             return SAFE_DEFAULT_DAY_TYPE
         }
         return adaptiveScheduleEngine.resolveActiveDayType(date, override, allDayTypes)
+    }
+
+    fun resolve(
+        date: String,
+        override: DayOverride?,
+        availableDayTypes: List<DayType>
+    ): DayType {
+        if (availableDayTypes.isEmpty()) {
+            return SAFE_DEFAULT_DAY_TYPE
+        }
+        return adaptiveScheduleEngine.resolveActiveDayType(date, override, availableDayTypes)
     }
 }
