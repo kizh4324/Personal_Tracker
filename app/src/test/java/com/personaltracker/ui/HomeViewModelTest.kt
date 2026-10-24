@@ -11,10 +11,13 @@ import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
+import com.personaltracker.domain.usecase.DeleteTaskUseCase
 import com.personaltracker.domain.usecase.DismissOverdueTasksUseCase
+import com.personaltracker.domain.usecase.EvaluateTaskUrgencyScarcityUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
+import com.personaltracker.domain.usecase.SaveTaskUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
@@ -59,6 +62,10 @@ class HomeViewModelTest {
     private lateinit var resolveHeroStateUseCase: ResolveHeroStateUseCase
     private lateinit var carryForwardTasksUseCase: CarryForwardTasksUseCase
     private lateinit var dismissOverdueTasksUseCase: DismissOverdueTasksUseCase
+    private lateinit var taskAlarmScheduler: TestTaskAlarmScheduler
+    private lateinit var saveTaskUseCase: SaveTaskUseCase
+    private lateinit var deleteTaskUseCase: DeleteTaskUseCase
+    private lateinit var evaluateTaskUrgencyScarcityUseCase: EvaluateTaskUrgencyScarcityUseCase
 
     private val today = LocalDate.now().toString()
 
@@ -69,6 +76,7 @@ class HomeViewModelTest {
         routineRepository = TestRoutineRepository()
         economyRepository = TestEconomyRepository()
         dayTypeRepository = TestDayTypeRepository()
+        taskAlarmScheduler = TestTaskAlarmScheduler()
 
         adaptiveEngine = AdaptiveScheduleEngine()
         streakMachine = StreakStateMachine()
@@ -81,11 +89,14 @@ class HomeViewModelTest {
             resolveDayTypeUseCase = resolveDayTypeUseCase,
             adaptiveScheduleEngine = adaptiveEngine
         )
-        completeTaskUseCase = CompleteTaskUseCase(taskRepository, economyRepository, ledgerEngine)
+        completeTaskUseCase = CompleteTaskUseCase(taskRepository, economyRepository, ledgerEngine, taskAlarmScheduler)
         logHabitUseCase = LogHabitUseCase(habitRepository, economyRepository, streakMachine, ledgerEngine)
         resolveHeroStateUseCase = ResolveHeroStateUseCase()
         carryForwardTasksUseCase = CarryForwardTasksUseCase(taskRepository)
         dismissOverdueTasksUseCase = DismissOverdueTasksUseCase(taskRepository)
+        saveTaskUseCase = SaveTaskUseCase(taskRepository, taskAlarmScheduler)
+        deleteTaskUseCase = DeleteTaskUseCase(taskRepository, taskAlarmScheduler)
+        evaluateTaskUrgencyScarcityUseCase = EvaluateTaskUrgencyScarcityUseCase(taskRepository)
         resetTimerState()
     }
 
@@ -116,7 +127,10 @@ class HomeViewModelTest {
             streakStateMachine = streakMachine,
             resolveHeroStateUseCase = resolveHeroStateUseCase,
             carryForwardTasksUseCase = carryForwardTasksUseCase,
-            dismissOverdueTasksUseCase = dismissOverdueTasksUseCase
+            dismissOverdueTasksUseCase = dismissOverdueTasksUseCase,
+            saveTaskUseCase = saveTaskUseCase,
+            deleteTaskUseCase = deleteTaskUseCase,
+            evaluateTaskUrgencyScarcityUseCase = evaluateTaskUrgencyScarcityUseCase
         )
     }
 
@@ -539,6 +553,194 @@ class HomeViewModelTest {
             val effect2 = awaitItem()
             assertTrue(effect2 is HomeUiEffect.ShowLottieReward)
             assertEquals(RewardAnimationType.CoinEarnMicro, (effect2 as HomeUiEffect.ShowLottieReward).type)
+        }
+    }
+
+    // =========================================================================
+    // Story 1.10: Task Management & Delivery Intensity Tests
+    // =========================================================================
+
+    @Test
+    fun testOpenTaskEditorForNewTaskSetsEditorOpenAndNullTask() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.isTaskEditorOpen)
+            org.junit.Assert.assertNull(initial.editingTask)
+
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+
+            val opened = awaitItem()
+            assertTrue(opened.isTaskEditorOpen)
+            org.junit.Assert.assertNull(opened.editingTask)
+        }
+    }
+
+    @Test
+    fun testOpenTaskEditorForExistingTaskSetsEditingTask() = runTest {
+        val task = Task(
+            id = "t_edit_1",
+            title = "Edit Architecture Spec",
+            scheduledDate = today,
+            deliveryIntensity = "IMPORTANT"
+        )
+        taskRepository.saveTask(task)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.isTaskEditorOpen)
+
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(task))
+
+            val opened = awaitItem()
+            assertTrue(opened.isTaskEditorOpen)
+            org.junit.Assert.assertNotNull(opened.editingTask)
+            assertEquals("t_edit_1", opened.editingTask?.id)
+            assertEquals("Edit Architecture Spec", opened.editingTask?.title)
+        }
+    }
+
+    @Test
+    fun testDismissTaskEditorClearsEditorState() = runTest {
+        val task = Task(id = "t_dismiss", title = "Dismiss test", scheduledDate = today)
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.isTaskEditorOpen)
+
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(task))
+            val opened = awaitItem()
+            assertTrue(opened.isTaskEditorOpen)
+
+            viewModel.onIntent(HomeUiIntent.DismissTaskEditor)
+            val dismissed = awaitItem()
+            assertFalse(dismissed.isTaskEditorOpen)
+            org.junit.Assert.assertNull(dismissed.editingTask)
+        }
+    }
+
+    @Test
+    fun testSaveTaskItemPersistsTaskAndClosesEditorAndEmitsSnackbar() = runTest {
+        saveTaskUseCase.clock = java.time.Clock.fixed(
+            java.time.Instant.parse("${today}T08:00:00Z"),
+            java.time.ZoneId.of("UTC")
+        )
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            val newTask = Task(
+                id = "t_new",
+                title = "New Core Feature",
+                scheduledDate = today,
+                deliveryIntensity = "URGENT",
+                scheduledTime = "11:00"
+            )
+
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+            viewModel.onIntent(HomeUiIntent.SaveTaskItem(newTask))
+
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Task saved.", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+
+        val persisted = taskRepository.getTaskById("t_new")
+        org.junit.Assert.assertNotNull(persisted)
+        assertEquals("New Core Feature", persisted?.title)
+        assertEquals("URGENT", persisted?.deliveryIntensity)
+        assertTrue(taskAlarmScheduler.cancelledAlarms.contains("t_new"))
+        assertEquals(1, taskAlarmScheduler.scheduledTasks.size)
+    }
+
+    @Test
+    fun testDeleteTaskItemRemovesTaskAndClosesEditorAndEmitsSnackbar() = runTest {
+        val task = Task(
+            id = "t_to_delete",
+            title = "Delete Me",
+            scheduledDate = today
+        )
+        taskRepository.saveTask(task)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(task))
+            viewModel.onIntent(HomeUiIntent.DeleteTaskItem("t_to_delete"))
+
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Task removed.", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+
+        val deleted = taskRepository.getTaskById("t_to_delete")
+        org.junit.Assert.assertNull(deleted)
+        assertTrue(taskAlarmScheduler.cancelledAlarms.contains("t_to_delete"))
+    }
+
+    @Test
+    fun testUrgencySoftCapEvaluationReflectedInHomeUiState() = runTest {
+        // Initially 0 urgent tasks
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val s0 = awaitItem()
+            assertEquals(0, s0.activeUrgentTaskCount)
+            assertFalse(s0.isUrgencySoftCapReached)
+
+            // Add 1 urgent task
+            val urgent1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+            taskRepository.saveTask(urgent1)
+            val s1 = awaitItem()
+            assertEquals(1, s1.activeUrgentTaskCount)
+            assertFalse(s1.isUrgencySoftCapReached)
+
+            // Add 2nd urgent task -> soft cap reached (>= 2)
+            val urgent2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            taskRepository.saveTask(urgent2)
+            val s2 = awaitItem()
+            assertEquals(2, s2.activeUrgentTaskCount)
+            assertTrue(s2.isUrgencySoftCapReached)
+
+            // Complete one urgent task -> soft cap drops below threshold
+            viewModel.onIntent(HomeUiIntent.ToggleTask("u1"))
+            val s3 = awaitItem()
+            assertEquals(1, s3.activeUrgentTaskCount)
+            assertFalse(s3.isUrgencySoftCapReached)
+        }
+    }
+
+    @Test
+    fun testOpenTaskEditorForUrgentTaskExcludesEditingTaskFromSoftCap() = runTest {
+        val urgent1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+        val urgent2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+        taskRepository.saveTasks(listOf(urgent1, urgent2))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(2, initial.activeUrgentTaskCount)
+            assertTrue(initial.isUrgencySoftCapReached)
+
+            viewModel.onIntent(HomeUiIntent.OpenTaskEditor(urgent1))
+
+            val editingState = awaitItem()
+            assertTrue(editingState.isTaskEditorOpen)
+            assertEquals("u1", editingState.editingTask?.id)
+            assertEquals(1, editingState.activeUrgentTaskCount)
+            assertFalse(editingState.isUrgencySoftCapReached)
+
+            viewModel.onIntent(HomeUiIntent.DismissTaskEditor)
+            val dismissedState = awaitItem()
+            assertEquals(2, dismissedState.activeUrgentTaskCount)
+            assertTrue(dismissedState.isUrgencySoftCapReached)
         }
     }
 }

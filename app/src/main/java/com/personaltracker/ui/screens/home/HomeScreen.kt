@@ -3,17 +3,26 @@ package com.personaltracker.ui.screens.home
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,6 +40,7 @@ import com.personaltracker.ui.components.cards.RoutineStepStatus
 import com.personaltracker.ui.components.cards.TaskIntensityCard
 import com.personaltracker.ui.components.overlays.CarryForwardReviewDialog
 import com.personaltracker.ui.components.overlays.DayTypeSelectorDialog
+import com.personaltracker.ui.components.overlays.TaskEditorSheet
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -95,7 +105,9 @@ fun HomeScreenContent(
     val typography = PersonalTrackerTheme.typography
     val spacing = PersonalTrackerTheme.spacing
 
-    var taskCardOffset by remember { mutableStateOf(Offset.Zero) }
+    val taskOffsets = remember { mutableStateMapOf<String, Offset>() }
+    val habitOffsets = remember { mutableStateMapOf<String, Offset>() }
+    var defaultTaskOffset by remember { mutableStateOf(Offset.Zero) }
 
     DayTypeSelectorDialog(
         isOpen = state.isDayTypeSelectorOpen,
@@ -127,6 +139,22 @@ fun HomeScreenContent(
         }
     )
 
+    TaskEditorSheet(
+        isOpen = state.isTaskEditorOpen,
+        task = state.editingTask,
+        isSoftCapReached = state.isUrgencySoftCapReached,
+        activeUrgentTaskCount = state.activeUrgentTaskCount,
+        onSave = { task ->
+            onIntent(HomeUiIntent.SaveTaskItem(task))
+        },
+        onDelete = { taskId ->
+            onIntent(HomeUiIntent.DeleteTaskItem(taskId))
+        },
+        onDismiss = {
+            onIntent(HomeUiIntent.DismissTaskEditor)
+        }
+    )
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -149,32 +177,61 @@ fun HomeScreenContent(
 
         // Section: Today's High-Intensity Tasks
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Today's Focus Tasks",
-                style = typography.title,
-                color = colors.inkPrimary
-            )
-            Spacer(modifier = Modifier.height(spacing.spacing1))
-            Text(
-                text = "Tap complete to trigger Bézier coin arc & Lottie reward animation",
-                style = typography.caption,
-                color = colors.inkSecondary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Today's Focus Tasks",
+                        style = typography.title,
+                        color = colors.inkPrimary
+                    )
+                    Spacer(modifier = Modifier.height(spacing.spacing1))
+                    Text(
+                        text = "Tap checkmark to complete and earn coins",
+                        style = typography.caption,
+                        color = colors.inkSecondary
+                    )
+                }
+
+                TextButton(
+                    onClick = { onIntent(HomeUiIntent.OpenTaskEditor(null)) },
+                    modifier = Modifier.defaultMinSize(
+                        minWidth = spacing.minTouchTarget,
+                        minHeight = spacing.minTouchTarget
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Add new task",
+                        tint = colors.primary,
+                        modifier = Modifier.size(spacing.spacing4)
+                    )
+                    Spacer(modifier = Modifier.width(spacing.spacing1))
+                    Text(
+                        text = "Add",
+                        style = typography.label,
+                        color = colors.primary
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(spacing.spacing3))
 
             if (state.focusTasks.isEmpty()) {
-                // Default demonstration task if database has no tasks for today (guarded no-op)
+                // Default demonstration task if database has no tasks for today
                 TaskIntensityCard(
                     title = "Prepare System Design Presentation",
                     deliveryIntensity = "URGENT",
                     scheduledTime = "3:00 PM",
                     isCompleted = false,
                     onToggleCompletion = { /* Guarded: demo item has no backing database entity */ },
-                    onClick = { /* Guarded: demo item has no backing database entity */ },
+                    onClick = { onIntent(HomeUiIntent.OpenTaskEditor(null)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .onGloballyPositioned { coordinates ->
-                            taskCardOffset = coordinates.positionInWindow()
+                            defaultTaskOffset = coordinates.positionInWindow()
                         }
                 )
             } else {
@@ -186,16 +243,17 @@ fun HomeScreenContent(
                         scheduledTime = task.scheduledTime ?: "Today",
                         isCompleted = isDone,
                         onToggleCompletion = {
-                            onIntent(HomeUiIntent.ToggleTask(task.id, taskCardOffset))
+                            val offset = taskOffsets[task.id] ?: Offset.Zero
+                            onIntent(HomeUiIntent.ToggleTask(task.id, offset))
                         },
                         onClick = {
-                            onIntent(HomeUiIntent.ToggleTask(task.id, taskCardOffset))
+                            onIntent(HomeUiIntent.OpenTaskEditor(task))
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = spacing.spacing2)
                             .onGloballyPositioned { coordinates ->
-                                taskCardOffset = coordinates.positionInWindow()
+                                taskOffsets[task.id] = coordinates.positionInWindow()
                             }
                     )
                 }
@@ -240,14 +298,19 @@ fun HomeScreenContent(
                         isFreezeActive = habitState.habit.isFreezeActive,
                         isCompleted = habitState.isCompletedToday,
                         onToggleCompletion = {
-                            onIntent(HomeUiIntent.ToggleHabit(habitState.habit.id, taskCardOffset))
+                            val offset = habitOffsets[habitState.habit.id] ?: Offset.Zero
+                            onIntent(HomeUiIntent.ToggleHabit(habitState.habit.id, offset))
                         },
                         onClick = {
-                            onIntent(HomeUiIntent.ToggleHabit(habitState.habit.id, taskCardOffset))
+                            val offset = habitOffsets[habitState.habit.id] ?: Offset.Zero
+                            onIntent(HomeUiIntent.ToggleHabit(habitState.habit.id, offset))
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = spacing.spacing2)
+                            .onGloballyPositioned { coordinates ->
+                                habitOffsets[habitState.habit.id] = coordinates.positionInWindow()
+                            }
                     )
                 }
             }

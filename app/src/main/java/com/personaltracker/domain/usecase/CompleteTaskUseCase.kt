@@ -1,5 +1,6 @@
 package com.personaltracker.domain.usecase
 
+import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.engine.CompanionMood
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CompanionProfile
@@ -19,12 +20,13 @@ data class CompleteTaskResult(
 
 /**
  * Pure Kotlin use case executing task completion, generating deterministic coin transactions,
- * and rewarding the companion pet (FR-2.2, FR-8.1, FR-8.2, AD-1, AD-4, AD-6).
+ * coordinating alarm cancellation, and rewarding the companion pet (FR-2.2, FR-5, FR-8.1, FR-8.2, AD-1, AD-4, AD-6).
  */
 class CompleteTaskUseCase @Inject constructor(
     private val taskRepository: TaskRepository,
     private val economyRepository: EconomyRepository,
-    private val ledgerEngine: GamificationLedgerEngine
+    private val ledgerEngine: GamificationLedgerEngine,
+    private val taskAlarmScheduler: TaskAlarmScheduler? = null
 ) {
     suspend operator fun invoke(
         taskId: String,
@@ -39,6 +41,7 @@ class CompleteTaskUseCase @Inject constructor(
         val idempotencyKey = ledgerEngine.generateTaskIdempotencyKey(taskId)
 
         if (task.state.equals("COMPLETED", ignoreCase = true)) {
+            taskAlarmScheduler?.cancelTaskAlarm(taskId)
             return CompleteTaskResult(
                 taskId = taskId,
                 coinReward = 0,
@@ -56,6 +59,9 @@ class CompleteTaskUseCase @Inject constructor(
             coinReward = coinReward,
             idempotencyKey = idempotencyKey
         )
+
+        // Cleanly cancel pending reminder alarm if scheduled
+        taskAlarmScheduler?.cancelTaskAlarm(taskId)
 
         // Award companion XP and celebrate
         val currentProfile = economyRepository.getCompanionProfile()

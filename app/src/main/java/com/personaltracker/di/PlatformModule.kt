@@ -1,7 +1,9 @@
 package com.personaltracker.di
 
 import android.content.Context
+import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.platform.alarm.ExactAlarmScheduler
+import com.personaltracker.platform.alarm.TaskAlarmSchedulerImpl
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
 import dagger.Module
 import dagger.Provides
@@ -22,6 +24,12 @@ object PlatformModule {
     fun provideExactAlarmScheduler(
         @ApplicationContext context: Context
     ): ExactAlarmScheduler = ExactAlarmScheduler(context)
+
+    @Provides
+    @Singleton
+    fun provideTaskAlarmScheduler(
+        exactAlarmScheduler: ExactAlarmScheduler
+    ): TaskAlarmScheduler = TaskAlarmSchedulerImpl(exactAlarmScheduler)
 
     @Provides
     @Singleton

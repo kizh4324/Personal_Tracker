@@ -1,5 +1,6 @@
 package com.personaltracker.ui
 
+import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayOverride
@@ -268,5 +269,24 @@ class TestStudySessionRepository : StudySessionRepository {
 
     override suspend fun recordSessionWithReward(session: StudySession, idempotencyKey: String) {
         saveSession(session)
+    }
+}
+
+class TestTaskAlarmScheduler : TaskAlarmScheduler {
+    val scheduledTasks = mutableListOf<Task>()
+    val cancelledAlarms = mutableListOf<String>()
+
+    override fun scheduleTaskAlarm(task: Task): Boolean {
+        scheduledTasks.add(task)
+        return true
+    }
+
+    override fun cancelTaskAlarm(taskId: String) {
+        cancelledAlarms.add(taskId)
+    }
+
+    fun clear() {
+        scheduledTasks.clear()
+        cancelledAlarms.clear()
     }
 }

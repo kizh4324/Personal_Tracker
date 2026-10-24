@@ -18,10 +18,13 @@ import com.personaltracker.domain.repository.RoutineRepository
 import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
+import com.personaltracker.domain.usecase.DeleteTaskUseCase
 import com.personaltracker.domain.usecase.DismissOverdueTasksUseCase
+import com.personaltracker.domain.usecase.EvaluateTaskUrgencyScarcityUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
+import com.personaltracker.domain.usecase.SaveTaskUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
@@ -55,6 +58,11 @@ private data class BaseHomeData(
     val override: DayOverride?
 )
 
+private data class TaskEditorControl(
+    val isOpen: Boolean = false,
+    val task: Task? = null
+)
+
 private data class HomeControlData(
     val timer: StudySessionTimerState,
     val bannerDismissed: Boolean,
@@ -83,6 +91,9 @@ class HomeViewModel @Inject constructor(
     private val resolveHeroStateUseCase: ResolveHeroStateUseCase,
     private val carryForwardTasksUseCase: CarryForwardTasksUseCase,
     private val dismissOverdueTasksUseCase: DismissOverdueTasksUseCase,
+    private val saveTaskUseCase: SaveTaskUseCase,
+    private val deleteTaskUseCase: DeleteTaskUseCase,
+    private val evaluateTaskUrgencyScarcityUseCase: EvaluateTaskUrgencyScarcityUseCase,
     @ApplicationContext private val context: Context? = null
 ) : ViewModel() {
 
@@ -96,6 +107,7 @@ class HomeViewModel @Inject constructor(
     private val activeRoutineStepStatus = MutableStateFlow(RoutineStepStatus.ACTIVE)
     private val isDayTypeSelectorOpen = MutableStateFlow(false)
     private val isCarryForwardDialogOpen = MutableStateFlow(false)
+    private val taskEditorControl = MutableStateFlow(TaskEditorControl())
     private val snoozedTaskIds = MutableStateFlow<Set<String>>(emptySet())
 
     private var observeDataJob: Job? = null
@@ -132,14 +144,21 @@ class HomeViewModel @Inject constructor(
             isDayTypeSelectorOpen,
             isCarryForwardDialogOpen
         ) { timer, bannerDismissed, routineStatus, selectorOpen, carryDialogOpen ->
-            HomeControlData(timer, bannerDismissed, routineStatus, selectorOpen, carryDialogOpen)
+            HomeControlData(
+                timer = timer,
+                bannerDismissed = bannerDismissed,
+                routineStatus = routineStatus,
+                selectorOpen = selectorOpen,
+                carryDialogOpen = carryDialogOpen
+            )
         }
 
         observeDataJob = combine(
             baseDataFlow,
             controlFlow,
+            taskEditorControl,
             snoozedTaskIds
-        ) { baseData, control, snoozedIds ->
+        ) { baseData, control, taskEditor, snoozedIds ->
             val currentDate = LocalDate.now().toString()
             val tasks = baseData.tasks
             val habits = baseData.habits
@@ -288,6 +307,12 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
+            // Urgency soft-scarcity evaluation
+            val urgencyEvaluation = evaluateTaskUrgencyScarcityUseCase(
+                tasks = tasks,
+                excludingTaskId = taskEditor.task?.id
+            )
+
             HomeUiState(
                 activeDayTypeName = dayTypeName,
                 activeDayTypeId = dayTypeId,
@@ -296,6 +321,10 @@ class HomeViewModel @Inject constructor(
                 isDayOverrideActive = isOverrideActive,
                 isDayTypeSelectorOpen = control.selectorOpen,
                 isCarryForwardDialogOpen = control.carryDialogOpen,
+                isTaskEditorOpen = taskEditor.isOpen,
+                editingTask = taskEditor.task,
+                activeUrgentTaskCount = urgencyEvaluation.activeUrgentCount,
+                isUrgencySoftCapReached = urgencyEvaluation.isSoftCapReached,
                 streakCount = maxStreak,
                 flameState = overallFlameState,
                 coinBalance = balance,
@@ -337,7 +366,45 @@ class HomeViewModel @Inject constructor(
             is HomeUiIntent.DismissCarryForwardDialog -> isCarryForwardDialogOpen.value = false
             is HomeUiIntent.CarryForwardAllOverdue -> handleCarryForwardAllOverdue()
             is HomeUiIntent.DismissAllOverdue -> handleDismissAllOverdue()
+            is HomeUiIntent.OpenTaskEditor -> handleOpenTaskEditor(intent.task)
+            is HomeUiIntent.DismissTaskEditor -> handleDismissTaskEditor()
+            is HomeUiIntent.SaveTaskItem -> handleSaveTaskItem(intent.task)
+            is HomeUiIntent.DeleteTaskItem -> handleDeleteTaskItem(intent.taskId)
             is HomeUiIntent.Refresh -> observeDataStreams()
+        }
+    }
+
+    private fun handleOpenTaskEditor(task: Task?) {
+        taskEditorControl.value = TaskEditorControl(isOpen = true, task = task)
+    }
+
+    private fun handleDismissTaskEditor() {
+        taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
+    }
+
+    private fun handleSaveTaskItem(task: Task) {
+        viewModelScope.launch {
+            runCatching {
+                saveTaskUseCase(task)
+                taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Task saved."))
+            }.onFailure { e ->
+                val msg = e.message ?: "Could not save task. Please try again."
+                _uiEffect.send(HomeUiEffect.ShowSnackbar(msg))
+            }
+        }
+    }
+
+    private fun handleDeleteTaskItem(taskId: String) {
+        viewModelScope.launch {
+            runCatching {
+                deleteTaskUseCase(taskId)
+                taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Task removed."))
+            }.onFailure { e ->
+                val msg = e.message ?: "Could not delete task. Please try again."
+                _uiEffect.send(HomeUiEffect.ShowSnackbar(msg))
+            }
         }
     }
 

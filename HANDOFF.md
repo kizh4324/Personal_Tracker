@@ -17,7 +17,7 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-24 20:58:00 +05:30
+*   **Date/Time:** 2026-10-24 22:33:00 +05:30
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
@@ -25,7 +25,7 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (215 tests, ~1m 20s, passes clean)
+    *   Unit Tests (JVM): `.\gradlew test` (245 tests, ~2m 26s, passes clean)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -36,7 +36,7 @@ status: active
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~80% of Epic 1 completed). Stories 1.1 through 1.9 fully implemented and verified; JVM unit tests (215 executed) and Android lint pass with 0 errors.
+*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~85% of Epic 1 completed). Stories 1.1 through 1.10 fully implemented and verified; JVM unit tests (245 executed) and Android lint pass with 0 errors.
 
 ---
 
@@ -217,9 +217,9 @@ flowchart TD
     python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .
     python .agents/scripts/harness2_bridge.py --check
     ```
-2.  **Inspect Story 1.8 Requirements:** Read `epics.md` § Story 1.8 (`DayType Schedule Resolution & Morning Template Swap`).
-3.  **Execute Story 1.8 Plan:** Generate `spec-1-8-daytype-schedule-resolution-morning-template-swap.md` and implement date-specific user overrides and morning template swap dialog.
-4.  **Wire to Home & Settings:** Integrate morning template swap banner with `HomeViewModel` and `DayTypeChip`.
+2.  **Inspect Story 1.11 Requirements:** Read `epics.md` § Story 1.11 (`Sequential Routine Domain Engine & Mid-Day Schedule Recalculation`).
+3.  **Execute Story 1.11 Plan:** Generate `spec-1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat.md` and implement sequential step progression, mid-day routine recalculation, and adaptive duration scaling.
+4.  **Wire to Home & Routines Screen:** Integrate sequential step cards with `HomeViewModel` and MVI action list.
 
 ### Kickoff Verification Checklist:
 *   [ ] Read this `HANDOFF.md` completely.

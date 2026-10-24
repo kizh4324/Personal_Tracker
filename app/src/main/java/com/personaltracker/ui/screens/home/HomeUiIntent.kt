@@ -1,6 +1,7 @@
 package com.personaltracker.ui.screens.home
 
 import androidx.compose.ui.geometry.Offset
+import com.personaltracker.domain.model.Task
 
 /**
  * Sealed interface representing all explicit user interactions on the Home screen (AD-2).
@@ -28,5 +29,9 @@ sealed interface HomeUiIntent {
     object DismissCarryForwardDialog : HomeUiIntent
     object CarryForwardAllOverdue : HomeUiIntent
     object DismissAllOverdue : HomeUiIntent
+    data class OpenTaskEditor(val task: Task? = null) : HomeUiIntent
+    object DismissTaskEditor : HomeUiIntent
+    data class SaveTaskItem(val task: Task) : HomeUiIntent
+    data class DeleteTaskItem(val taskId: String) : HomeUiIntent
     object Refresh : HomeUiIntent
 }

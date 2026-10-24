@@ -161,4 +161,19 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Emitting repository `StateFlow` updates before synchronizing internal data collections causes intermediate StateFlow emissions with divergent state (e.g., `overdueTasks` count mismatching `heroCardState.CarryForwardReview`).
 * **Rule:** Always synchronize backing collections prior to emitting updated flow values in test doubles, and return defensive immutable copies (`toList()`) to prevent in-place mutation races.
 
+---
+
+## 10. Task Management, Alarms & Composite UI Controls
+
+### EXP-023: Pure Domain Alarm Scheduling Abstraction & Key Normalization (AD-1, FR-5)
+* **Context:** Coordinating reminder alarms from pure Kotlin domain interactors (`SaveTaskUseCase`, `DeleteTaskUseCase`, `CompleteTaskUseCase`) through `ExactAlarmScheduler`.
+* **Heuristic:** Domain use cases cannot directly reference `AlarmManager`, `Context`, or `PendingIntent` without violating AD-1. Furthermore, if the platform adapter constructs alarm keys with a prefix (e.g. `"TASK_$taskId"`), calling cancellation with an already-prefixed ID without defensive normalization (`taskId.removePrefix("TASK_")`) results in mismatched keys (`"TASK_TASK_..."`) and orphaned alarms.
+* **Rule:** Expose pure Kotlin contracts (`TaskAlarmScheduler`) in `domain/alarm/`, bind to platform implementations in `di/`, defensively strip redundant prefixes before passing to alarm managers, and suppress alarm registration if scheduled time has already elapsed on the current day to avoid immediate alarm firing upon save.
+
+### EXP-024: Atomic Control Packaging for Composite Dialog State (AD-2)
+* **Context:** Managing modal sheet visibility and editing entities concurrently (`TaskEditorSheet`, `HomeViewModel`).
+* **Heuristic:** Using distinct `MutableStateFlow<Boolean>` for visibility and `MutableStateFlow<Task?>` for target entity causes intermediate desynchronized emissions across `combine(...)` pipelines where the sheet is flagged open before the entity is populated, leading to UI flicker or stale draft data.
+* **Rule:** Encapsulate composite dialog/sheet control state into a single atomic model (e.g. `data class TaskEditorControl(val isOpen: Boolean, val task: Task?)`) and emit it as a single StateFlow. In stateless Compose sheets, reset draft form fields inside `LaunchedEffect(isOpen, task)` to prevent draft leakage across dialog invocations.
+
+
 
