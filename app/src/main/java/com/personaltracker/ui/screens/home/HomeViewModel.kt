@@ -7,6 +7,8 @@ import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
+import com.personaltracker.domain.model.HeroActiveSession
+import com.personaltracker.domain.model.HeroPriorityState
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.repository.DayTypeRepository
@@ -14,16 +16,18 @@ import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
 import com.personaltracker.domain.repository.RoutineRepository
 import com.personaltracker.domain.repository.TaskRepository
+import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
+import com.personaltracker.domain.usecase.DismissOverdueTasksUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
+import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import com.personaltracker.ui.components.cards.HeroCardState
 import com.personaltracker.ui.components.cards.RoutineStepStatus
-import com.personaltracker.ui.components.cards.resolveHeroPriority
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -51,10 +55,18 @@ private data class BaseHomeData(
     val override: DayOverride?
 )
 
+private data class HomeControlData(
+    val timer: StudySessionTimerState,
+    val bannerDismissed: Boolean,
+    val routineStatus: RoutineStepStatus,
+    val selectorOpen: Boolean,
+    val carryDialogOpen: Boolean
+)
+
 /**
  * Production MVI ViewModel driving the Home feed (AD-1, AD-2).
  * Combines reactive Flow repositories into a single immutable [HomeUiState]
- * and evaluates the 6-state [HeroActionCard] priority hierarchy.
+ * and evaluates the 6-state [HeroActionCard] priority hierarchy via [ResolveHeroStateUseCase].
  */
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -68,6 +80,9 @@ class HomeViewModel @Inject constructor(
     private val completeTaskUseCase: CompleteTaskUseCase,
     private val logHabitUseCase: LogHabitUseCase,
     private val streakStateMachine: StreakStateMachine,
+    private val resolveHeroStateUseCase: ResolveHeroStateUseCase,
+    private val carryForwardTasksUseCase: CarryForwardTasksUseCase,
+    private val dismissOverdueTasksUseCase: DismissOverdueTasksUseCase,
     @ApplicationContext private val context: Context? = null
 ) : ViewModel() {
 
@@ -80,6 +95,8 @@ class HomeViewModel @Inject constructor(
     private val isMorningBannerDismissed = MutableStateFlow(false)
     private val activeRoutineStepStatus = MutableStateFlow(RoutineStepStatus.ACTIVE)
     private val isDayTypeSelectorOpen = MutableStateFlow(false)
+    private val isCarryForwardDialogOpen = MutableStateFlow(false)
+    private val snoozedTaskIds = MutableStateFlow<Set<String>>(emptySet())
 
     private var observeDataJob: Job? = null
 
@@ -108,13 +125,21 @@ class HomeViewModel @Inject constructor(
             BaseHomeData(tasks, habits, balance, dayTypes, override)
         }
 
-        observeDataJob = combine(
-            baseDataFlow,
+        val controlFlow = combine(
             timerFlow,
             isMorningBannerDismissed,
             activeRoutineStepStatus,
-            isDayTypeSelectorOpen
-        ) { baseData, timer, bannerDismissed, routineStatus, selectorOpen ->
+            isDayTypeSelectorOpen,
+            isCarryForwardDialogOpen
+        ) { timer, bannerDismissed, routineStatus, selectorOpen, carryDialogOpen ->
+            HomeControlData(timer, bannerDismissed, routineStatus, selectorOpen, carryDialogOpen)
+        }
+
+        observeDataJob = combine(
+            baseDataFlow,
+            controlFlow,
+            snoozedTaskIds
+        ) { baseData, control, snoozedIds ->
             val currentDate = LocalDate.now().toString()
             val tasks = baseData.tasks
             val habits = baseData.habits
@@ -148,97 +173,120 @@ class HomeViewModel @Inject constructor(
             // Interrupted task
             val interruptedTask = runCatching { taskRepository.getLatestInterruptedTask() }.getOrNull()
 
-            // 6-state Hero Card priority resolution
-            val heroCandidates = mutableListOf<HeroCardState>()
+            // Active session DTO from timer
+            val heroActiveSession = if (control.timer.isRunning || control.timer.isPaused) {
+                HeroActiveSession(
+                    subjectTag = control.timer.subjectTag,
+                    remainingSeconds = control.timer.remainingSeconds,
+                    formattedRemainingTime = control.timer.formattedRemainingTime,
+                    isRunning = control.timer.isRunning,
+                    isPaused = control.timer.isPaused,
+                    isCompleted = control.timer.isCompleted
+                )
+            } else null
 
-            // 1. ActiveFocus (highest priority)
-            if (timer.isRunning && !timer.isCompleted) {
-                heroCandidates.add(
+            // Active Routine Step mockup/first step
+            val baseRoutineStep = RoutineStep(
+                id = "default_step_1",
+                routineId = "default_routine",
+                orderIndex = 1,
+                title = "Review daily focus plan",
+                durationMinutes = 10
+            )
+            val activeRoutineStep = HomeRoutineStepState(
+                step = baseRoutineStep,
+                status = control.routineStatus
+            )
+
+            // 6-state Hero Card priority resolution via pure domain use case
+            val resolvedHeroPriority = resolveHeroStateUseCase.resolve(
+                activeSession = heroActiveSession,
+                interruptedTask = interruptedTask,
+                isMorningBannerDismissed = control.bannerDismissed,
+                activeDayTypeName = dayTypeName,
+                activeDayTypeId = dayTypeId,
+                pendingTasks = tasks,
+                overdueTasks = overdueTasks,
+                snoozedTaskIds = snoozedIds
+            )
+
+            // Map domain HeroPriorityState to UI presentation HeroCardState
+            val resolvedHeroCardState: HeroCardState = when (resolvedHeroPriority) {
+                is HeroPriorityState.ActiveFocus -> {
                     HeroCardState.ActiveFocus(
-                        title = "${timer.subjectTag} Session",
-                        countdownFormatted = timer.formattedRemainingTime,
+                        title = "${resolvedHeroPriority.session.subjectTag} Session",
+                        countdownFormatted = resolvedHeroPriority.session.formattedRemainingTime,
                         onPause = { onIntent(HomeUiIntent.PauseActiveFocus) },
                         onEndSession = { onIntent(HomeUiIntent.EndActiveFocus) }
                     )
-                )
-            }
-
-            // 2. InterruptedResumable
-            if (interruptedTask != null) {
-                heroCandidates.add(
+                }
+                is HeroPriorityState.InterruptedResumable -> {
                     HeroCardState.InterruptedResumable(
-                        title = interruptedTask.title,
-                        elapsedSinceFormatted = "Paused",
-                        onResume = { onIntent(HomeUiIntent.ResumeInterruptedTask(interruptedTask.id)) },
-                        onReview = { onIntent(HomeUiIntent.ReviewCarryForward) },
-                        onMarkComplete = { onIntent(HomeUiIntent.ToggleTask(interruptedTask.id)) }
+                        title = resolvedHeroPriority.title,
+                        elapsedSinceFormatted = resolvedHeroPriority.elapsedSinceFormatted,
+                        onResume = {
+                            if (resolvedHeroPriority.taskId != null) {
+                                onIntent(HomeUiIntent.ResumeInterruptedTask(resolvedHeroPriority.taskId))
+                            } else {
+                                onIntent(HomeUiIntent.ResumeActiveFocus)
+                            }
+                        },
+                        onReview = {
+                            viewModelScope.launch {
+                                _uiEffect.send(HomeUiEffect.ShowSnackbar("Take your time. Resume whenever you're ready."))
+                            }
+                        },
+                        onMarkComplete = {
+                            if (resolvedHeroPriority.taskId != null) {
+                                onIntent(HomeUiIntent.ToggleTask(resolvedHeroPriority.taskId))
+                            } else {
+                                onIntent(HomeUiIntent.EndActiveFocus)
+                            }
+                        }
                     )
-                )
-            } else if (timer.isPaused) {
-                heroCandidates.add(
-                    HeroCardState.InterruptedResumable(
-                        title = "${timer.subjectTag} Session",
-                        elapsedSinceFormatted = "Paused",
-                        onResume = { onIntent(HomeUiIntent.PauseActiveFocus) },
-                        onReview = {},
-                        onMarkComplete = { onIntent(HomeUiIntent.EndActiveFocus) }
-                    )
-                )
-            }
-
-            // 3. MorningBanner
-            if (!bannerDismissed) {
-                heroCandidates.add(
+                }
+                is HeroPriorityState.MorningBanner -> {
                     HeroCardState.MorningBanner(
-                        dayTypeName = dayTypeName,
+                        dayTypeName = resolvedHeroPriority.dayTypeName,
                         onSwapDayType = { onIntent(HomeUiIntent.OpenDayTypeSelector) },
                         onDismiss = { onIntent(HomeUiIntent.DismissMorningBanner) }
                     )
-                )
-            }
-
-            // 4. UpcomingItem
-            val pendingTasks = tasks.filter { !it.state.equals("COMPLETED", ignoreCase = true) }
-            val nextUpcoming = pendingTasks.firstOrNull()
-            if (nextUpcoming != null) {
-                heroCandidates.add(
+                }
+                is HeroPriorityState.UpcomingItem -> {
                     HeroCardState.UpcomingItem(
-                        title = nextUpcoming.title,
-                        startsInMinutes = nextUpcoming.estimatedDurationMinutes,
-                        onStartNow = { onIntent(HomeUiIntent.ToggleTask(nextUpcoming.id)) },
-                        onSnooze = {}
+                        title = resolvedHeroPriority.title,
+                        startsInMinutes = resolvedHeroPriority.startsInMinutes,
+                        onStartNow = {
+                            val id = resolvedHeroPriority.taskId
+                            if (id != null) {
+                                if (resolvedHeroPriority.task != null) {
+                                    onIntent(HomeUiIntent.StartHeroItem(id))
+                                } else if (resolvedHeroPriority.activeRoutineStep != null) {
+                                    onIntent(HomeUiIntent.AdvanceRoutineStep(id))
+                                } else {
+                                    onIntent(HomeUiIntent.StartHeroItem(id))
+                                }
+                            }
+                        },
+                        onSnooze = {
+                            resolvedHeroPriority.taskId?.let { id ->
+                                onIntent(HomeUiIntent.SnoozeHeroItem(id))
+                            }
+                        }
                     )
-                )
-            }
-
-            // 5. CarryForwardReview
-            if (overdueTasks.isNotEmpty()) {
-                heroCandidates.add(
+                }
+                is HeroPriorityState.CarryForwardReview -> {
                     HeroCardState.CarryForwardReview(
-                        itemCount = overdueTasks.size,
-                        onReviewItems = { onIntent(HomeUiIntent.ReviewCarryForward) }
+                        itemCount = resolvedHeroPriority.itemCount,
+                        onReviewItems = { onIntent(HomeUiIntent.OpenCarryForwardReview) }
                     )
-                )
+                }
+                is HeroPriorityState.IntentionalIdle -> {
+                    HeroCardState.IntentionalIdle(
+                        message = resolvedHeroPriority.message
+                    )
+                }
             }
-
-            // 6. IntentionalIdle (fallback)
-            heroCandidates.add(
-                HeroCardState.IntentionalIdle("All caught up for today. Rest well.")
-            )
-
-            val resolvedHeroState = resolveHeroPriority(heroCandidates)
-
-            // Active Routine Step mockup/first step
-            val activeRoutineStep = HomeRoutineStepState(
-                step = RoutineStep(
-                    id = "default_step_1",
-                    routineId = "default_routine",
-                    orderIndex = 1,
-                    title = "Review daily focus plan",
-                    durationMinutes = 10
-                ),
-                status = routineStatus
-            )
 
             HomeUiState(
                 activeDayTypeName = dayTypeName,
@@ -246,12 +294,14 @@ class HomeViewModel @Inject constructor(
                 activeDayType = resolvedDayType,
                 availableDayTypes = dayTypes,
                 isDayOverrideActive = isOverrideActive,
-                isDayTypeSelectorOpen = selectorOpen,
+                isDayTypeSelectorOpen = control.selectorOpen,
+                isCarryForwardDialogOpen = control.carryDialogOpen,
                 streakCount = maxStreak,
                 flameState = overallFlameState,
                 coinBalance = balance,
-                heroCardState = resolvedHeroState,
+                heroCardState = resolvedHeroCardState,
                 focusTasks = tasks,
+                overdueTasks = overdueTasks,
                 habits = habitItemStates,
                 activeRoutineStep = activeRoutineStep,
                 isLoading = false,
@@ -269,9 +319,10 @@ class HomeViewModel @Inject constructor(
             is HomeUiIntent.ToggleHabit -> handleToggleHabit(intent)
             is HomeUiIntent.AdvanceRoutineStep -> handleAdvanceRoutineStep(intent)
             is HomeUiIntent.PauseActiveFocus -> handlePauseActiveFocus()
+            is HomeUiIntent.ResumeActiveFocus -> handleResumeActiveFocus()
             is HomeUiIntent.EndActiveFocus -> handleEndActiveFocus()
             is HomeUiIntent.ResumeInterruptedTask -> handleResumeTask(intent)
-            is HomeUiIntent.ReviewCarryForward -> handleReviewCarryForward()
+            is HomeUiIntent.ReviewCarryForward -> isCarryForwardDialogOpen.value = true
             is HomeUiIntent.DismissMorningBanner -> isMorningBannerDismissed.value = true
             is HomeUiIntent.SwapDayType -> isDayTypeSelectorOpen.value = true
             is HomeUiIntent.DayTypeClicked -> isDayTypeSelectorOpen.value = true
@@ -279,7 +330,62 @@ class HomeViewModel @Inject constructor(
             is HomeUiIntent.DismissDayTypeSelector -> isDayTypeSelectorOpen.value = false
             is HomeUiIntent.SelectDayType -> handleSelectDayType(intent)
             is HomeUiIntent.ResetDayTypeOverride -> handleResetDayTypeOverride()
+            is HomeUiIntent.SnoozeHeroItem -> handleSnoozeHeroItem(intent)
+            is HomeUiIntent.SkipHeroItem -> handleSkipHeroItem(intent)
+            is HomeUiIntent.StartHeroItem -> handleStartHeroItem(intent)
+            is HomeUiIntent.OpenCarryForwardReview -> isCarryForwardDialogOpen.value = true
+            is HomeUiIntent.DismissCarryForwardDialog -> isCarryForwardDialogOpen.value = false
+            is HomeUiIntent.CarryForwardAllOverdue -> handleCarryForwardAllOverdue()
+            is HomeUiIntent.DismissAllOverdue -> handleDismissAllOverdue()
             is HomeUiIntent.Refresh -> observeDataStreams()
+        }
+    }
+
+    private fun handleSnoozeHeroItem(intent: HomeUiIntent.SnoozeHeroItem) {
+        snoozedTaskIds.update { it + intent.taskId }
+    }
+
+    private fun handleSkipHeroItem(intent: HomeUiIntent.SkipHeroItem) {
+        snoozedTaskIds.update { it + intent.taskId }
+    }
+
+    private fun handleStartHeroItem(intent: HomeUiIntent.StartHeroItem) {
+        handleToggleTask(HomeUiIntent.ToggleTask(intent.taskId, intent.startOffset))
+    }
+
+    private fun handleCarryForwardAllOverdue() {
+        isCarryForwardDialogOpen.value = false
+        val currentOverdue = _uiState.value.overdueTasks
+        if (currentOverdue.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                val today = LocalDate.now().toString()
+                val result = carryForwardTasksUseCase(
+                    targetDate = today,
+                    tasks = currentOverdue
+                )
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Carried forward ${result.carriedCount} tasks to today."))
+            }.onFailure {
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not reschedule tasks. Please try again."))
+            }
+        }
+    }
+
+    private fun handleDismissAllOverdue() {
+        isCarryForwardDialogOpen.value = false
+        val currentOverdue = _uiState.value.overdueTasks
+        if (currentOverdue.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                val today = LocalDate.now().toString()
+                val result = dismissOverdueTasksUseCase(
+                    targetDate = today,
+                    tasks = currentOverdue
+                )
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Tasks set aside. Take your time."))
+            }.onFailure {
+                _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not dismiss tasks. Please try again."))
+            }
         }
     }
 
@@ -352,6 +458,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    private fun handleResumeActiveFocus() {
+        context?.let { ctx ->
+            StudySessionForegroundService.resumeService(ctx)
+        }
+    }
+
     private fun handleEndActiveFocus() {
         context?.let { ctx ->
             StudySessionForegroundService.stopService(ctx)
@@ -366,12 +478,6 @@ class HomeViewModel @Inject constructor(
                     taskRepository.updateTask(task.copy(state = "IN_PROGRESS"))
                 }
             }
-        }
-    }
-
-    private fun handleReviewCarryForward() {
-        viewModelScope.launch {
-            _uiEffect.send(HomeUiEffect.NavigateTo(PersonalTrackerDestination.HOME))
         }
     }
 }

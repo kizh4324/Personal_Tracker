@@ -10,6 +10,7 @@ sealed interface HomeUiIntent {
     data class ToggleHabit(val habitId: String, val startOffset: Offset = Offset.Zero) : HomeUiIntent
     data class AdvanceRoutineStep(val stepId: String) : HomeUiIntent
     object PauseActiveFocus : HomeUiIntent
+    object ResumeActiveFocus : HomeUiIntent
     object EndActiveFocus : HomeUiIntent
     data class ResumeInterruptedTask(val taskId: String) : HomeUiIntent
     object ReviewCarryForward : HomeUiIntent
@@ -20,5 +21,12 @@ sealed interface HomeUiIntent {
     object DismissDayTypeSelector : HomeUiIntent
     data class SelectDayType(val dayTypeId: String) : HomeUiIntent
     object ResetDayTypeOverride : HomeUiIntent
+    data class SnoozeHeroItem(val taskId: String) : HomeUiIntent
+    data class SkipHeroItem(val taskId: String) : HomeUiIntent
+    data class StartHeroItem(val taskId: String, val startOffset: Offset = Offset.Zero) : HomeUiIntent
+    object OpenCarryForwardReview : HomeUiIntent
+    object DismissCarryForwardDialog : HomeUiIntent
+    object CarryForwardAllOverdue : HomeUiIntent
+    object DismissAllOverdue : HomeUiIntent
     object Refresh : HomeUiIntent
 }

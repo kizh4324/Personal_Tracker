@@ -29,6 +29,7 @@ import com.personaltracker.ui.components.cards.HabitStreakCard
 import com.personaltracker.ui.components.cards.HeroActionCard
 import com.personaltracker.ui.components.cards.RoutineStepStatus
 import com.personaltracker.ui.components.cards.TaskIntensityCard
+import com.personaltracker.ui.components.overlays.CarryForwardReviewDialog
 import com.personaltracker.ui.components.overlays.DayTypeSelectorDialog
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
@@ -109,6 +110,20 @@ fun HomeScreenContent(
         },
         onDismiss = {
             onIntent(HomeUiIntent.DismissDayTypeSelector)
+        }
+    )
+
+    CarryForwardReviewDialog(
+        isOpen = state.isCarryForwardDialogOpen,
+        overdueTasks = state.overdueTasks,
+        onCarryForwardAll = {
+            onIntent(HomeUiIntent.CarryForwardAllOverdue)
+        },
+        onDismissAllWithoutGuilt = {
+            onIntent(HomeUiIntent.DismissAllOverdue)
+        },
+        onDismissRequest = {
+            onIntent(HomeUiIntent.DismissCarryForwardDialog)
         }
     )
 

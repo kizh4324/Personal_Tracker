@@ -34,18 +34,30 @@ class TestTaskRepository : TaskRepository {
     override suspend fun getTaskById(id: String): Task? =
         tasksFlow.value.find { it.id == id }
 
-    override suspend fun getOverduePendingTasks(currentDate: String): List<Task> = overdueTasks
+    override suspend fun getOverduePendingTasks(currentDate: String): List<Task> = overdueTasks.toList()
 
     override suspend fun getActiveInProgressTask(): Task? =
         tasksFlow.value.find { it.state == "IN_PROGRESS" }
 
     override suspend fun getLatestInterruptedTask(): Task? = interruptedTask
 
+    private fun syncOverdueTask(task: Task) {
+        val today = java.time.LocalDate.now().toString()
+        if (task.state != "PENDING" || task.scheduledDate >= today) {
+            overdueTasks.removeAll { it.id == task.id }
+        } else {
+            overdueTasks.removeAll { it.id == task.id }
+            overdueTasks.add(task)
+        }
+    }
+
     override suspend fun saveTask(task: Task) {
+        syncOverdueTask(task)
         tasksFlow.value = tasksFlow.value.filter { it.id != task.id } + task
     }
 
     override suspend fun saveTasks(tasks: List<Task>) {
+        tasks.forEach { syncOverdueTask(it) }
         val existingIds = tasks.map { it.id }.toSet()
         tasksFlow.value = tasksFlow.value.filter { it.id !in existingIds } + tasks
     }

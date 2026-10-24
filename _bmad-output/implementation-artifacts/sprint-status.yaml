@@ -44,7 +44,7 @@ development_status:
   1-6-platform-runtime-services-background-workers: done
   1-7-unidirectional-mvi-screen-wiring-viewmodels-baseline: done
   1-8-daytype-schedule-resolution-morning-template-swap: done
-  1-9-dynamic-state-aware-hero-card-integration-action-list: ready-for-dev
+  1-9-dynamic-state-aware-hero-card-integration-action-list: review
   1-10-core-task-management-delivery-intensity-classification: backlog
   1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat: backlog
   epic-1-retrospective: optional

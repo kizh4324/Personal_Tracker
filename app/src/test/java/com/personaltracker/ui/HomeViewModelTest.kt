@@ -9,9 +9,12 @@ import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
+import com.personaltracker.domain.usecase.DismissOverdueTasksUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
+import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
@@ -53,6 +56,9 @@ class HomeViewModelTest {
     private lateinit var switchDayTypeUseCase: SwitchDayTypeUseCase
     private lateinit var completeTaskUseCase: CompleteTaskUseCase
     private lateinit var logHabitUseCase: LogHabitUseCase
+    private lateinit var resolveHeroStateUseCase: ResolveHeroStateUseCase
+    private lateinit var carryForwardTasksUseCase: CarryForwardTasksUseCase
+    private lateinit var dismissOverdueTasksUseCase: DismissOverdueTasksUseCase
 
     private val today = LocalDate.now().toString()
 
@@ -77,6 +83,9 @@ class HomeViewModelTest {
         )
         completeTaskUseCase = CompleteTaskUseCase(taskRepository, economyRepository, ledgerEngine)
         logHabitUseCase = LogHabitUseCase(habitRepository, economyRepository, streakMachine, ledgerEngine)
+        resolveHeroStateUseCase = ResolveHeroStateUseCase()
+        carryForwardTasksUseCase = CarryForwardTasksUseCase(taskRepository)
+        dismissOverdueTasksUseCase = DismissOverdueTasksUseCase(taskRepository)
         resetTimerState()
     }
 
@@ -104,7 +113,10 @@ class HomeViewModelTest {
             switchDayTypeUseCase = switchDayTypeUseCase,
             completeTaskUseCase = completeTaskUseCase,
             logHabitUseCase = logHabitUseCase,
-            streakStateMachine = streakMachine
+            streakStateMachine = streakMachine,
+            resolveHeroStateUseCase = resolveHeroStateUseCase,
+            carryForwardTasksUseCase = carryForwardTasksUseCase,
+            dismissOverdueTasksUseCase = dismissOverdueTasksUseCase
         )
     }
 
@@ -115,11 +127,70 @@ class HomeViewModelTest {
         viewModel.uiState.test {
             val state = awaitItem()
             assertFalse(state.isLoading)
-            assertEquals("Standard Routine", state.activeDayTypeName)
+            val expectedDefaultDayType = resolveDayTypeUseCase.resolve(today, null, DayType.BUILT_IN_DAY_TYPES).name
+            assertEquals(expectedDefaultDayType, state.activeDayTypeName)
             assertEquals(0, state.coinBalance)
             assertFalse(state.isDayOverrideActive)
             assertFalse(state.isDayTypeSelectorOpen)
+            assertFalse(state.isCarryForwardDialogOpen)
             assertTrue(state.heroCardState is HeroCardState.MorningBanner)
+        }
+    }
+
+    @Test
+    fun testHeroCardPriority1ActiveFocusWhenTimerRunning() = runTest {
+        val field = StudySessionForegroundService::class.java.getDeclaredField("_timerState")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val serviceTimerState = field.get(null) as MutableStateFlow<StudySessionTimerState>
+        serviceTimerState.value = StudySessionTimerState(
+            sessionId = "session_1",
+            subjectTag = "Deep Work",
+            totalSeconds = 1500L,
+            remainingSeconds = 1200L,
+            isRunning = true,
+            isPaused = false
+        )
+
+        val viewModel = createViewModel()
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.heroCardState is HeroCardState.ActiveFocus)
+            val focus = state.heroCardState as HeroCardState.ActiveFocus
+            assertEquals("Deep Work Session", focus.title)
+            assertEquals("20:00", focus.countdownFormatted)
+        }
+    }
+
+    @Test
+    fun testHeroCardPriority2InterruptedResumableWhenTimerPaused() = runTest {
+        val field = StudySessionForegroundService::class.java.getDeclaredField("_timerState")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val serviceTimerState = field.get(null) as MutableStateFlow<StudySessionTimerState>
+        serviceTimerState.value = StudySessionTimerState(
+            sessionId = "session_2",
+            subjectTag = "Algorithms",
+            totalSeconds = 1800L,
+            remainingSeconds = 900L,
+            isRunning = false,
+            isPaused = true
+        )
+
+        val viewModel = createViewModel()
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.heroCardState is HeroCardState.InterruptedResumable)
+            val interrupted = state.heroCardState as HeroCardState.InterruptedResumable
+            assertEquals("Algorithms Session", interrupted.title)
+
+            // Assert onReview emits calming snackbar
+            viewModel.uiEffect.test {
+                interrupted.onReview()
+                val snackbar = awaitItem()
+                assertTrue(snackbar is HomeUiEffect.ShowSnackbar)
+                assertEquals("Take your time. Resume whenever you're ready.", (snackbar as HomeUiEffect.ShowSnackbar).message)
+            }
         }
     }
 
@@ -207,7 +278,8 @@ class HomeViewModelTest {
         viewModel.uiState.test {
             val state = awaitItem()
             assertFalse(state.isDayOverrideActive)
-            assertEquals("Standard Routine", state.activeDayTypeName)
+            val expectedDefaultDayType = resolveDayTypeUseCase.resolve(today, null, DayType.BUILT_IN_DAY_TYPES).name
+            assertEquals(expectedDefaultDayType, state.activeDayTypeName)
         }
     }
 
@@ -246,6 +318,171 @@ class HomeViewModelTest {
             assertTrue(state.heroCardState is HeroCardState.UpcomingItem)
             val upcoming = state.heroCardState as HeroCardState.UpcomingItem
             assertEquals("Algorithm Review", upcoming.title)
+        }
+    }
+
+    @Test
+    fun testSnoozeHeroItemPromotesNextTask() = runTest {
+        val task1 = Task(id = "t1", title = "Task 1", scheduledDate = today, state = "PENDING")
+        val task2 = Task(id = "t2", title = "Task 2", scheduledDate = today, state = "PENDING")
+        taskRepository.saveTasks(listOf(task1, task2))
+
+        val viewModel = createViewModel()
+        viewModel.onIntent(HomeUiIntent.DismissMorningBanner)
+
+        viewModel.uiState.test {
+            val state1 = awaitItem()
+            assertTrue(state1.heroCardState is HeroCardState.UpcomingItem)
+            assertEquals("Task 1", (state1.heroCardState as HeroCardState.UpcomingItem).title)
+
+            // Snooze Task 1 -> Immediately promotes Task 2
+            viewModel.onIntent(HomeUiIntent.SnoozeHeroItem("t1"))
+            val state2 = awaitItem()
+            assertTrue(state2.heroCardState is HeroCardState.UpcomingItem)
+            assertEquals("Task 2", (state2.heroCardState as HeroCardState.UpcomingItem).title)
+        }
+    }
+
+    @Test
+    fun testStartHeroItemCompletesTaskAndEmitsEffects() = runTest {
+        val task = Task(
+            id = "t_hero",
+            title = "Implement Feature",
+            scheduledDate = today,
+            state = "PENDING"
+        )
+        taskRepository.saveTask(task)
+        economyRepository.profileFlow.value = CompanionProfile(speciesName = "Sproutling", level = 1)
+
+        val viewModel = createViewModel()
+        viewModel.onIntent(HomeUiIntent.DismissMorningBanner)
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.StartHeroItem("t_hero", Offset(10f, 20f)))
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is HomeUiEffect.ShowCoinReward)
+            assertEquals(Offset(10f, 20f), (effect1 as HomeUiEffect.ShowCoinReward).startOffset)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is HomeUiEffect.ShowLottieReward)
+        }
+    }
+
+    @Test
+    fun testCarryForwardDialogControls() = runTest {
+        val overdue = Task(id = "ov1", title = "Past task", scheduledDate = "2026-10-20", state = "PENDING")
+        taskRepository.saveTask(overdue)
+
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertFalse(initial.isCarryForwardDialogOpen)
+
+            // Open dialog
+            viewModel.onIntent(HomeUiIntent.OpenCarryForwardReview)
+            val opened = awaitItem()
+            assertTrue(opened.isCarryForwardDialogOpen)
+
+            // Dismiss dialog
+            viewModel.onIntent(HomeUiIntent.DismissCarryForwardDialog)
+            val dismissed = awaitItem()
+            assertFalse(dismissed.isCarryForwardDialogOpen)
+        }
+    }
+
+    @Test
+    fun testCarryForwardAllOverdueUpdatesTasksAndClosesDialog() = runTest {
+        val overdue = Task(id = "ov1", title = "Past task", scheduledDate = "2026-10-20", state = "PENDING")
+        taskRepository.saveTask(overdue)
+
+        val viewModel = createViewModel()
+        viewModel.onIntent(HomeUiIntent.DismissMorningBanner)
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val stateWithOverdue = awaitItem()
+            assertTrue(stateWithOverdue.heroCardState is HeroCardState.CarryForwardReview)
+            assertEquals(1, stateWithOverdue.overdueTasks.size)
+
+            viewModel.onIntent(HomeUiIntent.OpenCarryForwardReview)
+            val dialogOpened = awaitItem()
+            assertTrue(dialogOpened.isCarryForwardDialogOpen)
+
+            viewModel.uiEffect.test {
+                viewModel.onIntent(HomeUiIntent.CarryForwardAllOverdue)
+
+                val snackbar = awaitItem()
+                assertTrue(snackbar is HomeUiEffect.ShowSnackbar)
+                assertTrue((snackbar as HomeUiEffect.ShowSnackbar).message.contains("Carried forward"))
+            }
+
+            // First emission on dialog close
+            val stateDialogClosed = awaitItem()
+            assertFalse(stateDialogClosed.isCarryForwardDialogOpen)
+
+            // Second emission after task update persists in repository
+            val stateAfterCarry = awaitItem()
+            assertFalse(stateAfterCarry.isCarryForwardDialogOpen)
+            assertTrue(stateAfterCarry.overdueTasks.isEmpty())
+            assertTrue(stateAfterCarry.heroCardState !is HeroCardState.CarryForwardReview)
+        }
+
+        val updated = taskRepository.getTaskById("ov1")
+        assertEquals(today, updated?.scheduledDate)
+        assertTrue(updated?.isCarryForward == true)
+    }
+
+    @Test
+    fun testDismissAllOverdueCancelsTasksAndClosesDialog() = runTest {
+        val overdue = Task(id = "ov2", title = "Skip task", scheduledDate = "2026-10-20", state = "PENDING")
+        taskRepository.saveTask(overdue)
+
+        val viewModel = createViewModel()
+        viewModel.onIntent(HomeUiIntent.DismissMorningBanner)
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val stateWithOverdue = awaitItem()
+            assertTrue(stateWithOverdue.heroCardState is HeroCardState.CarryForwardReview)
+            assertEquals(1, stateWithOverdue.overdueTasks.size)
+
+            viewModel.onIntent(HomeUiIntent.OpenCarryForwardReview)
+            val dialogOpened = awaitItem()
+            assertTrue(dialogOpened.isCarryForwardDialogOpen)
+
+            viewModel.uiEffect.test {
+                viewModel.onIntent(HomeUiIntent.DismissAllOverdue)
+
+                val snackbar = awaitItem()
+                assertTrue(snackbar is HomeUiEffect.ShowSnackbar)
+                assertTrue((snackbar as HomeUiEffect.ShowSnackbar).message.contains("Tasks set aside"))
+            }
+
+            // First emission on dialog close
+            val stateDialogClosed = awaitItem()
+            assertFalse(stateDialogClosed.isCarryForwardDialogOpen)
+
+            // Second emission after task dismissal persists in repository
+            val stateAfterDismiss = awaitItem()
+            assertFalse(stateAfterDismiss.isCarryForwardDialogOpen)
+            assertTrue(stateAfterDismiss.overdueTasks.isEmpty())
+            assertTrue(stateAfterDismiss.heroCardState is HeroCardState.IntentionalIdle)
+        }
+
+        val cancelled = taskRepository.getTaskById("ov2")
+        assertEquals("CANCELLED", cancelled?.state)
+    }
+
+    @Test
+    fun testEmptyOverdueReturnsEarlyWithoutSnackbar() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.CarryForwardAllOverdue)
+            viewModel.onIntent(HomeUiIntent.DismissAllOverdue)
+            expectNoEvents()
         }
     }
 

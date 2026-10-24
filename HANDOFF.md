@@ -17,7 +17,7 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-24 19:12:00 +05:30
+*   **Date/Time:** 2026-10-24 20:58:00 +05:30
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
@@ -25,17 +25,18 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (174 tests, ~1m 30s, passes clean)
+    *   Unit Tests (JVM): `.\gradlew test` (215 tests, ~1m 20s, passes clean)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
+    *   Harness² Baseline Check: `python .agents/scripts/harness2_bridge.py --check` (`All 8 H0 components valid`)
     *   Assemble Debug APK: `.\gradlew assembleDebug`
     *   Install & Launch on Connected Device:
         ```powershell
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~65% of Epic 1 completed). Stories 1.1 through 1.7 fully implemented and verified; JVM unit tests (174 executed) and Android lint pass with 0 errors.
+*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~80% of Epic 1 completed). Stories 1.1 through 1.9 fully implemented and verified; JVM unit tests (215 executed) and Android lint pass with 0 errors.
 
 ---
 

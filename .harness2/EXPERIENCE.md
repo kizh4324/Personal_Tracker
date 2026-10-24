@@ -147,3 +147,18 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Room enforces `ForeignKey(onDelete = RESTRICT)` on `dayTypeId`. Inserting an override with a fallback ID or unseeded DayType throws `SQLiteConstraintException`.
 * **Rule:** Always ensure the target `DayType` exists and is confirmed in SQLite persistence before writing a `DayOverrideEntity`.
 
+---
+
+## 9. Domain Priority Resolution & Test Synchronization
+
+### EXP-021: Decoupling Pure Domain Priority Models from UI Lambdas (AD-1, AD-2)
+* **Context:** 6-tier Hero priority resolution (`ResolveHeroStateUseCase`) and MVI state mapping.
+* **Heuristic:** Embedding UI callback lambdas (`() -> Unit`) directly inside domain models violates AD-1 layer purity and prevents standard JVM test isolation.
+* **Rule:** Domain priority models must be pure Kotlin data structures (`HeroPriorityState`). ViewModels map domain state to presentation models and dispatch actions exclusively through sealed `UiIntent` contracts.
+
+### EXP-022: Turbine StateFlow Multi-Emission Synchronization in Fake Repositories
+* **Context:** Unit-testing multi-entity updates (`CarryForwardTasksUseCase`) with Turbine and fake repository test doubles.
+* **Heuristic:** Emitting repository `StateFlow` updates before synchronizing internal data collections causes intermediate StateFlow emissions with divergent state (e.g., `overdueTasks` count mismatching `heroCardState.CarryForwardReview`).
+* **Rule:** Always synchronize backing collections prior to emitting updated flow values in test doubles, and return defensive immutable copies (`toList()`) to prevent in-place mutation races.
+
+
