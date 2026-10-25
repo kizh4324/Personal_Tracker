@@ -1,5 +1,6 @@
 package com.personaltracker.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,49 +54,47 @@ import com.personaltracker.ui.theme.PersonalTrackerTheme
  */
 @Composable
 fun HomeRoute(
+    onNavigate: ((PersonalTrackerDestination) -> Unit)? = null,
     modifier: Modifier = Modifier,
-    viewModel: HomeViewModel = hiltViewModel(),
-    onNavigate: (PersonalTrackerDestination) -> Unit = {}
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val rewardMotionStage = LocalRewardMotionStage.current
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val rewardStage = LocalRewardMotionStage.current
 
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
             when (effect) {
+                is HomeUiEffect.NavigateTo -> onNavigate?.invoke(effect.destination)
+                is HomeUiEffect.ShowSnackbar -> {
+                    // Handled at Scaffold level snackbar host or local snackbar
+                }
                 is HomeUiEffect.ShowCoinReward -> {
-                    rewardMotionStage.dispatchCoinReward(
-                        startOffset = effect.startOffset,
-                        coinCount = effect.coinCount
-                    )
+                    rewardStage.dispatchCoinReward(effect.startOffset, effect.coinCount)
                 }
                 is HomeUiEffect.ShowLottieReward -> {
-                    rewardMotionStage.dispatchLottieReward(effect.type)
-                }
-                is HomeUiEffect.ShowSnackbar -> {
-                    android.widget.Toast.makeText(context, effect.message, android.widget.Toast.LENGTH_SHORT).show()
+                    rewardStage.dispatchLottieReward(effect.type)
                 }
                 is HomeUiEffect.DayTypeChanged -> {
-                    // Handled reactively via StateFlow updates
-                }
-                is HomeUiEffect.NavigateTo -> {
-                    onNavigate(effect.destination)
+                    // Handled reactively through uiState stream
                 }
             }
         }
     }
 
     HomeScreenContent(
-        state = state,
+        state = uiState,
         onIntent = viewModel::onIntent,
         modifier = modifier
     )
 }
 
 /**
- * 100% Stateless Composable rendering Home screen content.
- * Strictly consumes design tokens with zero hardcoded literals and 48dp touch targets (AD-4, AD-7).
+ * Stateless Home Screen content composable.
+ * Sourced from Story 1.5 & Story 1.7 specifications:
+ * 1. Hero Action Card priority hierarchy (6-state dynamic priority)
+ * 2. Today's Delivery Intensity Tasks (Urgent/Important/Routine)
+ * 3. Daily Habit Streaks (with 4-stage flame badge)
+ * 4. Adaptive Routine Steps with mid-day recalculation and non-punishing progression
  */
 @Composable
 fun HomeScreenContent(
@@ -104,9 +105,11 @@ fun HomeScreenContent(
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
     val spacing = PersonalTrackerTheme.spacing
+    val shapes = PersonalTrackerTheme.shapes
 
     val taskOffsets = remember { mutableStateMapOf<String, Offset>() }
     val habitOffsets = remember { mutableStateMapOf<String, Offset>() }
+    val routineOffsets = remember { mutableStateMapOf<String, Offset>() }
     var defaultTaskOffset by remember { mutableStateOf(Offset.Zero) }
 
     DayTypeSelectorDialog(
@@ -318,33 +321,164 @@ fun HomeScreenContent(
 
         Spacer(modifier = Modifier.height(spacing.sectionGap))
 
-        // Section: Adaptive Routine Step
+        // Section: Adaptive Routine Steps & Mid-Day Recalculation
         Column(modifier = Modifier.fillMaxWidth()) {
-            Text(
-                text = "Active Routine",
-                style = typography.title,
-                color = colors.inkPrimary
-            )
-            Spacer(modifier = Modifier.height(spacing.spacing1))
-            Text(
-                text = "Step-by-step guidance dynamically adapted to today's schedule",
-                style = typography.caption,
-                color = colors.inkSecondary
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = state.activeRoutine?.title ?: "Active Routine",
+                        style = typography.title,
+                        color = colors.inkPrimary
+                    )
+                    Spacer(modifier = Modifier.height(spacing.spacing1))
+                    if (state.routineProgressSummary.isNotBlank()) {
+                        Surface(
+                            shape = shapes.full,
+                            color = colors.surfaceRaised,
+                            border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                            modifier = Modifier.padding(top = spacing.spacing0_5)
+                        ) {
+                            Text(
+                                text = state.routineProgressSummary,
+                                style = typography.caption,
+                                color = colors.inkSecondary,
+                                modifier = Modifier.padding(horizontal = spacing.spacing2, vertical = spacing.spacing0_5)
+                            )
+                        }
+                    } else {
+                        Text(
+                            text = "Step-by-step guidance dynamically adapted to today's schedule",
+                            style = typography.caption,
+                            color = colors.inkSecondary
+                        )
+                    }
+                }
+
+                TextButton(
+                    onClick = { onIntent(HomeUiIntent.ShiftRoutineToNow) },
+                    modifier = Modifier.defaultMinSize(
+                        minWidth = spacing.minTouchTarget,
+                        minHeight = spacing.minTouchTarget
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Shift routine to current time",
+                        tint = colors.primary,
+                        modifier = Modifier.size(spacing.spacing4)
+                    )
+                    Spacer(modifier = Modifier.width(spacing.spacing1))
+                    Text(
+                        text = "Shift to Now",
+                        style = typography.label,
+                        color = colors.primary
+                    )
+                }
+            }
             Spacer(modifier = Modifier.height(spacing.spacing3))
 
-            val routineStep = state.activeRoutineStep
-            if (routineStep != null) {
-                AdaptiveRoutineStepCard(
-                    stepOrder = routineStep.step.orderIndex,
-                    title = routineStep.step.title,
-                    durationMinutes = routineStep.step.durationMinutes,
-                    status = routineStep.status,
-                    onAdvanceStep = {
-                        onIntent(HomeUiIntent.AdvanceRoutineStep(routineStep.step.id))
-                    },
+            if (state.isRoutineCompletedToday) {
+                // Celebratory completion banner with companion styling
+                Surface(
+                    shape = shapes.lg,
+                    color = colors.companionSubtle,
+                    border = BorderStroke(spacing.spacing0_5, colors.companion),
                     modifier = Modifier.fillMaxWidth()
-                )
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(spacing.spacing4),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Routine completed for today! 15 coins earned.",
+                                style = typography.body,
+                                color = colors.inkPrimary
+                            )
+                            Spacer(modifier = Modifier.height(spacing.spacing0_5))
+                            Text(
+                                text = "Great momentum. Companion celebrated your consistency.",
+                                style = typography.caption,
+                                color = colors.inkSecondary
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { onIntent(HomeUiIntent.ResetRoutineProgress) },
+                            modifier = Modifier.defaultMinSize(
+                                minWidth = spacing.minTouchTarget,
+                                minHeight = spacing.minTouchTarget
+                            )
+                        ) {
+                            Text(
+                                text = "Reset",
+                                style = typography.label,
+                                color = colors.companion
+                            )
+                        }
+                    }
+                }
+            } else if (state.routineTimelineSteps.isNotEmpty()) {
+                state.routineTimelineSteps.forEach { stepState ->
+                    AdaptiveRoutineStepCard(
+                        stepOrder = stepState.step.orderIndex,
+                        title = stepState.step.title,
+                        durationMinutes = stepState.step.durationMinutes,
+                        status = stepState.status,
+                        timeSlot = stepState.timeSlot,
+                        onAdvanceStep = {
+                            val offset = routineOffsets[stepState.step.id] ?: Offset.Zero
+                            onIntent(HomeUiIntent.AdvanceRoutineStep(stepState.step.id, offset))
+                        },
+                        onSkip = {
+                            onIntent(HomeUiIntent.SkipRoutineStep(stepState.step.id))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = spacing.spacing2)
+                            .onGloballyPositioned { coordinates ->
+                                routineOffsets[stepState.step.id] = coordinates.positionInWindow()
+                            }
+                    )
+                }
+            } else {
+                val routineStep = state.activeRoutineStep
+                if (routineStep != null) {
+                    AdaptiveRoutineStepCard(
+                        stepOrder = routineStep.step.orderIndex,
+                        title = routineStep.step.title,
+                        durationMinutes = routineStep.step.durationMinutes,
+                        status = routineStep.status,
+                        onAdvanceStep = {
+                            onIntent(HomeUiIntent.AdvanceRoutineStep(routineStep.step.id))
+                        },
+                        onSkip = {
+                            onIntent(HomeUiIntent.SkipRoutineStep(routineStep.step.id))
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Surface(
+                        shape = shapes.lg,
+                        color = colors.surfaceSunken,
+                        border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "No routine scheduled for this template.",
+                            style = typography.caption,
+                            color = colors.inkTertiary,
+                            modifier = Modifier.padding(spacing.spacing4)
+                        )
+                    }
+                }
             }
         }
 

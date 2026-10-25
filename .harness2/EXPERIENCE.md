@@ -175,5 +175,15 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Using distinct `MutableStateFlow<Boolean>` for visibility and `MutableStateFlow<Task?>` for target entity causes intermediate desynchronized emissions across `combine(...)` pipelines where the sheet is flagged open before the entity is populated, leading to UI flicker or stale draft data.
 * **Rule:** Encapsulate composite dialog/sheet control state into a single atomic model (e.g. `data class TaskEditorControl(val isOpen: Boolean, val task: Task?)`) and emit it as a single StateFlow. In stateless Compose sheets, reset draft form fields inside `LaunchedEffect(isOpen, task)` to prevent draft leakage across dialog invocations.
 
+---
+
+## 11. Sequential Routines & Mid-Day Recalculation
+
+### EXP-025: Mid-Day Routine Timeline Recalculation & Idempotent Completion (AD-3, AD-6, FR-3.5)
+* **Context:** Sequential routine progression (`AdvanceRoutineStepUseCase`), mid-day timeline shifts (`RecalculateRoutineTimelineUseCase`), and 15-coin routine bonus awards in `HomeViewModel`.
+* **Heuristic:** Shifting routines forward mid-day can easily trigger two failure modes: (1) wrapping around midnight (e.g. 23:50 + 20 min = 00:10 next day) causing negative intervals and UI crashes, and (2) mutatively overriding base template step durations in SQLite, which permanently corrupts DayType baselines. Additionally, if the user replays or refreshes the routine, re-awarding completion coins causes ledger inflation.
+* **Rule:** (1) Always clamp end times at `23:59` via `safePlusMinutes` to avoid cross-day midnight wrap-around. (2) Keep baseline `routine_steps` rows in Room immutable during dynamic timeline shifting and scaling; recalculations must compute purely in-memory models (`ScheduledRoutineStep`). (3) Verify the deterministic idempotency key `ROUTINE_COMP_${routineId}_$date` against `EconomyRepository.getTransactionByIdempotencyKey(key)` inside the completion use case to guarantee strictly one 15-coin reward per routine per day.
+
+
 
 

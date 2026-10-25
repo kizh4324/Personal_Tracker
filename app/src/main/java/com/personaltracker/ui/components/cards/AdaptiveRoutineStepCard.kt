@@ -22,6 +22,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import com.personaltracker.domain.model.RoutineStep
+import com.personaltracker.domain.model.ScheduledRoutineStep
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
 /**
@@ -48,7 +50,7 @@ enum class RoutineStepStatus {
  *
  * Sourced 1:1 from `EXPERIENCE.md` §4.4 and `DESIGN.md` routine-card specifications.
  * Sequential execution model: current step highlighted, completed steps subtle,
- * upcoming steps dimmed, with a 48dp minimum touch target step advancement action.
+ * upcoming steps dimmed, with a 48dp minimum touch target step advancement and skip actions.
  */
 @Composable
 fun AdaptiveRoutineStepCard(
@@ -58,6 +60,8 @@ fun AdaptiveRoutineStepCard(
     status: RoutineStepStatus,
     onAdvanceStep: () -> Unit,
     modifier: Modifier = Modifier,
+    timeSlot: String? = null,
+    onSkip: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -80,6 +84,12 @@ fun AdaptiveRoutineStepCard(
         else -> BorderStroke(spacing.spacing0_5, colors.borderSubtle)
     }
 
+    val durationText = if (timeSlot != null) {
+        "$durationMinutes min • $timeSlot"
+    } else {
+        "$durationMinutes min"
+    }
+
     Surface(
         shape = shapes.lg,
         color = if (status == RoutineStepStatus.COMPLETED) colors.surfaceSunken else colors.surfaceRaised,
@@ -93,7 +103,7 @@ fun AdaptiveRoutineStepCard(
                 onClick = onClick
             )
             .semantics {
-                contentDescription = "Routine step $stepOrder: $title, ${durationMinutes} minutes, status: ${status.name}"
+                contentDescription = "Routine step $stepOrder: $title, ${durationMinutes} minutes${if (timeSlot != null) ", $timeSlot" else ""}, status: ${status.name}"
             }
     ) {
         Row(
@@ -162,36 +172,56 @@ fun AdaptiveRoutineStepCard(
                             textDecoration = if (status == RoutineStepStatus.COMPLETED) TextDecoration.LineThrough else TextDecoration.None
                         )
                         Text(
-                            text = "$durationMinutes min",
+                            text = durationText,
                             style = typography.data,
                             color = colors.inkTertiary
                         )
                     }
                 }
 
-                // Step advancement button (enforcing 48dp touch target)
+                // Step advancement and skip buttons (enforcing 48dp touch target)
                 if (status == RoutineStepStatus.ACTIVE) {
-                    Button(
-                        onClick = onAdvanceStep,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = colors.companion,
-                            contentColor = colors.surfaceRaised
-                        ),
-                        modifier = Modifier.defaultMinSize(
-                            minWidth = spacing.minTouchTarget,
-                            minHeight = spacing.minTouchTarget
-                        )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.spacing1)
-                        ) {
-                            Text(text = "Complete", style = typography.label)
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(spacing.spacing4)
+                        if (onSkip != null) {
+                            TextButton(
+                                onClick = onSkip,
+                                colors = ButtonDefaults.textButtonColors(
+                                    contentColor = colors.inkSecondary
+                                ),
+                                modifier = Modifier.defaultMinSize(
+                                    minWidth = spacing.minTouchTarget,
+                                    minHeight = spacing.minTouchTarget
+                                )
+                            ) {
+                                Text(text = "Skip", style = typography.label)
+                            }
+                        }
+
+                        Button(
+                            onClick = onAdvanceStep,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.companion,
+                                contentColor = colors.surfaceRaised
+                            ),
+                            modifier = Modifier.defaultMinSize(
+                                minWidth = spacing.minTouchTarget,
+                                minHeight = spacing.minTouchTarget
                             )
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.spacing1)
+                            ) {
+                                Text(text = "Complete", style = typography.label)
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(spacing.spacing4)
+                                )
+                            }
                         }
                     }
                 }
@@ -209,6 +239,8 @@ fun AdaptiveRoutineStepCard(
     status: RoutineStepStatus,
     onAdvanceStep: () -> Unit,
     modifier: Modifier = Modifier,
+    timeSlot: String? = null,
+    onSkip: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     AdaptiveRoutineStepCard(
@@ -218,6 +250,33 @@ fun AdaptiveRoutineStepCard(
         status = status,
         onAdvanceStep = onAdvanceStep,
         modifier = modifier,
+        timeSlot = timeSlot,
+        onSkip = onSkip,
+        onClick = onClick
+    )
+}
+
+/**
+ * Scheduled routine step overload for [AdaptiveRoutineStepCard].
+ */
+@Composable
+fun AdaptiveRoutineStepCard(
+    scheduledStep: ScheduledRoutineStep,
+    status: RoutineStepStatus,
+    onAdvanceStep: () -> Unit,
+    modifier: Modifier = Modifier,
+    onSkip: (() -> Unit)? = null,
+    onClick: () -> Unit = {}
+) {
+    AdaptiveRoutineStepCard(
+        stepOrder = scheduledStep.step.orderIndex,
+        title = scheduledStep.step.title,
+        durationMinutes = scheduledStep.step.durationMinutes,
+        status = status,
+        onAdvanceStep = onAdvanceStep,
+        modifier = modifier,
+        timeSlot = "${scheduledStep.startTime} - ${scheduledStep.endTime}",
+        onSkip = onSkip,
         onClick = onClick
     )
 }

@@ -306,10 +306,16 @@ class HomeViewModelTest {
             val s1 = awaitItem()
             assertTrue(s1.heroCardState is HeroCardState.MorningBanner)
 
-            // 2. Dismiss morning banner -> drops to IntentionalIdle (priority 6) if no tasks
+            // 2. Dismiss morning banner -> shows active routine step as UpcomingItem (priority 4)
             viewModel.onIntent(HomeUiIntent.DismissMorningBanner)
             val s2 = awaitItem()
-            assertTrue(s2.heroCardState is HeroCardState.IntentionalIdle)
+            assertTrue(s2.heroCardState is HeroCardState.UpcomingItem)
+
+            // 3. Snooze active routine step -> drops to IntentionalIdle (priority 6) if no tasks
+            val routineStepId = s2.activeRoutineStep?.step?.id ?: "step_std_1"
+            viewModel.onIntent(HomeUiIntent.SnoozeHeroItem(routineStepId))
+            val s3 = awaitItem()
+            assertTrue(s3.heroCardState is HeroCardState.IntentionalIdle)
         }
     }
 
@@ -416,7 +422,11 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         viewModel.uiState.test {
-            val stateWithOverdue = awaitItem()
+            val s0 = awaitItem()
+            s0.activeRoutineStep?.step?.id?.let { stepId ->
+                viewModel.onIntent(HomeUiIntent.SnoozeHeroItem(stepId))
+            }
+            val stateWithOverdue = if (s0.heroCardState is HeroCardState.CarryForwardReview) s0 else awaitItem()
             assertTrue(stateWithOverdue.heroCardState is HeroCardState.CarryForwardReview)
             assertEquals(1, stateWithOverdue.overdueTasks.size)
 
@@ -458,7 +468,11 @@ class HomeViewModelTest {
         advanceUntilIdle()
 
         viewModel.uiState.test {
-            val stateWithOverdue = awaitItem()
+            val s0 = awaitItem()
+            s0.activeRoutineStep?.step?.id?.let { stepId ->
+                viewModel.onIntent(HomeUiIntent.SnoozeHeroItem(stepId))
+            }
+            val stateWithOverdue = if (s0.heroCardState is HeroCardState.CarryForwardReview) s0 else awaitItem()
             assertTrue(stateWithOverdue.heroCardState is HeroCardState.CarryForwardReview)
             assertEquals(1, stateWithOverdue.overdueTasks.size)
 

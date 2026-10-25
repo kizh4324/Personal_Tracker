@@ -3,6 +3,7 @@ package com.personaltracker.ui.screens.home
 import com.personaltracker.domain.engine.FlameState
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
+import com.personaltracker.domain.model.Routine
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.Task
 import com.personaltracker.ui.components.cards.HeroCardState
@@ -30,7 +31,11 @@ data class HomeUiState(
     val focusTasks: List<Task> = emptyList(),
     val overdueTasks: List<Task> = emptyList(),
     val habits: List<HomeHabitItemState> = emptyList(),
+    val activeRoutine: Routine? = null,
     val activeRoutineStep: HomeRoutineStepState? = null,
+    val routineTimelineSteps: List<HomeScheduledStepState> = emptyList(),
+    val routineProgressSummary: String = "",
+    val isRoutineCompletedToday: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 )
@@ -50,4 +55,14 @@ data class HomeHabitItemState(
 data class HomeRoutineStepState(
     val step: RoutineStep,
     val status: RoutineStepStatus = RoutineStepStatus.ACTIVE
+)
+
+/**
+ * Scheduled routine step state representing timeline progression slot (AD-6).
+ */
+data class HomeScheduledStepState(
+    val step: RoutineStep,
+    val timeSlot: String,
+    val status: RoutineStepStatus,
+    val isCurrentCursor: Boolean
 )

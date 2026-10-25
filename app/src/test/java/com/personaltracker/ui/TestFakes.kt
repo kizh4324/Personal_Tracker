@@ -126,8 +126,30 @@ class TestRoutineRepository : RoutineRepository {
     override fun getStepsForRoutine(routineId: String): Flow<List<RoutineStep>> =
         stepsFlow.map { list -> list.filter { it.routineId == routineId } }
 
+    override suspend fun getRoutineById(routineId: String): Routine? {
+        val routine = routinesFlow.value.find { it.id == routineId } ?: return null
+        val steps = stepsFlow.value.filter { it.routineId == routineId }.sortedBy { it.orderIndex }
+        return routine.copy(steps = if (steps.isNotEmpty()) steps else routine.steps)
+    }
+
+    override fun getAllRoutines(): Flow<List<Routine>> = routinesFlow
+
+    override suspend fun getStepsForRoutineList(routineId: String): List<RoutineStep> =
+        stepsFlow.value.filter { it.routineId == routineId }.sortedBy { it.orderIndex }
+
+    override suspend fun ensureDefaultRoutines(): List<Routine> {
+        if (routinesFlow.value.isEmpty()) {
+            routinesFlow.value = Routine.BUILT_IN_ROUTINES
+            stepsFlow.value = Routine.BUILT_IN_ROUTINES.flatMap { it.steps }
+        }
+        return routinesFlow.value
+    }
+
     override suspend fun saveRoutine(routine: Routine) {
         routinesFlow.value = routinesFlow.value.filter { it.id != routine.id } + routine
+        if (routine.steps.isNotEmpty()) {
+            saveSteps(routine.steps)
+        }
     }
 
     override suspend fun saveSteps(steps: List<RoutineStep>) {
@@ -136,12 +158,13 @@ class TestRoutineRepository : RoutineRepository {
     }
 
     override suspend fun saveRoutineWithSteps(routine: Routine, steps: List<RoutineStep>) {
-        saveRoutine(routine)
+        saveRoutine(routine.copy(steps = steps))
         saveSteps(steps)
     }
 
     override suspend fun deleteRoutine(routineId: String) {
         routinesFlow.value = routinesFlow.value.filter { it.id != routineId }
+        stepsFlow.value = stepsFlow.value.filter { it.routineId != routineId }
     }
 }
 

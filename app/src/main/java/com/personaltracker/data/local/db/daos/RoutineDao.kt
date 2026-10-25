@@ -3,7 +3,6 @@ package com.personaltracker.data.local.db.daos
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Transaction
-import androidx.room.Update
 import androidx.room.Upsert
 import com.personaltracker.data.local.db.entities.RoutineEntity
 import com.personaltracker.data.local.db.entities.RoutineStepEntity
@@ -19,8 +18,20 @@ internal interface RoutineDao {
     @Query("SELECT * FROM routines WHERE dayTypeId = :dayTypeId ORDER BY targetStartTime ASC")
     fun getRoutinesForDayType(dayTypeId: String): Flow<List<RoutineEntity>>
 
+    @Query("SELECT * FROM routines WHERE id = :routineId")
+    suspend fun getRoutineById(routineId: String): RoutineEntity?
+
+    @Query("SELECT * FROM routines")
+    fun getAllRoutines(): Flow<List<RoutineEntity>>
+
     @Query("SELECT * FROM routine_steps WHERE routineId = :routineId ORDER BY orderIndex ASC")
     fun getStepsForRoutine(routineId: String): Flow<List<RoutineStepEntity>>
+
+    @Query("SELECT * FROM routine_steps WHERE routineId = :routineId ORDER BY orderIndex ASC")
+    suspend fun getStepsForRoutineList(routineId: String): List<RoutineStepEntity>
+
+    @Query("SELECT COUNT(*) FROM routines")
+    suspend fun getRoutineCount(): Int
 
     @Upsert
     suspend fun upsertRoutine(routine: RoutineEntity)

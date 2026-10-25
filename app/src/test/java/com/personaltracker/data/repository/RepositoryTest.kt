@@ -818,6 +818,16 @@ private class FakeRoutineDao : RoutineDao {
     override fun getStepsForRoutine(routineId: String): Flow<List<RoutineStepEntity>> =
         steps.map { list -> list.filter { it.routineId == routineId }.sortedBy { it.orderIndex } }
 
+    override suspend fun getRoutineById(routineId: String): RoutineEntity? =
+        routines.value.find { it.id == routineId }
+
+    override fun getAllRoutines(): Flow<List<RoutineEntity>> = routines
+
+    override suspend fun getStepsForRoutineList(routineId: String): List<RoutineStepEntity> =
+        steps.value.filter { it.routineId == routineId }.sortedBy { it.orderIndex }
+
+    override suspend fun getRoutineCount(): Int = routines.value.size
+
     override suspend fun upsertRoutine(routine: RoutineEntity) {
         routines.value = routines.value.filter { it.id != routine.id } + routine
     }

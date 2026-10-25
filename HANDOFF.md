@@ -17,7 +17,7 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-24 22:33:00 +05:30
+*   **Date/Time:** 2026-10-25 18:38:00 +05:30
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
@@ -25,7 +25,7 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (245 tests, ~2m 26s, passes clean)
+    *   Unit Tests (JVM): `.\gradlew test` (262 tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -36,7 +36,7 @@ status: active
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (~85% of Epic 1 completed). Stories 1.1 through 1.10 fully implemented and verified; JVM unit tests (245 executed) and Android lint pass with 0 errors.
+*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (100% of Epic 1 completed). Stories 1.1 through 1.11 fully implemented and verified; JVM unit tests (262 executed) and Android lint pass with 0 errors. Ready for Epic 2 (Voice Quick Capture).
 
 ---
 
@@ -133,25 +133,26 @@ flowchart TD
 | **Story 1.6: Platform Runtime Services & Background Workers** | `platform/*`, `di/PlatformModule.kt`, `AndroidManifest.xml` | Done | `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder` (RAM-only zeroing), `BootCompletedReceiver`. 100% pure domain preserved. |
 | **Story 1.7: Unidirectional MVI Screen Wiring & ViewModels Baseline** | `ui/screens/*`, `ui/navigation/*`, `app/src/test/java/com/personaltracker/ui/*` | Done | Full MVI ViewModels (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`, `HabitsViewModel`, `StudyViewModel`, `SettingsViewModel`, `AppShellViewModel`). Figma-ready Route/ScreenContent split, 3-tier quick capture routing, 6-state Hero Card hierarchy, pure domain & zero hardcoded token compliance. |
 | **Story 1.8: DayType Schedule Resolution & Morning Template Swap** | `domain/model/DayType.kt`, `domain/usecase/SwitchDayTypeUseCase.kt`, `data/repository/DayTypeRepositoryImpl.kt`, `ui/components/overlays/DayTypeSelectorDialog.kt`, `ui/screens/home/*` | Done | Built-in template provisioning (Standard, Rest, Crunch, Low Capacity), 4-tier resolution hierarchy, non-destructive schedule adaptation, atomic single-date override persistence, 48dp minimum touch target dialog, and reactive MVI wiring with zero guilt copy. |
+| **Story 1.9: Dynamic State-Aware Hero Card Integration & Action List** | `domain/usecase/ResolveHeroStateUseCase.kt`, `domain/usecase/CarryForwardTasksUseCase.kt`, `ui/components/cards/HeroActionCard.kt`, `ui/components/overlays/CarryForwardReviewDialog.kt`, `ui/screens/home/*` | Done | Dynamic 6-priority Hero Card machine, non-punishing carry-forward reviews, 300ms cross-fade animations, and intentional idle resting state. |
+| **Story 1.10: Core Task Management & Delivery Intensity Classification** | `domain/usecase/SaveTaskUseCase.kt`, `domain/usecase/DeleteTaskUseCase.kt`, `domain/usecase/EvaluateTaskUrgencyScarcityUseCase.kt`, `domain/alarm/TaskAlarmScheduler.kt`, `platform/alarm/TaskAlarmSchedulerImpl.kt`, `ui/components/overlays/TaskEditorSheet.kt`, `ui/screens/home/*` | Done | 3-tier delivery intensity classes (Routine, Important, Urgent), 5/7/10 coin valuations, non-blocking urgency soft-scarcity guidance, exact alarm coordination, and stateless TaskEditorSheet. |
+| **Story 1.11: Sequential Routine Domain Engine & Mid-Day Schedule Recalculation** | `domain/model/Routine.kt`, `domain/model/ScheduledRoutineStep.kt`, `domain/usecase/AdvanceRoutineStepUseCase.kt`, `domain/usecase/RecalculateRoutineTimelineUseCase.kt`, `domain/usecase/SaveRoutineUseCase.kt`, `data/repository/RoutineRepositoryImpl.kt`, `ui/components/cards/AdaptiveRoutineStepCard.kt`, `ui/screens/home/*` | Done | Built-in routine templates, sequential step progression, idempotent 15-coin routine bonus (`ROUTINE_COMP_{id}_{date}`), mid-day "Shift to Now" timeline recalculation with 23:59 safe clamping, and token-compliant Compose UI with 48dp touch targets. |
 
 ---
 
 ## 5. In Progress
-*   **Currently Paused At:** Completion and verification of Story 1.8. All unit tests (190+ tests), Android lint, domain purity, and architecture spine checks passed with 0 errors.
-*   **Exact Next Step:** Begin **Story 1.9 (`1-9-dynamic-state-aware-hero-card-integration-action-list`)**.
-    *   Target: Dynamic state-aware Hero Card integration with subordinate action list and carry-forward reviews.
+*   **Epic 1 Core Architecture & Persistence:** 100% Complete (Stories 1.1 through 1.11 verified). All 262 JVM unit tests, Android lint (0 errors), domain purity, spine lint, and Harness² diagnostics pass cleanly.
+*   **Exact Next Step:** Begin **Epic 2: Low-Friction Multimodal Capture & Confidence Routing Pipeline**, starting with **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`)**.
 
 ---
 
 ## 6. Pending Work (Prioritized)
 
-### P0: Story 1.9 — Dynamic State-Aware Hero Card Integration & Action List
-*   **Goal:** Bind dynamic Hero Card 6-state machine to today's schedule and action list with 300ms cross-fade animations and intentional idle resting state.
-*   **Blockers:** None.
-
-### P1: Stories 1.10 – 1.11 (Epic 1 Completion)
-*   **1.10:** Core task management & delivery intensity classification.
-*   **1.11:** Sequential routine domain engine & mid-day schedule recalculation.
+### P0: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline
+*   **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (300ms morph to waveform pill, RAM-only streaming audio, zero disk writes).
+*   **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency, title/date/time/duration/intensity extraction).
+*   **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover).
+*   **Story 2.4:** Strict AI action boundary & command validation pipeline.
+*   **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast.
 
 ---
 

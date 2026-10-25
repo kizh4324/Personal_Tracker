@@ -9,7 +9,10 @@ import com.personaltracker.domain.model.Task
 sealed interface HomeUiIntent {
     data class ToggleTask(val taskId: String, val startOffset: Offset = Offset.Zero) : HomeUiIntent
     data class ToggleHabit(val habitId: String, val startOffset: Offset = Offset.Zero) : HomeUiIntent
-    data class AdvanceRoutineStep(val stepId: String) : HomeUiIntent
+    data class AdvanceRoutineStep(val stepId: String, val startOffset: Offset = Offset.Zero) : HomeUiIntent
+    data class SkipRoutineStep(val stepId: String) : HomeUiIntent
+    object ShiftRoutineToNow : HomeUiIntent
+    object ResetRoutineProgress : HomeUiIntent
     object PauseActiveFocus : HomeUiIntent
     object ResumeActiveFocus : HomeUiIntent
     object EndActiveFocus : HomeUiIntent

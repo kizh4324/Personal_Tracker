@@ -41,6 +41,16 @@ enum class RewardAnimationType(
         assetPath = "animations/milestone_full_reveal.json",
         defaultSize = 200.dp,
         durationMs = 800
+    ),
+
+    /**
+     * Confetti celebration: ~1000ms, plays on routine completion.
+     * PLACEHOLDER: Points to placeholder JSON asset until designer asset lands.
+     */
+    ConfettiCelebration(
+        assetPath = "animations/confetti_celebration.json",
+        defaultSize = 200.dp,
+        durationMs = 1000
     )
 }
 

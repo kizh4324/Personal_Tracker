@@ -29,6 +29,37 @@ internal class RoutineRepositoryImpl @Inject constructor(
             .map { list -> list.map { it.toDomain() } }
             .flowOn(ioDispatcher)
 
+    override suspend fun getRoutineById(routineId: String): Routine? =
+        withContext(ioDispatcher) {
+            val entity = routineDao.getRoutineById(routineId) ?: return@withContext null
+            val steps = routineDao.getStepsForRoutineList(routineId).map { it.toDomain() }
+            entity.toDomain(steps = steps)
+        }
+
+    override fun getAllRoutines(): Flow<List<Routine>> =
+        routineDao.getAllRoutines()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+
+    override suspend fun getStepsForRoutineList(routineId: String): List<RoutineStep> =
+        withContext(ioDispatcher) {
+            routineDao.getStepsForRoutineList(routineId).map { it.toDomain() }
+        }
+
+    override suspend fun ensureDefaultRoutines(): List<Routine> =
+        withContext(ioDispatcher) {
+            val count = routineDao.getRoutineCount()
+            if (count == 0) {
+                for (routine in Routine.BUILT_IN_ROUTINES) {
+                    routineDao.saveRoutineWithSteps(
+                        routine.toEntity(),
+                        routine.steps.map { it.copy(routineId = routine.id).toEntity() }
+                    )
+                }
+            }
+            Routine.BUILT_IN_ROUTINES
+        }
+
     override suspend fun saveRoutine(routine: Routine) =
         withContext(ioDispatcher) {
             if (routine.steps.isNotEmpty()) {

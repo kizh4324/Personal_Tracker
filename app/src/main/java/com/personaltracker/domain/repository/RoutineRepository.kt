@@ -10,6 +10,10 @@ import kotlinx.coroutines.flow.Flow
 interface RoutineRepository {
     fun getRoutinesForDayType(dayTypeId: String): Flow<List<Routine>>
     fun getStepsForRoutine(routineId: String): Flow<List<RoutineStep>>
+    suspend fun getRoutineById(routineId: String): Routine?
+    fun getAllRoutines(): Flow<List<Routine>>
+    suspend fun getStepsForRoutineList(routineId: String): List<RoutineStep>
+    suspend fun ensureDefaultRoutines(): List<Routine>
     suspend fun saveRoutine(routine: Routine)
     suspend fun saveSteps(steps: List<RoutineStep>)
     suspend fun saveRoutineWithSteps(routine: Routine, steps: List<RoutineStep>)
