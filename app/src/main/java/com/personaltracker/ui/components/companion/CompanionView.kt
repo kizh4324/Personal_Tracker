@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import app.rive.runtime.kotlin.RiveAnimationView
 import app.rive.runtime.kotlin.core.Fit
@@ -124,6 +123,7 @@ fun PlaceholderCompanionView(
 ) {
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
+    val spacing = PersonalTrackerTheme.spacing
 
     val stateColor = when (state) {
         CompanionState.Idle -> colors.companion
@@ -136,7 +136,7 @@ fun PlaceholderCompanionView(
     }
 
     val stateEmoji = when (state) {
-        CompanionState.Idle -> "🌿"
+        CompanionState.Idle -> "🦊"
         CompanionState.Celebrating -> "🎉"
         CompanionState.Encouraging -> "✨"
         CompanionState.Concerned -> "🧐"
@@ -147,14 +147,14 @@ fun PlaceholderCompanionView(
 
     Box(
         modifier = modifier
-            .size(120.dp)
+            .size(spacing.spacing16 + spacing.spacing12)
             .clip(CircleShape)
             .background(stateColor.copy(alpha = 0.15f)),
         contentAlignment = Alignment.Center
     ) {
         Box(
             modifier = Modifier
-                .size(96.dp)
+                .size(spacing.spacing16 + spacing.spacing8)
                 .clip(CircleShape)
                 .background(stateColor.copy(alpha = 0.35f)),
             contentAlignment = Alignment.Center

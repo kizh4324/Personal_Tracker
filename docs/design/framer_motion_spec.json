@@ -1,7 +1,7 @@
 {
   "framerProjectId": "QaEW7GnAiltJMNVpWjTs-dKIrE",
   "figmaFileKey": "s57DZjLfKqmqAJrdU8LwxB",
-  "generatedAt": "2026-10-25T20:24:00Z",
+  "generatedAt": "2026-10-25T21:02:00Z",
   "physicsSpecs": {
     "dayCapsuleMorph": {
       "type": "spring",
@@ -57,6 +57,49 @@
       "target": 842,
       "duration": 1.2,
       "ease": [0.16, 1, 0.3, 1]
+    },
+    "focusTimerBreathing": {
+      "type": "keyframes",
+      "scale": [1.0, 1.025, 1.0],
+      "duration": 3.5,
+      "repeat": "Infinity",
+      "ease": "easeInOut",
+      "composeEquivalent": {
+        "durationMillis": 3500,
+        "minScale": 1.0,
+        "maxScale": 1.025
+      }
+    },
+    "timerPauseResumeSpring": {
+      "type": "spring",
+      "stiffness": 350,
+      "damping": 25,
+      "composeEquivalent": {
+        "dampingRatio": 0.74,
+        "stiffness": 350.0
+      }
+    },
+    "companionPetBounce": {
+      "type": "keyframes",
+      "translateY": [0, -10, 0],
+      "scale": [1.0, 1.03, 1.0],
+      "duration": 2.8,
+      "repeat": "Infinity",
+      "ease": "easeInOut",
+      "composeEquivalent": {
+        "durationMillis": 2800,
+        "maxTranslationDp": 10.0
+      }
+    },
+    "shopItemPurchaseBurst": {
+      "type": "spring",
+      "keyframes": [1.0, 1.15, 1.0],
+      "stiffness": 400,
+      "damping": 18,
+      "composeEquivalent": {
+        "dampingRatio": 0.50,
+        "stiffness": 400.0
+      }
     }
   }
 }

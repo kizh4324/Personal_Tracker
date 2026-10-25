@@ -65,6 +65,18 @@ object AnimationTokens {
     fun <T> staggeredBarSpringSpec(): AnimationSpec<T> =
         spring(dampingRatio = 0.81f, stiffness = 220f)
 
+    /**
+     * Focus Timer Pause/Resume feedback: Framer stiffness 350, damping 25.
+     */
+    fun <T> timerPauseResumeSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.74f, stiffness = 350f)
+
+    /**
+     * Shop Purchase Burst physics: Framer stiffness 400, damping 18.
+     */
+    fun <T> shopPurchaseBurstSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.50f, stiffness = 400f)
+
     // ─── Standard Animation Specs ───
     /**
      * Micro-interaction: Checkbox check, chip selection, row highlight, button press feedback.

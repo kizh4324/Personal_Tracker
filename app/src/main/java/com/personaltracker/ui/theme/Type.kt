@@ -74,6 +74,13 @@ data class PersonalTrackerTypography(
         lineHeight = 18.sp,
         letterSpacing = 0.02.em
     ),
+    val ctaText: TextStyle = TextStyle(
+        fontFamily = PlusJakartaSansFamily,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+        lineHeight = 20.sp,
+        letterSpacing = 0.em
+    ),
     val caption: TextStyle = TextStyle(
         fontFamily = PlusJakartaSansFamily,
         fontSize = 11.sp,

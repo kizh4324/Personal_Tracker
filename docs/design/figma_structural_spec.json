@@ -185,6 +185,79 @@
           }
         }
       }
+    },
+    {
+      "id": "5:5",
+      "name": "04_Study_Focus_Timer",
+      "dimensions": { "x": 1314, "y": 0, "width": 390, "height": 844 },
+      "fill": "#F9F6F0",
+      "nodes": {
+        "headerTitle": "6:134",
+        "headerSubtitle": "6:135",
+        "closeButton": "6:136",
+        "focusTimerStage": {
+          "cardId": "6:137",
+          "outerDialId": "6:138",
+          "trackRingId": "6:139",
+          "progressArcId": "6:140",
+          "countdownTextId": "6:141",
+          "statusLabelId": "6:142",
+          "coinRewardPillId": "6:143"
+        },
+        "intensitySelector": {
+          "labelId": "6:144",
+          "pills": [
+            { "label": "Deep Work", "pillId": "6:145", "active": false },
+            { "label": "Pomodoro", "pillId": "6:146", "active": true, "fill": "#1E1E1E" },
+            { "label": "Flow State", "pillId": "6:147", "active": false }
+          ]
+        },
+        "controls": {
+          "primaryButtonId": "6:148",
+          "primaryButtonTextId": "6:149",
+          "primaryFill": "#59280E",
+          "secondaryButtonId": "6:150",
+          "secondaryButtonTextId": "6:151"
+        },
+        "summaryCard": {
+          "cardId": "6:152",
+          "titleId": "6:153",
+          "subtitleId": "6:154"
+        }
+      }
+    },
+    {
+      "id": "5:6",
+      "name": "05_Companion_And_Shop",
+      "dimensions": { "x": 1752, "y": 0, "width": 390, "height": 844 },
+      "fill": "#F9F6F0",
+      "nodes": {
+        "headerTitle": "6:155",
+        "headerSubtitle": "6:156",
+        "coinBalanceBadgeId": "6:157",
+        "companionStageCard": {
+          "cardId": "6:158",
+          "fill": "#FCD9B8",
+          "petAvatarCircleId": "6:159",
+          "petEmojiId": "6:160",
+          "petNameLevelId": "6:161",
+          "energyTrackId": "6:162",
+          "energyFillId": "6:163",
+          "energyFillColor": "#A3D929",
+          "nonPunishingNoticeId": "6:164"
+        },
+        "wardrobeShopGrid": [
+          { "id": "item_scarf", "name": "Cozy Scarf", "price": "25 Coins", "cardId": "6:165", "iconFill": "#F5DDF7", "status": "Equipped" },
+          { "id": "item_cap", "name": "Study Cap", "price": "40 Coins", "cardId": "6:166", "iconFill": "#E4F2C3", "status": "Get" },
+          { "id": "item_crown", "name": "Golden Crown", "price": "100 Coins", "cardId": "6:167", "iconFill": "#FFE8D6", "status": "Get" },
+          { "id": "item_coffee", "name": "Warm Coffee", "price": "15 Coins", "cardId": "6:168", "iconFill": "#FFE8D6", "status": "Get" }
+        ],
+        "rewardTriggers": {
+          "milestoneButtonId": "6:169",
+          "coinBurstButtonId": "6:170"
+        },
+        "behavioralCardId": "6:171"
+      }
     }
   ]
 }

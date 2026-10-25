@@ -123,8 +123,8 @@ fun QuickCaptureSheet(
         ModalBottomSheet(
             onDismissRequest = onDismissRequest,
             sheetState = sheetState,
-            containerColor = colors.surfaceRaised,
-            shape = shapes.xl,
+            containerColor = colors.surfaceBase,
+            shape = shapes.xxxl,
             modifier = modifier
         ) {
             QuickCaptureSheetContent(
@@ -200,22 +200,25 @@ fun QuickCaptureSheetContent(
         ) {
             Text(
                 text = "Quick Capture",
-                style = typography.title,
+                style = typography.greetingTitle,
                 color = colors.inkPrimary
             )
 
-            IconButton(
-                onClick = onClose,
-                modifier = Modifier.defaultMinSize(
-                    minWidth = spacing.minTouchTarget,
-                    minHeight = spacing.minTouchTarget
-                )
+            Surface(
+                shape = shapes.full,
+                color = colors.surfaceSunken,
+                modifier = Modifier.size(spacing.spacing10)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close Quick Capture",
-                    tint = colors.inkSecondary
-                )
+                IconButton(
+                    onClick = onClose,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close Quick Capture",
+                        tint = colors.inkPrimary
+                    )
+                }
             }
         }
 
@@ -282,10 +285,12 @@ fun QuickCaptureSheetContent(
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { onSubmitText(inputText) }),
-                shape = shapes.md,
+                shape = shapes.full,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = colors.primary,
-                    unfocusedBorderColor = colors.borderDefault,
+                    unfocusedBorderColor = colors.borderSubtle,
+                    focusedContainerColor = colors.surfaceRaised,
+                    unfocusedContainerColor = colors.surfaceRaised,
                     cursorColor = colors.primary
                 ),
                 modifier = Modifier
@@ -296,7 +301,7 @@ fun QuickCaptureSheetContent(
             // Voice Capture Toggle Button (fixed 48dp circular button to avoid distortion)
             Surface(
                 shape = shapes.full,
-                color = if (isRecording) colors.danger else colors.primary,
+                color = if (isRecording) colors.danger else colors.primaryDark,
                 modifier = Modifier
                     .size(spacing.minTouchTarget)
                     .clickable(
@@ -359,19 +364,19 @@ fun MediumConfidenceProposalCard(
     val chips = resolveProposalChips(proposal)
 
     Surface(
-        shape = shapes.lg,
-        color = colors.surfaceBase,
-        border = BorderStroke(spacing.spacing0_5, colors.borderDefault),
+        shape = shapes.xxl,
+        color = colors.surfaceRaised,
+        border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
             verticalArrangement = Arrangement.spacedBy(spacing.spacing3),
-            modifier = Modifier.padding(spacing.spacing3)
+            modifier = Modifier.padding(spacing.spacing4)
         ) {
             Text(
                 text = "Does this look right?",
-                style = typography.label,
-                color = colors.inkSecondary
+                style = typography.title,
+                color = colors.inkPrimary
             )
 
             // Horizontal scrolling chip row for Title, Date, Time, Type, Urgency
@@ -401,15 +406,21 @@ fun MediumConfidenceProposalCard(
                         containerColor = colors.primary,
                         contentColor = colors.surfaceRaised
                     ),
+                    shape = shapes.full,
                     modifier = Modifier
                         .weight(1f)
                         .defaultMinSize(minHeight = spacing.minTouchTarget)
                 ) {
-                    Text(text = "Confirm", style = typography.label)
+                    Text(text = "Confirm", style = typography.ctaText)
                 }
 
                 OutlinedButton(
                     onClick = onDiscard,
+                    shape = shapes.full,
+                    border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = colors.inkPrimary
+                    ),
                     modifier = Modifier
                         .weight(1f)
                         .defaultMinSize(minHeight = spacing.minTouchTarget)
@@ -460,7 +471,7 @@ fun ConfirmationChip(
         Surface(
             shape = shapes.full,
             color = colors.surfaceRaised,
-            border = BorderStroke(spacing.spacing0_5, colors.borderDefault),
+            border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
             modifier = Modifier.defaultMinSize(minHeight = spacing.chipHeight)
         ) {
             Row(
@@ -549,7 +560,7 @@ fun HighConfidenceUndoToast(
                     Text(
                         text = "Undo",
                         style = typography.label,
-                        color = colors.accentWarm
+                        color = colors.bannerPeach
                     )
                 }
             }

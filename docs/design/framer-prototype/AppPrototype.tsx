@@ -3,10 +3,10 @@ import { DayCapsuleSelector } from "./DayCapsuleSelector";
 import { TimelineCheckList } from "./TimelineCheckList";
 import { SharedElementModal } from "./SharedElementModal";
 import { VerticalCapsuleBars } from "./VerticalCapsuleBars";
+import { FocusTimerRing } from "./FocusTimerRing";
+import { CompanionStage } from "./CompanionStage";
 
 export const AppPrototype: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"home" | "insights">("home");
-
   return (
     <div
       style={{
@@ -15,14 +15,16 @@ export const AppPrototype: React.FC = () => {
         padding: "48px",
         backgroundColor: "#EAE6DE",
         minHeight: "100vh",
-        justifyContent: "center",
+        justifyContent: "flex-start",
         alignItems: "flex-start",
+        overflowX: "auto",
         fontFamily: "'Inter', -apple-system, sans-serif",
       }}
     >
       {/* Frame 1: Home Daily Routine */}
       <div
         style={{
+          minWidth: "390px",
           width: "390px",
           height: "844px",
           backgroundColor: "#F9F6F0",
@@ -131,6 +133,7 @@ export const AppPrototype: React.FC = () => {
       {/* Frame 3: Progress & Insights */}
       <div
         style={{
+          minWidth: "390px",
           width: "390px",
           height: "844px",
           backgroundColor: "#F9F6F0",
@@ -167,6 +170,34 @@ export const AppPrototype: React.FC = () => {
 
         {/* Vertical Capsule Bars & Summary */}
         <VerticalCapsuleBars />
+      </div>
+
+      {/* Frame 4: Study Focus Timer */}
+      <div
+        style={{
+          minWidth: "390px",
+          width: "390px",
+          height: "844px",
+          borderRadius: "44px",
+          overflow: "hidden",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.12)",
+        }}
+      >
+        <FocusTimerRing />
+      </div>
+
+      {/* Frame 5: Companion & Shop */}
+      <div
+        style={{
+          minWidth: "390px",
+          width: "390px",
+          height: "844px",
+          borderRadius: "44px",
+          overflow: "hidden",
+          boxShadow: "0 24px 64px rgba(0,0,0,0.12)",
+        }}
+      >
+        <CompanionStage />
       </div>
     </div>
   );
