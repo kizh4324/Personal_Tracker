@@ -1,0 +1,11 @@
+{
+  "name": "personal-tracker-framer-motion-prototype",
+  "version": "1.0.0",
+  "description": "50/50 Figma + Framer interactive prototype bundle linked to project QaEW7GnAiltJMNVpWjTs-dKIrE",
+  "main": "AppPrototype.tsx",
+  "dependencies": {
+    "framer-motion": "^12.4.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

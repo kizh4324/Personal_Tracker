@@ -1,0 +1,190 @@
+{
+  "document": {
+    "fileKey": "s57DZjLfKqmqAJrdU8LwxB",
+    "name": "personal-tracker",
+    "pageId": "0:1",
+    "pageName": "Page 1",
+    "channel": "ooccx025",
+    "timestamp": "2026-10-25T20:23:00Z"
+  },
+  "colorTokens": {
+    "backgroundWarmCream": "#F9F6F0",
+    "surfaceWhite": "#FFFFFF",
+    "textCharcoal": "#1E1E1E",
+    "textMuted": "#7A7267",
+    "primaryVibrantOrange": "#F26B1D",
+    "primaryDeepEspresso": "#59280E",
+    "bannerWarmPeach": "#FCD9B8",
+    "accentLimeGreen": "#A3D929",
+    "barDeepCocoa": "#4B322C",
+    "barWarmRust": "#8C3F0B",
+    "barMatchaOlive": "#7FA62D",
+    "barSoftOrchid": "#DC75C2",
+    "barTrackHatched": "#EBE5DC",
+    "iconSoftPeach": "#FFE8D6",
+    "iconSoftMatcha": "#E4F2C3",
+    "iconSoftLavender": "#F5DDF7"
+  },
+  "typographyTokens": {
+    "greetingTitle": { "fontSize": 28, "fontWeight": 700, "lineHeight": 34 },
+    "greetingSubtitle": { "fontSize": 14, "fontWeight": 400, "lineHeight": 17 },
+    "sectionHeader": { "fontSize": 20, "fontWeight": 700, "lineHeight": 24 },
+    "routineTitle": { "fontSize": 15, "fontWeight": 600, "lineHeight": 18 },
+    "routineSubtitle": { "fontSize": 12, "fontWeight": 400, "lineHeight": 15 },
+    "modalTitle": { "fontSize": 24, "fontWeight": 700, "lineHeight": 29 },
+    "formLabel": { "fontSize": 14, "fontWeight": 600, "lineHeight": 17 },
+    "ctaText": { "fontSize": 16, "fontWeight": 700, "lineHeight": 19 },
+    "heroScore": { "fontSize": 32, "fontWeight": 700, "lineHeight": 39 }
+  },
+  "frames": [
+    {
+      "id": "5:2",
+      "name": "01_Home_Daily_Routine",
+      "dimensions": { "x": 0, "y": 0, "width": 390, "height": 844 },
+      "fill": "#F9F6F0",
+      "nodes": {
+        "greetingTitle": "5:5",
+        "greetingSubtitle": "5:6",
+        "companionAvatarBadge": "5:7",
+        "avatarEmoji": "5:8",
+        "dayCapsules": [
+          { "day": "Mon", "date": "7", "frameId": "5:9", "active": false },
+          { "day": "Tue", "date": "8", "frameId": "5:12", "active": false },
+          { "day": "Wed", "date": "9", "frameId": "5:15", "active": false },
+          { "day": "Thu", "date": "10", "frameId": "5:18", "active": true, "fill": "#1E1E1E" },
+          { "day": "Fri", "date": "11", "frameId": "6:21", "active": false },
+          { "day": "Sat", "date": "12", "frameId": "6:24", "active": false },
+          { "day": "Sun", "date": "13", "frameId": "6:27", "active": false }
+        ],
+        "heroReminderBanner": {
+          "frameId": "6:30",
+          "titleId": "6:31",
+          "subtitleId": "6:32",
+          "setNowButtonId": "6:33",
+          "bellAccentId": "6:35"
+        },
+        "sectionTitle": "6:37",
+        "seeAllAction": "6:38",
+        "routineItems": [
+          {
+            "id": "item_1",
+            "name": "Drink a glass of water",
+            "streak": "Streak 3 days • 5 min",
+            "checkId": "6:39",
+            "cardId": "6:41",
+            "iconBoxId": "6:42",
+            "iconFill": "#FFE8D6",
+            "completed": true
+          },
+          {
+            "id": "item_2",
+            "name": "Meditate to relax",
+            "streak": "Streak 6 days • 15 min",
+            "checkId": "6:46",
+            "cardId": "6:48",
+            "iconBoxId": "6:49",
+            "iconFill": "#E4F2C3",
+            "completed": true
+          },
+          {
+            "id": "item_3",
+            "name": "Stretch for 10 minutes",
+            "streak": "Streak 5 days • 10 min",
+            "checkId": "6:53",
+            "cardId": "6:54",
+            "iconBoxId": "6:55",
+            "iconFill": "#F5DDF7",
+            "completed": false
+          },
+          {
+            "id": "item_4",
+            "name": "Go for a short walk",
+            "streak": "Streak 3 days • 15 min",
+            "checkId": "6:59",
+            "cardId": "6:60",
+            "iconBoxId": "6:61",
+            "iconFill": "#FFE8D6",
+            "completed": false
+          }
+        ],
+        "fabButton": {
+          "frameId": "6:65",
+          "iconId": "6:66",
+          "fill": "#59280E"
+        }
+      }
+    },
+    {
+      "id": "5:3",
+      "name": "02_New_Habit_Modal",
+      "dimensions": { "x": 438, "y": 0, "width": 390, "height": 844 },
+      "fill": "#F9F6F0",
+      "nodes": {
+        "title": "6:67",
+        "closeButton": "6:68",
+        "calendarHero": {
+          "containerId": "6:70",
+          "fill": "#A3D929",
+          "innerCardId": "6:71"
+        },
+        "habitNameField": {
+          "labelId": "6:73",
+          "inputId": "6:74",
+          "value": "Morning Meditations"
+        },
+        "goalSection": {
+          "labelId": "6:76",
+          "dateCardId": "6:77",
+          "amountCardId": "6:80"
+        },
+        "repeatDays": {
+          "labelId": "6:83",
+          "pills": ["6:84", "6:86", "6:88", "6:90", "6:92", "6:94", "6:96"],
+          "activePill": "6:86"
+        },
+        "remindersToggle": {
+          "cardId": "6:98",
+          "switchId": "6:100",
+          "thumbId": "6:101",
+          "enabled": true
+        },
+        "saveCta": {
+          "buttonId": "6:102",
+          "textId": "6:103",
+          "fill": "#F26B1D"
+        }
+      }
+    },
+    {
+      "id": "5:4",
+      "name": "03_Progress_And_Insights",
+      "dimensions": { "x": 876, "y": 0, "width": 390, "height": 844 },
+      "fill": "#F9F6F0",
+      "nodes": {
+        "title": "6:104",
+        "closeButton": "6:105",
+        "progressBars": [
+          { "name": "Walking", "percentage": 48, "trackId": "6:107", "fillId": "6:108", "color": "#4B322C" },
+          { "name": "Running", "percentage": 33, "trackId": "6:111", "fillId": "6:112", "color": "#8C3F0B" },
+          { "name": "Meditation", "percentage": 27, "trackId": "6:115", "fillId": "6:116", "color": "#7FA62D" },
+          { "name": "Drink", "percentage": 40, "trackId": "6:119", "fillId": "6:120", "color": "#DC75C2" }
+        ],
+        "summaryCard": {
+          "cardId": "6:123",
+          "headerLabelId": "6:124",
+          "pointsScoreId": "6:125",
+          "metrics": [
+            { "label": "Weight", "value": "440 lb", "valId": "6:126", "subId": "6:127" },
+            { "label": "Elevation", "value": "200 ft", "valId": "6:128", "subId": "6:129" },
+            { "label": "Total time", "value": "7h 30m", "valId": "6:130", "subId": "6:131" }
+          ],
+          "shareCta": {
+            "buttonId": "6:132",
+            "textId": "6:133",
+            "fill": "#F26B1D"
+          }
+        }
+      }
+    }
+  ]
+}

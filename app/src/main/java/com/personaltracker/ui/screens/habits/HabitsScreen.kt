@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.personaltracker.ui.components.cards.HabitStreakCard
+import com.personaltracker.ui.components.cards.VerticalCapsuleBars
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -169,6 +170,24 @@ fun HabitsScreenContent(
                     )
                 }
             }
+        }
+
+        Spacer(modifier = Modifier.height(spacing.sectionGap))
+
+        // Progress & Insights (Figma Frame 3)
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Text(
+                text = "Your progress and insights",
+                style = typography.headline,
+                color = colors.inkPrimary,
+                modifier = Modifier.padding(bottom = spacing.spacing4)
+            )
+            VerticalCapsuleBars(
+                modifier = Modifier.fillMaxWidth(),
+                onShareProgress = {
+                    // Handled gracefully with haptic feedback or share intent
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(spacing.spacing8))

@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material3.Button
@@ -129,11 +132,13 @@ fun HeroActionCard(
     // Min height 120dp expressed purely via design tokens: spacing16 (64dp) + spacing12 (48dp) + spacing2 (8dp) = 120dp
     val stableMinHeight = spacing.spacing16 + spacing.spacing12 + spacing.spacing2
 
+    val isMorningBanner = state is HeroCardState.MorningBanner
+
     Surface(
-        shape = shapes.lg,
-        color = colors.surfaceRaised,
+        shape = if (isMorningBanner) shapes.xxl else shapes.lg,
+        color = if (isMorningBanner) colors.bannerPeach else colors.surfaceRaised,
         shadowElevation = elevation.low,
-        border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+        border = BorderStroke(spacing.spacing0_5, if (isMorningBanner) colors.bannerPeach else colors.borderSubtle),
         modifier = modifier
             .fillMaxWidth()
             .defaultMinSize(minHeight = stableMinHeight)
@@ -305,40 +310,65 @@ private fun MorningBannerContent(state: HeroCardState.MorningBanner) {
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
     val spacing = PersonalTrackerTheme.spacing
+    val shapes = PersonalTrackerTheme.shapes
 
-    Column(
-        verticalArrangement = Arrangement.spacedBy(spacing.spacing2),
-        modifier = Modifier.fillMaxWidth()
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = "Good morning!",
-            style = typography.title,
-            color = colors.inkPrimary
-        )
-        Text(
-            text = "Active: ${state.dayTypeName}",
-            style = typography.bodyMedium,
-            color = colors.inkSecondary
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            verticalArrangement = Arrangement.spacedBy(spacing.spacing1),
+            modifier = Modifier.weight(1f)
         ) {
-            Button(
-                onClick = state.onSwapDayType,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.surfaceRaised
-                ),
-                modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+            Text(
+                text = "Set the reminder",
+                style = typography.title,
+                color = colors.inkPrimary
+            )
+            Text(
+                text = "Never miss your morning routine! Active: ${state.dayTypeName}",
+                style = typography.caption,
+                color = colors.primaryDark
+            )
+            Spacer(modifier = Modifier.height(spacing.spacing2))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = "Swap DayType", style = typography.label)
+                Button(
+                    onClick = state.onSwapDayType,
+                    shape = shapes.full,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primaryDark,
+                        contentColor = colors.surfaceRaised
+                    ),
+                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Set Now", style = typography.label)
+                }
+                TextButton(
+                    onClick = state.onDismiss,
+                    shape = shapes.full,
+                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Dismiss", style = typography.label, color = colors.inkSecondary)
+                }
             }
-            TextButton(
-                onClick = state.onDismiss,
-                modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
-            ) {
-                Text(text = "Dismiss", style = typography.label, color = colors.inkSecondary)
+        }
+
+        Spacer(modifier = Modifier.width(spacing.spacing3))
+
+        Surface(
+            shape = shapes.full,
+            color = colors.primary,
+            modifier = Modifier.size(spacing.fabSize)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "🔔",
+                    style = typography.title
+                )
             }
         }
     }

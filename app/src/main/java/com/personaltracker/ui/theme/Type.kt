@@ -3,9 +3,7 @@ package com.personaltracker.ui.theme
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -13,10 +11,10 @@ import androidx.compose.ui.unit.sp
 /**
  * Font Families for Personal-Tracker.
  * Plus Jakarta Sans for primary UI, Inter for data-dense and numeric displays.
- * Sourced 1:1 from `design-system.md` Typography section.
+ * Sourced 1:1 from `design-system.md` Typography section and Figma reference frames.
  */
-val PlusJakartaSansFamily = FontFamily.Default // In production: FontFamily(Font(R.font.plus_jakarta_sans_regular, ...))
-val InterFamily = FontFamily.Default // In production: FontFamily(Font(R.font.inter_regular, ...))
+val PlusJakartaSansFamily = FontFamily.Default
+val InterFamily = FontFamily.Default
 
 @Immutable
 data class PersonalTrackerTypography(
@@ -25,6 +23,13 @@ data class PersonalTrackerTypography(
         fontSize = 28.sp,
         fontWeight = FontWeight.Bold,
         lineHeight = 36.sp,
+        letterSpacing = (-0.02).em
+    ),
+    val greetingTitle: TextStyle = TextStyle(
+        fontFamily = PlusJakartaSansFamily,
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
+        lineHeight = 34.sp,
         letterSpacing = (-0.02).em
     ),
     val headline: TextStyle = TextStyle(
@@ -88,6 +93,13 @@ data class PersonalTrackerTypography(
         fontSize = 32.sp,
         fontWeight = FontWeight.Bold,
         lineHeight = 40.sp,
+        letterSpacing = (-0.02).em
+    ),
+    val heroScore: TextStyle = TextStyle(
+        fontFamily = InterFamily,
+        fontSize = 32.sp,
+        fontWeight = FontWeight.Bold,
+        lineHeight = 39.sp,
         letterSpacing = (-0.02).em
     )
 )

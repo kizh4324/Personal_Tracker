@@ -41,3 +41,9 @@ __pycache__/
 # Google Research Harness2 (Isolated Third-Party Research Engine & Runs)
 .harness2/repo/
 .harness2/runs/
+
+# Third-Party MCP Servers & Local Tooling
+cursor-talk-to-figma-mcp/
+.mcp.json
+.cursor/
+

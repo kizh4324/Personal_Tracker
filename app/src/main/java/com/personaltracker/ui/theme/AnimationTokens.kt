@@ -13,7 +13,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 /**
  * Motion & Animation Timing Bands and Curves for Personal-Tracker.
  * Governing rule: "Motion communicates real state change resulting from a real user action. Never decoration."
- * Sourced 1:1 from `design-system.md` Motion & Animation Principles section.
+ * Sourced 1:1 from `design-system.md` Motion & Animation Principles section and Framer Project QaEW7GnAiltJMNVpWjTs-dKIrE.
  */
 @Immutable
 object AnimationTokens {
@@ -40,7 +40,32 @@ object AnimationTokens {
     val GentleEaseInOut = CubicBezierEasing(0.42f, 0f, 0.58f, 1f)
     val Linear = LinearEasing
 
-    // ─── Animation Specs ───
+    // ─── Framer-to-Compose Spring Physics (QaEW7GnAiltJMNVpWjTs-dKIrE) ───
+    /**
+     * 7-Day Capsule Morph physics: Framer stiffness 380, damping 28.
+     */
+    fun <T> dayCapsuleSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.72f, stiffness = 380f)
+
+    /**
+     * Timeline Checkmark Burst: Framer stiffness 450, damping 20, 1.0 -> 1.25 -> 1.0.
+     */
+    fun <T> timelineBurstSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.55f, stiffness = 450f)
+
+    /**
+     * Shared Element FAB -> Modal Sheet: Framer stiffness 320, damping 26.
+     */
+    fun <T> fabToModalSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.75f, stiffness = 320f)
+
+    /**
+     * Staggered Vertical Progress Bar Growth: Framer stiffness 220, damping 24.
+     */
+    fun <T> staggeredBarSpringSpec(): AnimationSpec<T> =
+        spring(dampingRatio = 0.81f, stiffness = 220f)
+
+    // ─── Standard Animation Specs ───
     /**
      * Micro-interaction: Checkbox check, chip selection, row highlight, button press feedback.
      * Duration: 150-250ms.

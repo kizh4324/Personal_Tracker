@@ -1,0 +1,62 @@
+{
+  "framerProjectId": "QaEW7GnAiltJMNVpWjTs-dKIrE",
+  "figmaFileKey": "s57DZjLfKqmqAJrdU8LwxB",
+  "generatedAt": "2026-10-25T20:24:00Z",
+  "physicsSpecs": {
+    "dayCapsuleMorph": {
+      "type": "spring",
+      "stiffness": 380,
+      "damping": 28,
+      "mass": 1.0,
+      "layoutId": "activeDayIndicator",
+      "composeEquivalent": {
+        "dampingRatio": 0.72,
+        "stiffness": 380.0
+      }
+    },
+    "timelineCheckBurst": {
+      "type": "spring",
+      "keyframes": [1.0, 1.25, 1.0],
+      "stiffness": 450,
+      "damping": 20,
+      "mass": 0.8,
+      "duration": 0.35,
+      "composeEquivalent": {
+        "dampingRatio": 0.55,
+        "stiffness": 450.0
+      }
+    },
+    "fabToModalSharedElement": {
+      "type": "spring",
+      "stiffness": 320,
+      "damping": 26,
+      "mass": 1.0,
+      "layoutId": "sharedFabModalContainer",
+      "composeEquivalent": {
+        "dampingRatio": 0.75,
+        "stiffness": 320.0
+      }
+    },
+    "staggeredVerticalBars": {
+      "type": "spring",
+      "stiffness": 220,
+      "damping": 24,
+      "staggerDelay": 0.08,
+      "targets": {
+        "Walking": 0.48,
+        "Running": 0.33,
+        "Meditation": 0.27,
+        "Drink": 0.40
+      },
+      "composeEquivalent": {
+        "dampingRatio": 0.81,
+        "stiffness": 220.0
+      }
+    },
+    "counterOvershoot": {
+      "target": 842,
+      "duration": 1.2,
+      "ease": [0.16, 1, 0.3, 1]
+    }
+  }
+}

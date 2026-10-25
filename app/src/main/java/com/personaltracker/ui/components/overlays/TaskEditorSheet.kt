@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,6 +48,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import com.personaltracker.domain.model.Task
+import com.personaltracker.ui.components.atoms.DayCapsuleStrip
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 import java.time.LocalDate
 import java.util.UUID
@@ -121,8 +123,8 @@ fun TaskEditorSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = colors.surfaceRaised,
-        shape = shapes.xl,
+        containerColor = colors.surfaceBase,
+        shape = shapes.xxxl,
         modifier = modifier
     ) {
         Column(
@@ -131,7 +133,7 @@ fun TaskEditorSheet(
                 .navigationBarsPadding()
                 .padding(horizontal = spacing.screenPaddingHorizontal)
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.Start
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Row
             Row(
@@ -141,31 +143,58 @@ fun TaskEditorSheet(
             ) {
                 Column {
                     Text(
-                        text = if (isEditing) "Edit Task" else "New Focus Task",
+                        text = if (isEditing) "Edit Habit" else "New habit",
                         style = typography.headline,
                         color = colors.inkPrimary
                     )
                     Spacer(modifier = Modifier.height(spacing.spacing0_5))
                     Text(
-                        text = if (isEditing) "Update task details and reminder schedule" else "Set clear intent and pace for today",
+                        text = if (isEditing) "Update habit details and reminder schedule" else "Set your routine rhythm with zero guilt",
                         style = typography.caption,
                         color = colors.inkSecondary
                     )
                 }
 
-                IconButton(
-                    onClick = onDismiss,
-                    modifier = Modifier.defaultMinSize(
-                        minWidth = spacing.minTouchTarget,
-                        minHeight = spacing.minTouchTarget
-                    )
+                Surface(
+                    shape = shapes.full,
+                    color = colors.surfaceRaised,
+                    modifier = Modifier.size(spacing.spacing10)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close task editor",
-                        tint = colors.inkSecondary,
-                        modifier = Modifier.size(spacing.spacing5)
-                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.size(spacing.spacing10)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close habit editor",
+                            tint = colors.inkPrimary,
+                            modifier = Modifier.size(spacing.spacing4)
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(spacing.spacing4))
+
+            // Playful Lime-Green Calendar Hero Container (Figma Spec)
+            Surface(
+                shape = shapes.capsule,
+                color = colors.accentLime,
+                modifier = Modifier.size(spacing.spacing16 * 2 - spacing.spacing2)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Surface(
+                        shape = shapes.lg,
+                        color = colors.surfaceRaised,
+                        modifier = Modifier.size(spacing.spacing16)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = "📅",
+                                style = typography.display
+                            )
+                        }
+                    }
                 }
             }
 

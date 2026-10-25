@@ -9,8 +9,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Shape & Corner Radius Design Tokens for Personal-Tracker.
- * Sourced 1:1 from `design-system.md` Shapes section.
- * Rule: Corner radius increases with emotional warmth.
+ * Sourced 1:1 from `design-system.md` Shapes section and Figma reference layout specs.
+ * Rule: Corner radius increases with emotional warmth and capsule physics.
  */
 @Immutable
 data class PersonalTrackerShapes(
@@ -20,6 +20,8 @@ data class PersonalTrackerShapes(
     val lg: CornerBasedShape = RoundedCornerShape(16.dp),
     val xl: CornerBasedShape = RoundedCornerShape(20.dp),
     val xxl: CornerBasedShape = RoundedCornerShape(24.dp),
+    val xxxl: CornerBasedShape = RoundedCornerShape(28.dp),
+    val capsule: CornerBasedShape = RoundedCornerShape(36.dp),
     val full: Shape = CircleShape,
     val default: CornerBasedShape = RoundedCornerShape(12.dp)
 )

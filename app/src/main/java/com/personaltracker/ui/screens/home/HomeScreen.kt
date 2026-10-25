@@ -2,7 +2,9 @@ package com.personaltracker.ui.screens.home
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -34,8 +36,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personaltracker.ui.components.atoms.DayCapsuleStrip
 import com.personaltracker.ui.components.cards.AdaptiveRoutineStepCard
 import com.personaltracker.ui.components.cards.HabitStreakCard
 import com.personaltracker.ui.components.cards.HeroActionCard
@@ -106,6 +110,7 @@ fun HomeScreenContent(
     val typography = PersonalTrackerTheme.typography
     val spacing = PersonalTrackerTheme.spacing
     val shapes = PersonalTrackerTheme.shapes
+    val elevation = PersonalTrackerTheme.elevation
 
     val taskOffsets = remember { mutableStateMapOf<String, Offset>() }
     val habitOffsets = remember { mutableStateMapOf<String, Offset>() }
@@ -158,23 +163,71 @@ fun HomeScreenContent(
         }
     )
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(colors.surfaceBase)
-            .verticalScroll(rememberScrollState())
-            .padding(
-                horizontal = spacing.screenPaddingHorizontal,
-                vertical = spacing.screenPaddingVertical
-            ),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Hero Action Card (Priority Machine)
-        HeroActionCard(
-            state = state.heroCardState,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(
+                    horizontal = spacing.screenPaddingHorizontal,
+                    vertical = spacing.screenPaddingVertical
+                ),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Top Greeting Row (Figma Frame 1)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text(
+                        text = "Morning, Budi",
+                        style = typography.greetingTitle,
+                        color = colors.inkPrimary
+                    )
+                    Spacer(modifier = Modifier.height(spacing.spacing0_5))
+                    Text(
+                        text = "Thursday, 10 March, 2025",
+                        style = typography.bodySecondary,
+                        color = colors.inkSecondary
+                    )
+                }
+
+                Surface(
+                    shape = shapes.full,
+                    color = colors.bannerPeach,
+                    modifier = Modifier.size(spacing.minTouchTarget)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = "🦊",
+                            style = typography.title
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(spacing.spacing5))
+
+            // 7-Day Horizontal Capsule Strip (Framer stiffness 380, damping 28)
+            DayCapsuleStrip(
+                selectedDate = 10,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(spacing.spacing5))
+
+            // Hero Action Card (Priority Machine & Reminder Banner)
+            HeroActionCard(
+                state = state.heroCardState,
+                modifier = Modifier.fillMaxWidth()
+            )
 
         Spacer(modifier = Modifier.height(spacing.sectionGap))
 
@@ -484,4 +537,29 @@ fun HomeScreenContent(
 
         Spacer(modifier = Modifier.height(spacing.spacing8))
     }
+
+    // Floating Quick-Capture `+` FAB (Deep Espresso #59280E)
+    Surface(
+        shape = shapes.full,
+        color = colors.primaryDark,
+        shadowElevation = elevation.high,
+        modifier = Modifier
+            .align(Alignment.BottomEnd)
+            .padding(end = spacing.spacing4, bottom = spacing.spacing4)
+            .size(spacing.fabSize)
+            .clickable(
+                role = Role.Button,
+                onClick = { onIntent(HomeUiIntent.OpenTaskEditor(null)) }
+            )
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Quick capture new task or habit",
+                tint = colors.surfaceRaised,
+                modifier = Modifier.size(spacing.spacing6)
+            )
+        }
+    }
+}
 }

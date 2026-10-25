@@ -8,7 +8,7 @@ import androidx.compose.ui.unit.dp
 /**
  * Spacing Design Tokens for Personal-Tracker.
  * Built on a 4dp base scale (8dp-dominant).
- * Sourced 1:1 from `design-system.md` Layout & Spacing section.
+ * Sourced 1:1 from `design-system.md` Layout & Spacing section and Figma co-design tokens.
  */
 @Immutable
 data class PersonalTrackerSpacing(
@@ -31,7 +31,7 @@ data class PersonalTrackerSpacing(
     val screenPaddingHorizontal: Dp = 16.dp,
     val screenPaddingVertical: Dp = 16.dp,
 
-    // Component Dimensions
+    // Component Dimensions & Figma Spec Nodes
     val minTouchTarget: Dp = 48.dp,
     val navBarHeight: Dp = 64.dp,
     val buttonHeight: Dp = 48.dp,
@@ -39,6 +39,14 @@ data class PersonalTrackerSpacing(
     val fabSize: Dp = 56.dp,
     val progressBarHeight: Dp = 6.dp,
     val coinIconSize: Dp = 20.dp,
+
+    // Figma Reference Layout Dimensions
+    val capsuleWidth: Dp = 44.dp,
+    val capsuleHeight: Dp = 72.dp,
+    val timelineCircleSize: Dp = 20.dp,
+    val iconBoxSize: Dp = 44.dp,
+    val barWidth: Dp = 72.dp,
+    val barHeight: Dp = 280.dp,
 
     // T-shirt size aliases
     val xs: Dp = spacing1,

@@ -91,7 +91,7 @@ fun AdaptiveRoutineStepCard(
     }
 
     Surface(
-        shape = shapes.lg,
+        shape = shapes.xl,
         color = if (status == RoutineStepStatus.COMPLETED) colors.surfaceSunken else colors.surfaceRaised,
         shadowElevation = elevation.flat,
         border = cardBorder,
@@ -116,7 +116,7 @@ fun AdaptiveRoutineStepCard(
                 modifier = Modifier
                     .width(accentStripeWidth)
                     .fillMaxHeight()
-                    .background(colors.companion)
+                    .background(if (status == RoutineStepStatus.COMPLETED) colors.primary else colors.companion)
             )
 
             Row(
@@ -132,31 +132,57 @@ fun AdaptiveRoutineStepCard(
                     horizontalArrangement = Arrangement.spacedBy(spacing.spacing3),
                     modifier = Modifier.weight(1f)
                 ) {
-                    // Step number badge
+                    // Timeline Check / Sequence Node
                     Surface(
                         shape = shapes.full,
                         color = when (status) {
                             RoutineStepStatus.ACTIVE -> colors.companion
-                            RoutineStepStatus.COMPLETED -> colors.companionSubtle
+                            RoutineStepStatus.COMPLETED -> colors.primary
                             RoutineStepStatus.UPCOMING -> colors.surfaceBase
                         },
-                        modifier = Modifier.size(spacing.spacing8)
+                        border = if (status == RoutineStepStatus.UPCOMING) BorderStroke(spacing.spacing0_5, colors.borderSubtle) else null,
+                        modifier = Modifier.size(spacing.timelineCircleSize)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             if (status == RoutineStepStatus.COMPLETED) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = colors.companion,
-                                    modifier = Modifier.size(spacing.spacing4)
+                                    tint = colors.surfaceRaised,
+                                    modifier = Modifier.size(spacing.spacing3)
                                 )
                             } else {
                                 Text(
                                     text = "$stepOrder",
-                                    style = typography.data,
+                                    style = typography.caption,
                                     color = if (status == RoutineStepStatus.ACTIVE) colors.surfaceRaised else colors.inkSecondary
                                 )
                             }
+                        }
+                    }
+
+                    // Pastel Routine Icon Box (Figma Spec)
+                    val iconBg = when (stepOrder % 3) {
+                        1 -> colors.iconSoftPeach
+                        2 -> colors.iconSoftMatcha
+                        else -> colors.iconSoftLavender
+                    }
+                    val emoji = when (stepOrder % 4) {
+                        1 -> "💧"
+                        2 -> "🧘"
+                        3 -> "🤸"
+                        else -> "👟"
+                    }
+                    Surface(
+                        shape = shapes.md,
+                        color = iconBg,
+                        modifier = Modifier.size(spacing.iconBoxSize)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = emoji,
+                                style = typography.title
+                            )
                         }
                     }
 
