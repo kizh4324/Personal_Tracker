@@ -1,7 +1,7 @@
 ---
 type: handoff
 title: "Personal-Tracker Session Handoff & State Snapshot"
-description: "Authoritative project state, completed architecture phases, next-up Story 1.6 platform services, and runbook for Personal-Tracker."
+description: "Authoritative project state, complete Warm Organic Tactile design system sync, SQLCipher native library fix, mobile deployment verification, and kickoff runbook for next session."
 tags:
   - android
   - kotlin
@@ -17,10 +17,11 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-25 18:38:00 +05:30
+*   **Date/Time:** 2026-10-25 22:05:00 +05:30
+*   **Current Git Commit:** `ad241ac` (pushed clean to `origin/main`)
 *   **Tech Stack & Versions:**
-    *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6), Gradle 9.4+ / AGP 8.8.0
-    *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1)
+    *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
+    *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
     *   **Dependency Injection:** Hilt 2.58 (`ksp` only; zero KAPT)
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
@@ -33,121 +34,109 @@ status: active
     *   Assemble Debug APK: `.\gradlew assembleDebug`
     *   Install & Launch on Connected Device:
         ```powershell
-        & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r app\build\outputs\apk\debug\app-debug.apk
+        & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r -d app\build\outputs\apk\debug\app-debug.apk
         & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
         ```
-*   **Overall Status:** Phase: Epic 1 Core Architecture & Persistence (100% of Epic 1 completed). Stories 1.1 through 1.11 fully implemented and verified; JVM unit tests (262 executed) and Android lint pass with 0 errors. Ready for Epic 2 (Voice Quick Capture).
+*   **Knowledge Graph (Graphify):** Updated and current at `graphify-out/` (2,798 nodes, 3,644 edges, 257 communities across 212 files).
+*   **Overall Status:**
+    *   **Epic 1 (Core Architecture & Persistence):** 100% Complete.
+    *   **Warm Organic Tactile Design System:** 100% Synchronized across all 5 Figma frames, Framer prototypes, and Jetpack Compose screens.
+    *   **Device Verification:** Live and operational on physical mobile device (`10BD9D24YF000BE`, Model `I2223`) with zero crashes.
 
 ---
 
-## 2. Goal & Requirements
-*   **Core Goal:** High-performance, offline-first productivity assistant managing flexible daily schedules, study focus timers, habit streaks, sequential routines, and voice quick-capture with 0-guilt psychological safety.
-*   **Hard Requirements & Invariants (`ARCHITECTURE-SPINE.md`):**
-    *   **AD-1 / AD-3 (Domain Purity):** `com.personaltracker.domain` must be 100% pure Kotlin. Never import `android.*` or `androidx.*`.
-    *   **AD-2 (Persistence Integrity):** Multi-entity mutations across boundaries must execute inside Room `@Transaction` blocks on `Dispatchers.IO`. Never use `OnConflictStrategy.REPLACE` on entities with cascade foreign keys (use `@Upsert` or `@Insert(onConflict = ABORT)`).
-    *   **AD-4 (Non-Punishing Copy & Mechanics):** Zero nag or guilt copy in UI or notifications. Companion pet has 0 HP loss, hunger decay, or death mechanics. Missed habits freeze peacefully.
-    *   **AD-7 (Strict Token Conformance):** Zero hardcoded `dp`, `sp`, or hex color literals in Compose UI. Resolve exclusively from `com.personaltracker.ui.theme`. Minimum interactive touch target is 48dp floor (`spacing.minTouchTarget`). Particle/arc animations must be hoisted to `RewardMotionStage` at root scaffold.
-    *   **AD-8 (Confidence Routing):** High (>=0.85): 5s bottom undo toast. Medium (0.50..0.85): 1-tap confirmation chips. Low (<0.50): unfiled inbox. Voice audio streams to RAM only; raw buffers must be purged immediately after transcription with zero disk writes.
-*   **User Preferences:**
-    *   Strict adherence to pre-approved architecture specs.
-    *   Never modify code while conducting live device testing unless reviewing results first.
-    *   Verify all changes with `.\gradlew test` and `.\gradlew lintDebug`.
+## 2. Completed Work Today (2026-10-25)
+
+### A. 50/50 Figma + Framer + Compose "Warm Organic Tactile" Pipeline
+1.  **Figma Live Frames & Spec Generation (`figma-write-bridge`, Channel `ooccx025`):**
+    *   `01_Home_Daily_Routine` (`x: 0, y: 0`): Warm Cream canvas (`#F9F6F0`), 7-day capsule strip, hero reminder card (`#FCD9B8`), vertical stepper timeline with category icon containers, floating FAB (`#59280E`).
+    *   `02_New_Habit_Modal` (`x: 438, y: 0`): Lime calendar hero container (`#A3D929`), full-pill form inputs, 7 circular repeat day pills, Vibrant Orange CTA button (`#F26B1D`).
+    *   `03_Progress_And_Insights` (`x: 876, y: 0`): 4 vertical capsule progress bars (Walking 48%, Running 33%, Meditation 27%, Drink 40%) with sand hatched track (`#EBE5DC`), 842 points summary card.
+    *   `04_Study_Focus_Timer` (`x: 1314, y: 0`): Circular timer ring dial (`#FFFFFF`), sand track (`#EBE5DC`), Tangerine progress arc (`#F26B1D`), 24:18 countdown, `+10 Coins Reward` pill (`#FFE8D6`), intensity capsules, Deep Espresso pause button (`#59280E`).
+    *   `05_Companion_And_Shop` (`x: 1752, y: 0`): Coin badge (`🪙 145 Coins`), hero stage card (`#FCD9B8`), fox avatar container (`🦊 Level 3 • Happy Fox`), Lime energy progress bar (`#A3D929`), 2x2 cosmetics wardrobe shop grid (`Cozy Scarf`, `Study Cap`, `Golden Crown`, `Warm Coffee`).
+    *   Saved node mappings into `docs/design/figma_structural_spec.json` and created automated socket dispatcher `scripts/draw_frames_4_and_5.ts`.
+2.  **Framer Motion Interactive Prototype Layer (`QaEW7GnAiltJMNVpWjTs-dKIrE`):**
+    *   Created `DayCapsuleSelector.tsx`, `TimelineCheckList.tsx`, `SharedElementModal.tsx`, `VerticalCapsuleBars.tsx`, `FocusTimerRing.tsx`, `CompanionStage.tsx`, and `AppPrototype.tsx`.
+    *   Calibrated spring physics in `docs/design/framer_motion_spec.json` and `AnimationTokens.kt` (`timerPauseResumeSpringSpec`: stiffness 350, damping 25; `shopPurchaseBurstSpringSpec`: stiffness 400, damping 18).
+3.  **Jetpack Compose Screen Synchronization:**
+    *   `HomeScreen.kt`: Restyled top greeting row, horizontal capsule strip, stepper cards with pastel icon boxes (`iconSoftPeach`, `iconSoftMatcha`, `iconSoftLavender`), floating quick-capture FAB.
+    *   `StudyScreen.kt`: Restyled with Canvas-rendered progress arc, countdown hero score, soft peach coin reward pill, tactile capsule duration/tag selectors (`shapes.full`), 56dp action buttons.
+    *   `CompanionScreen.kt`: Restyled with coin balance header badge, Warm Peach stage card, Lime energy indicator, 2x2 cosmetics shop grid, emotional registers pill selector, root reward buttons.
+    *   `QuickCaptureSheet.kt`: Restyled with 28dp top radius (`shapes.xxxl`), Warm Cream modal container, full-pill text input and confirmation chips, Deep Espresso mic button, 5-second undo toast pill.
+    *   `CompanionView.kt` & `Type.kt`: Replaced raw `dp` literals with design tokens; added `ctaText` (16sp Bold) conforming to Figma spec.
+
+### B. Critical Startup Crash Fix (SQLCipher JNI Linking)
+*   **Symptom:** App crashed immediately upon launch from phone icon with `java.lang.UnsatisfiedLinkError: No implementation found for long net.zetetic.database.sqlcipher.SQLiteConnection.nativeOpen(...)`.
+*   **Root Cause:** SQLCipher 4.6.1 requires its native C binary (`libsqlcipher.so`) loaded prior to opening the encrypted SQLite connection. Neither `PersonalTrackerApplication` nor `DatabaseModule` called `System.loadLibrary("sqlcipher")`.
+*   **Correction:**
+    *   Updated `PersonalTrackerApplication.kt` with an `onCreate()` lifecycle override invoking `System.loadLibrary("sqlcipher")`.
+    *   Added a fallback `System.loadLibrary("sqlcipher")` invocation in `DatabaseModule.kt` before constructing `SupportOpenHelperFactory`.
+*   **Result:** App launches cleanly with zero crash logs (`LaunchState: COLD, TotalTime: 2244ms`, active process `com.personaltracker`).
+
+### C. Analysis of "Start Now" Task Completion Behavior
+*   **Observation:** Pressing "Start Now" on the Hero Card immediately marked tasks as `COMPLETED` and awarded coins.
+*   **Investigation:** Traced to `HomeViewModel.kt:519` where `handleStartHeroItem()` was stubbed during Story 1.9 to invoke `handleToggleTask()` (`completeTaskUseCase`).
+*   **Roadmap Context:** The true focus timer execution engine is scheduled for **Epic 3: Focus Mode, Distraction Interception & Resumption Engine (Story 3.1)**, where "Start Now" initiates `StudySessionForegroundService` and transitions the Hero Card into **Priority 1 (`ActiveFocus`)** with live countdown, pause/resume, and distraction blocking.
 
 ---
 
-## 3. Flow
+## 3. Current Architecture & Verification Status
 
-### Architecture & Data Flow
 ```mermaid
 flowchart TD
-    subgraph UI_Layer [UI Layer: Jetpack Compose MVI]
-        AppShellScaffold[AppShellScaffold]
-        NavHost[PersonalTrackerNavHost]
-        RewardStage[RewardMotionStage]
-        Screens[HomeScreen / CompanionScreen / HabitsScreen]
-        Cards[HeroActionCard / TaskIntensityCard / HabitStreakCard]
+    subgraph UI_Layer [Jetpack Compose UI — Warm Organic Tactile]
+        HomeScreen[HomeScreen]
+        StudyScreen[StudyScreen]
+        CompanionScreen[CompanionScreen]
+        QuickCapture[QuickCaptureSheet]
+        HeroCard[HeroActionCard - 6 States]
+        Theme[PersonalTrackerTheme Tokens]
     end
 
-    subgraph Domain_Layer [Pure Kotlin Domain Layer]
-        UseCases[Domain Use Cases & Engines]
+    subgraph Domain_Layer [Pure Kotlin Domain Layer - AD-1]
+        ResolveHero[ResolveHeroStateUseCase]
         SchedEngine[AdaptiveScheduleEngine]
         StreakEngine[StreakStateMachine]
         LedgerEngine[GamificationLedgerEngine]
         NlpParser[DeterministicNlpCommandParser]
     end
 
-    subgraph Data_Layer [Data Layer: Encrypted Persistence]
-        Repos[Flow SSOT Repositories]
-        RoomDB[Room SQLCipher Database]
-        DAOs[TaskDao / HabitDao / DayTypeDao / LedgerDao]
-        Crypto[Hardware MasterKey AES-GCM-256]
+    subgraph Data_Layer [Encrypted Persistence - AD-2]
+        RoomDB[Room 2.7.0 over SQLCipher 4.6.1]
+        KeyStore[SecurityKeyStoreManager AES-GCM-256]
+        FlowRepos[Flow SSOT Repositories]
     end
 
-    subgraph Platform_Layer [Platform Runtime Services - Story 1.6]
+    subgraph Platform_Layer [Background Runtime Services]
         TimerService[StudySessionForegroundService]
         RolloverWorker[DayRolloverWorker]
         AlarmScheduler[ExactAlarmScheduler]
         VoiceRecorder[QuickCaptureVoiceRecorder]
     end
 
-    AppShellScaffold --> NavHost
-    NavHost --> Screens
-    Screens --> Cards
-    Cards -->|Dispatch Actions| UseCases
-    UseCases --> Repos
-    Repos --> RoomDB
-    RoomDB --> DAOs
-    DAOs --> Crypto
-    Platform_Layer -.->|Events/Triggers| UseCases
-    RewardStage -.->|Hoisted Motion| AppShellScaffold
+    UI_Layer --> Domain_Layer
+    Domain_Layer --> Data_Layer
+    Platform_Layer -.-> Domain_Layer
 ```
 
-### User Flow
-1.  **Launch:** Opens to `AppShellScaffold` with Persistent Top Context Bar (`DayTypeChip`, `StreakFlameBadge`, `CoinPill`).
-2.  **Home Feed:** `HeroActionCard` evaluates priority (ActiveFocus -> InterruptedResumable -> MorningBanner -> UpcomingItem -> CarryForwardReview -> IntentionalIdle).
-3.  **Task & Habit Actions:** Tapping complete triggers quadratic Bézier `CoinArcAnimation` with `withFrameNanos` VSYNC timing straight to top-right `CoinPill` HUD, plus Lottie `CoinEarnMicro` gold burst.
-4.  **Quick Capture:** Tap bottom-right floating FAB -> `QuickCaptureSheet` emerges with dynamic waveform or text input -> parses command via `DeterministicNlpCommandParser` -> routes via 3-tier confidence model.
-5.  **Companion & Rewards:** 4th bottom nav tab opens `CompanionScreen` hosting `CompanionView` (Rive `companion_sm` across 7 non-punitive emotional registers) and Lottie `MilestoneFullReveal` confetti celebration.
-
-### Work Flow & Phasing
-*   **Phase 1 (Foundations):** Story 1.1 (Setup) -> Story 1.2 (SQLCipher) -> Story 1.3 (SSOT Repos) -> Story 1.4 (Pure Engines) -> Story 1.5 (UI Shell & Components) — **ALL COMPLETE & REVIEWED**.
-*   **Phase 2 (Platform & Background):** Story 1.6 (`com.personaltracker.platform` runtime services) — **CURRENT / NEXT UP**.
-*   **Phase 3 (Screen Wiring):** Story 1.7 (MVI ViewModels binding UI cards to live Flow SSOT repositories).
-*   **Phase 4 (Schedules & Voice):** Stories 1.8 - 1.11, then Epic 2 (Voice Quick Capture).
+### Verification Gate Results
+*   **`python .agents/scripts/domain_purity_check.py`:** **PASSED** (0 `android.*` in domain, 0 raw hex in UI)
+*   **`python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .`:** **PASSED** (0 findings)
+*   **`.\gradlew test`:** **PASSED** (All 262 JVM unit tests passing)
+*   **`.\gradlew lintDebug`:** **PASSED** (0 errors)
+*   **`adb install` & Launch:** **PASSED** (Verified on physical device `10BD9D24YF000BE`)
+*   **Graphify Knowledge Graph:** **CURRENT** (`graphify update .` completed)
+*   **Git Status:** **CLEAN** (Commit `ad241ac` on `origin/main`)
 
 ---
 
-## 4. Completed Work
+## 4. Pending Work & Roadmap for Tomorrow
 
-| Item | Files Touched | Status | Notes |
-| :--- | :--- | :--- | :--- |
-| **Story 1.1: Project Setup & Theme** | `app/build.gradle.kts`, `ui/theme/*` | Done | Kotlin 2.1, Compose BOM, strict theme tokens (`Color`, `Type`, `Spacing`, `Shape`, `Elevation`). |
-| **Story 1.2: SQLCipher Persistence** | `data/local/db/*`, `data/local/security/*` | Done | Encrypted Room database with SQLCipher 4.6.1 and Android Keystore AES-GCM master key. |
-| **Story 1.3: SSOT Repositories & Idempotency** | `data/repository/*`, `data/local/db/daos/*` | Done | Reactive Flow repositories, compound idempotency keys (`{DOMAIN}_{ACTION}_{ID}`), `@Upsert` patterns. |
-| **Story 1.4: Pure Behavioral Engines** | `domain/engine/*`, `domain/parser/*` | Done | `AdaptiveScheduleEngine`, `FocusRescheduleEngine`, `GamificationLedgerEngine`, `StreakStateMachine`, `DeterministicNlpCommandParser`. |
-| **Story 1.5: Atomic Primitives** | `ui/components/atoms/*` | Done | `StreakFlameBadge`, `CoinPill`, `DayTypeChip`, `WaveformVisualizer`. 48dp touch target floors. |
-| **Story 1.5: Molecular Cards** | `ui/components/cards/*` | Done | `HeroActionCard` (6 states), `HabitStreakCard`, `AdaptiveRoutineStepCard`, `TaskIntensityCard` (Urgent/Important/Routine). |
-| **Story 1.5: Overlays & Shell** | `ui/components/overlays/*`, `ui/navigation/*` | Done | `QuickCaptureSheet` (3-tier confidence), `AppShellScaffold`, `PersonalTrackerNavHost`. |
-| **Story 1.5: Animation Systems** | `ui/components/animation/*`, `ui/components/companion/*` | Done | `CoinArcAnimation` (VSYNC Bézier), `RewardAnimation` (Lottie), `RewardMotionStage`, `CompanionView` (Rive 7-state). |
-| **UI Integration & Polish** | `ui/screens/HomeScreen.kt`, `ui/screens/CompanionScreen.kt` | Done | Wired interactive cards, Rive state machine switcher, and coin arc reward triggers. |
-| **Story 1.6: Platform Runtime Services & Background Workers** | `platform/*`, `di/PlatformModule.kt`, `AndroidManifest.xml` | Done | `StudySessionForegroundService`, `DayRolloverWorker`, `ExactAlarmScheduler`, `QuickCaptureVoiceRecorder` (RAM-only zeroing), `BootCompletedReceiver`. 100% pure domain preserved. |
-| **Story 1.7: Unidirectional MVI Screen Wiring & ViewModels Baseline** | `ui/screens/*`, `ui/navigation/*`, `app/src/test/java/com/personaltracker/ui/*` | Done | Full MVI ViewModels (`HomeViewModel`, `CompanionViewModel`, `QuickCaptureViewModel`, `HabitsViewModel`, `StudyViewModel`, `SettingsViewModel`, `AppShellViewModel`). Figma-ready Route/ScreenContent split, 3-tier quick capture routing, 6-state Hero Card hierarchy, pure domain & zero hardcoded token compliance. |
-| **Story 1.8: DayType Schedule Resolution & Morning Template Swap** | `domain/model/DayType.kt`, `domain/usecase/SwitchDayTypeUseCase.kt`, `data/repository/DayTypeRepositoryImpl.kt`, `ui/components/overlays/DayTypeSelectorDialog.kt`, `ui/screens/home/*` | Done | Built-in template provisioning (Standard, Rest, Crunch, Low Capacity), 4-tier resolution hierarchy, non-destructive schedule adaptation, atomic single-date override persistence, 48dp minimum touch target dialog, and reactive MVI wiring with zero guilt copy. |
-| **Story 1.9: Dynamic State-Aware Hero Card Integration & Action List** | `domain/usecase/ResolveHeroStateUseCase.kt`, `domain/usecase/CarryForwardTasksUseCase.kt`, `ui/components/cards/HeroActionCard.kt`, `ui/components/overlays/CarryForwardReviewDialog.kt`, `ui/screens/home/*` | Done | Dynamic 6-priority Hero Card machine, non-punishing carry-forward reviews, 300ms cross-fade animations, and intentional idle resting state. |
-| **Story 1.10: Core Task Management & Delivery Intensity Classification** | `domain/usecase/SaveTaskUseCase.kt`, `domain/usecase/DeleteTaskUseCase.kt`, `domain/usecase/EvaluateTaskUrgencyScarcityUseCase.kt`, `domain/alarm/TaskAlarmScheduler.kt`, `platform/alarm/TaskAlarmSchedulerImpl.kt`, `ui/components/overlays/TaskEditorSheet.kt`, `ui/screens/home/*` | Done | 3-tier delivery intensity classes (Routine, Important, Urgent), 5/7/10 coin valuations, non-blocking urgency soft-scarcity guidance, exact alarm coordination, and stateless TaskEditorSheet. |
-| **Story 1.11: Sequential Routine Domain Engine & Mid-Day Schedule Recalculation** | `domain/model/Routine.kt`, `domain/model/ScheduledRoutineStep.kt`, `domain/usecase/AdvanceRoutineStepUseCase.kt`, `domain/usecase/RecalculateRoutineTimelineUseCase.kt`, `domain/usecase/SaveRoutineUseCase.kt`, `data/repository/RoutineRepositoryImpl.kt`, `ui/components/cards/AdaptiveRoutineStepCard.kt`, `ui/screens/home/*` | Done | Built-in routine templates, sequential step progression, idempotent 15-coin routine bonus (`ROUTINE_COMP_{id}_{date}`), mid-day "Shift to Now" timeline recalculation with 23:59 safe clamping, and token-compliant Compose UI with 48dp touch targets. |
+### Immediate Option Choice for Tomorrow Morning:
+1.  **Option A (Hero Focus Session Connection):** Connect "Start Now" on `HeroActionCard` directly to `StudySessionForegroundService` / `StudySessionTimer`, transitioning the card into Priority 1 (`ActiveFocus`) with live countdown, pause, and end controls instead of prematurely completing tasks.
+2.  **Option B (Sprint Plan Sequence — Epic 2 Kickoff):** Begin **Epic 2: Low-Friction Multimodal Capture & Confidence Routing Pipeline**, starting with **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`)**.
 
----
-
-## 5. In Progress
-*   **Epic 1 Core Architecture & Persistence:** 100% Complete (Stories 1.1 through 1.11 verified). All 262 JVM unit tests, Android lint (0 errors), domain purity, spine lint, and Harness² diagnostics pass cleanly.
-*   **Exact Next Step:** Begin **Epic 2: Low-Friction Multimodal Capture & Confidence Routing Pipeline**, starting with **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`)**.
-
----
-
-## 6. Pending Work (Prioritized)
-
-### P0: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline
+### Epic 2 Stories Breakdown:
 *   **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (300ms morph to waveform pill, RAM-only streaming audio, zero disk writes).
 *   **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency, title/date/time/duration/intensity extraction).
 *   **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover).
@@ -156,74 +145,24 @@ flowchart TD
 
 ---
 
-## 7. Changes Needed
-*   `app/src/main/assets/rive/companion.riv`: Artist binary asset is currently absent. `CompanionView.kt` currently falls back to `PlaceholderCompanionView`. When production `.riv` is ready, place in `res/raw/companion.riv` or `assets/rive/companion.riv` (no code changes needed).
-*   `ui/screens/*`: All feature screens now fully refactored to production MVI ViewModels (`*Route` / `*ScreenContent` split) in Story 1.7.
+## 5. Tomorrow Morning Kickoff Runbook
 
----
+### Step 1: Health & Workspace Verification
+```powershell
+git status
+python .agents/scripts/domain_purity_check.py
+python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .
+$env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
+.\gradlew test
+```
 
-## 8. Decisions & Rationale
-*   **JDK 21 Pinning:** Gradle execution daemon must use JDK 21 (Temurin 21.0.6). Java 26 on PATH breaks Android Gradle Plugin sync.
-*   **KSP Exclusive:** KAPT is prohibited across all modules; only `ksp` is used for Hilt and Room code generation.
-*   **`withFrameNanos` Bézier Curve (`CoinArcAnimation.kt`):** Monotonic frame clock sync prevents animations from running twice as fast on 120Hz displays (such as the physical iQOO test device) or stuttering on 60Hz displays.
-*   **Root Scaffold Hoisting (`RewardMotionStage.kt`):** Hoisting particle layers to `AppShellScaffold` prevents modal clipping and scroll-boundary truncation.
-*   **No SQLite Cascade Replacement:** Entities with foreign keys use `@Upsert` or `@Insert(onConflict = ABORT)` to avoid silent deletion of child logs.
+### Step 2: Device Check
+```powershell
+& "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" devices -l
+& "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" shell "ps -A | grep personaltracker"
+```
 
----
-
-## 9. Known Issues & Gotchas
-*   **PowerShell Binary Redirection:** Running `adb exec-out screencap -p > file.png` in PowerShell creates a UTF-16LE file that corrupts binary images. **Always use:**
-    ```powershell
-    adb shell screencap -p /sdcard/temp.png; adb pull /sdcard/temp.png local_path.png
-    ```
-*   **Touch Targets:** Android Lint flags any interactive composable under 48dp. Always specify `.defaultMinSize(minWidth = spacing.minTouchTarget, minHeight = spacing.minTouchTarget)` or ensure visual chips expand their hit target to 48dp.
-*   **Pure Kotlin Domain:** Never import `androidx.compose.*`, `android.os.*`, or `android.content.*` in `com.personaltracker.domain`.
-
----
-
-## 10. File Map
-
-| Path | Purpose | Role |
-| :--- | :--- | :--- |
-| `ARCHITECTURE-SPINE.md` | Invariant rules (AD-1 to AD-8), layer boundaries | **Source of Truth** |
-| `_bmad-output/project-context.md` | Architectural rules, pitfalls, and guidelines | **Source of Truth** |
-| `_bmad-output/planning-artifacts/epics.md` | Epics and Stories definitions | **Source of Truth** |
-| `_bmad-output/implementation-artifacts/sprint-status.yaml` | Sprint tracker | **Source of Truth** |
-| `app/build.gradle.kts` | App module dependencies & build configuration | Active Build File |
-| `app/src/main/java/com/personaltracker/domain/` | Pure Kotlin models, engines, and use cases | Pure Domain (Do NOT add Android imports) |
-| `app/src/main/java/com/personaltracker/data/` | SQLCipher Room DB, DAOs, Entities, Repositories | Persistence SSOT |
-| `app/src/main/java/com/personaltracker/ui/theme/` | Design tokens (`Color`, `Type`, `Spacing`, `Shape`) | Theme Tokens (No hardcoded literals allowed) |
-| `app/src/main/java/com/personaltracker/ui/components/` | Atoms, cards, overlays, animations | Atomic Component Library |
-| `app/src/main/java/com/personaltracker/ui/navigation/` | `AppShellScaffold`, `PersonalTrackerNavHost` | Navigation & Shell Container |
-| `app/src/main/java/com/personaltracker/ui/screens/` | Top-level tab screens | UI Screens |
-| `app/src/main/java/com/personaltracker/platform/` | Foreground services, workers, alarms, audio | Story 1.6 Target Directory |
-
----
-
-## 11. Open Questions
-*   **Offline Voice Transcription Model (Epic 2):** Vosk vs. Whisper.tflite for on-device zero-latency speech-to-text.
-    *   *Default recommendation:* Vosk Android SDK (lightweight, zero network dependency, runs efficiently on device).
-*   **Production Rive Asset Delivery:** The `.riv` file for companion expressions is currently mocked via `PlaceholderCompanionView`.
-    *   *Default recommendation:* Keep `PlaceholderCompanionView` active until production asset is delivered.
-
----
-
-## 12. Next Session Kickoff
-
-### First 4 Concrete Actions:
-1.  **Verify Environment & Health:**
-    ```powershell
-    git status
-    .\gradlew test
-    python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .
-    python .agents/scripts/harness2_bridge.py --check
-    ```
-2.  **Inspect Story 1.11 Requirements:** Read `epics.md` § Story 1.11 (`Sequential Routine Domain Engine & Mid-Day Schedule Recalculation`).
-3.  **Execute Story 1.11 Plan:** Generate `spec-1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat.md` and implement sequential step progression, mid-day routine recalculation, and adaptive duration scaling.
-4.  **Wire to Home & Routines Screen:** Integrate sequential step cards with `HomeViewModel` and MVI action list.
-
-### Kickoff Verification Checklist:
-*   [ ] Read this `HANDOFF.md` completely.
-*   [ ] Follow the sequence in the Flow section.
-*   [ ] Do not alter any existing design tokens or domain invariants without consulting `ARCHITECTURE-SPINE.md`.
-*   [ ] Run `.\gradlew test` and `.\gradlew lintDebug` after modifications.
+### Step 3: Execute Selected Story / Work Package
+*   Read `_bmad-output/planning-artifacts/epics.md` for target story criteria.
+*   If Option A: Wire `HomeViewModel.handleStartHeroItem` to initiate `StudySessionForegroundService` and emit `HeroCardState.ActiveFocus`.
+*   If Option B: Implement Story 2.1 morphing voice capture FAB in `QuickCaptureSheet` and `QuickCaptureVoiceRecorder`.
