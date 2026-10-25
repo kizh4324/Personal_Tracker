@@ -10,14 +10,35 @@
         "STITCH_PROJECT_PATH": "${workspaceFolder}"
       }
     },
-    "figma": {
+    "figma-developer": {
       "command": "npx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-figma"
       ],
       "env": {
-        "FIGMA_PERSONAL_ACCESS_TOKEN": "REPLACE_WITH_FIGMA_PERSONAL_ACCESS_TOKEN"
+        "FIGMA_PERSONAL_ACCESS_TOKEN": "${FIGMA_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "figma-write-bridge": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "cursor-talk-to-figma-mcp"
+      ],
+      "env": {
+        "FIGMA_PERSONAL_ACCESS_TOKEN": "${FIGMA_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "framer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "framer-mcp"
+      ],
+      "env": {
+        "FRAMER_API_KEY": "${FRAMER_API_KEY}",
+        "FRAMER_PROJECT_ID": "${FRAMER_PROJECT_ID}"
       }
     }
   }

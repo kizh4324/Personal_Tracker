@@ -17,6 +17,9 @@ sources:
   - uri: "_bmad-output/implementation-artifacts/sprint-status.yaml"
   - uri: ".harness2/EXPERIENCE.md"
   - uri: ".harness2/h0_manifest.json"
+  - uri: ".agent/skills/ui-taste-duolingo/SKILL.md"
+  - uri: ".agents/mcp_config.json"
+  - uri: "docs/design/references/README.md"
 ---
 
 # Personal-Tracker Knowledge Base Index (OKF v0.2)
@@ -37,6 +40,9 @@ This index serves as the machine-readable and human-navigable entrypoint for aut
 | [**`_bmad-output/implementation-artifacts/sprint-status.yaml`**](../../_bmad-output/implementation-artifacts/sprint-status.yaml) | `sprint-status` | Dynamic single source of truth for story lifecycle states across Epics 1 through 4. | Machine-Updated |
 | [**`.harness2/EXPERIENCE.md`**](../../.harness2/EXPERIENCE.md) | `harness2-experience` | Google Research Harness² experience library: verified engineering heuristics, anti-patterns, and debugging lessons. | Verified (H0 Baseline) |
 | [**`.agents/scripts/harness2_bridge.py`**](../../.agents/scripts/harness2_bridge.py) | `harness2-bridge` | Bridge orchestrating H0 component validation and single-pass Propose-Probe-Compose diagnostics. | Active |
+| [**`.agent/skills/ui-taste-duolingo/SKILL.md`**](../../.agent/skills/ui-taste-duolingo/SKILL.md) | `design-skill` | Duolingo Minimal Tactile design language rules, 3D lip geometry, Framer-to-Compose motion mapping, and UI guardrails. | Active |
+| [**`.agents/mcp_config.json`**](../../.agents/mcp_config.json) | `mcp-config` | Design & Animation MCP pipeline (Figma Developer, Figma Write Bridge, Framer, Stitch). | Active |
+| [**`docs/design/references/README.md`**](../design/references/README.md) | `design-references` | Golden visual reference targets and Gemini multimodal ingestion guide. | Active |
 
 ---
 
