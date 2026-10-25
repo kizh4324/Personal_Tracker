@@ -40,6 +40,12 @@ internal object DatabaseModule {
         @ApplicationContext context: Context,
         keyProvider: DatabaseKeyProvider
     ): AppDatabase {
+        try {
+            System.loadLibrary("sqlcipher")
+        } catch (_: UnsatisfiedLinkError) {
+            // Handled for non-Android JVM environments
+        }
+
         val passphrase = keyProvider.getDatabasePassphrase()
 
         val hook = object : SQLiteDatabaseHook {
