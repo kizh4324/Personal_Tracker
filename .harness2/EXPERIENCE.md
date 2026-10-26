@@ -193,6 +193,16 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Declaring animation token methods with return type `AnimationSpec<T>` prevents compatibility with Compose enter/exit transitions (`slideInVertically`, `fadeIn`, `scaleIn`, `scaleOut`) which strictly require `FiniteAnimationSpec<T>`. Returning `SpringSpec<T>` provides full compatibility with both finite and general animation APIs. Furthermore, omitting `.imePadding()` alongside `.navigationBarsPadding()` causes the Android soft keyboard to occlude input fields, action buttons, and live waveform visualizers.
 * **Rule:** Expose spring physics tokens as `SpringSpec<T>` in `AnimationTokens.kt`. Always chain `.navigationBarsPadding().imePadding()` on modal overlays. Auto-initiate microphone recording immediately upon opening `QuickCaptureSheet` when audio permission is already granted, and ensure unconditional buffer zeroing and recording job cancellation on dismiss.
 
+---
+
+## 13. Deterministic NLP & Pure Domain Date Arithmetic
+
+### EXP-027: NLP Prefix Anchoring & Defensive Temporal Arithmetic (AD-1, AD-8)
+* **Context:** Pure Kotlin deterministic command parsing (`DeterministicNlpCommandParser.kt`) and relative date/time resolution (`RelativeDateTimeParser.kt`).
+* **Heuristic:** In multi-pass token extraction, stripping leading temporal or intensity tokens (e.g., `"Tomorrow remind me to buy milk"`) leaves leading whitespace. Caret-anchored intent regexes (`^remind me to`) fail to match across leading whitespace, causing intent prefixes to leak into task titles. Additionally, regex digit matching on ISO dates (`\d{4}-\d{2}-\d{2}`) accepts impossible dates (`2026-02-31`), and routine shift patterns risk capturing the English article `"the"` as a target routine name.
+* **Rule:** Always execute `cleaned.trimStart()` immediately before applying caret-anchored intent prefix replacements. Validate ISO date matches with `runCatching { LocalDate.parse(...) }.getOrNull()` before accepting them into `ParsedCommand`. Guard routine names against the article `"the"`, support multi-word routine identifiers (`([a-zA-Z0-9_ -]+?)\s+routine`), and safely convert hour duration units to minutes with `Long` overflow protection.
+
+
 
 
 

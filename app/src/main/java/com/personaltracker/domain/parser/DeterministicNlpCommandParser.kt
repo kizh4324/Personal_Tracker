@@ -1,52 +1,104 @@
 package com.personaltracker.domain.parser
 
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
  * Pure Kotlin deterministic regex and token offline NLP command parser (FR-7, AD-1, AD-8).
  *
- * Extracts intent, title, date, time, duration, and urgency with calibrated 3-tier confidence scoring:
+ * Extracts intent, title, date, time, duration, routine shifts, and urgency with calibrated
+ * 3-tier confidence scoring:
  * - HIGH (>= 0.85): Instant commit with reversible undo toast
- * - MEDIUM (0.50..0.85): 1-tap confirmation chips
+ * - MEDIUM (0.50..0.84): 1-tap confirmation chips
  * - LOW (< 0.50): Saved to unfiled inbox triage
  *
  * Guarantees execution in < 300ms without Android framework dependencies or cloud connectivity.
  */
-class DeterministicNlpCommandParser {
-
-    private val timeFormat24 = DateTimeFormatter.ofPattern("HH:mm")
+class DeterministicNlpCommandParser(
+    private val dateTimeParser: RelativeDateTimeParser = RelativeDateTimeParser()
+) {
 
     // Action verbs identifying CREATE_TASK intent
     private val taskActionVerbs = listOf(
         "add", "task", "study", "read", "write", "finish", "complete", "buy", "review",
-        "prepare", "work", "email", "call", "send", "practice", "do", "clean", "organize", "remind"
+        "prepare", "work", "email", "call", "send", "practice", "do", "clean", "organize", "remind",
+        "sync", "meet", "meeting", "exercise", "walk", "run", "pay", "submit", "check", "attend",
+        "chat", "talk", "schedule", "plan", "cook", "watch", "listen"
+    )
+
+    // Prefixes identifying task intent
+    private val taskPrefixRegex = Regex(
+        """^(?:please\s+remind\s+me\s+to|remind\s+me\s+to|remind\s+me|i\s+need\s+to|need\s+to|add\s+(?:a\s+)?task\s+to|add\s+(?:a\s+)?task|create\s+(?:a\s+)?task|schedule\s+(?:a\s+)?task\s+to|schedule\s+(?:a\s+)?task|schedule|task\s+to|task|add)\s+""",
+        RegexOption.IGNORE_CASE
     )
 
     // Keywords identifying HABIT intent
     private val habitKeywords = listOf("habit", "log habit", "track habit", "drank water")
+    private val habitPrefixRegex = Regex(
+        """^(?:log\s+habit|track\s+habit|log\s+a\s+habit|track\s+a\s+habit|habit|log)\s*""",
+        RegexOption.IGNORE_CASE
+    )
 
     // Keywords identifying FOCUS intent
     private val focusKeywords = listOf("start focus", "focus session", "focus", "pomodoro")
+    private val focusPrefixRegex = Regex(
+        """^(?:start\s+(?:a\s+)?focus\s+session(?:\s+(?:on|for))?|start\s+focus(?:\s+(?:on|for))?|focus(?:\s+session)?(?:\s+(?:on|for))?|pomodoro(?:\s+for)?)\s*""",
+        RegexOption.IGNORE_CASE
+    )
 
-    // Regex patterns
+    // Regex patterns for routine shifts supporting multi-word names and hour durations
+    private val routineShiftBareWithAmountRegex = Regex(
+        """\b(?:shift|delay|push\s+back|move|adjust|reschedule)\s+(?:the\s+)?routine(?:\s+by)?\s+(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)?\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val routineShiftNamedBeforeWithAmountRegex = Regex(
+        """\b(?:shift|delay|push\s+back|move|adjust|reschedule)\s+(?:the\s+)?([a-zA-Z0-9_ -]+?)\s+routine(?:\s+by)?\s+(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)?\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val routineShiftNamedAfterWithAmountRegex = Regex(
+        """\b(?:shift|delay|push\s+back|move|adjust|reschedule)\s+(?:the\s+)?routine\s+(?!by\b)([a-zA-Z0-9_ -]+?)(?:\s+by)?\s+(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)?\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val routineShiftNamedNoAmountRegex = Regex(
+        """\b(?:shift|delay|push\s+back|move|adjust|reschedule)\s+(?:the\s+)?([a-zA-Z0-9_ -]+?)\s+routine\b""",
+        RegexOption.IGNORE_CASE
+    )
+    private val routineShiftBareNoAmountRegex = Regex(
+        """\b(?:shift|delay|push\s+back|move|adjust|reschedule)\s+(?:the\s+)?routine\b""",
+        RegexOption.IGNORE_CASE
+    )
+
+    // Regex patterns for attributes
     private val intensityRegex = Regex("""\b(urgent|asap|critical|important|priority|routine)\b""", RegexOption.IGNORE_CASE)
-    private val durationRegex = Regex("""\b(?:for\s+)?(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)\b""", RegexOption.IGNORE_CASE)
-    private val timeAmPmRegex = Regex("""\b(?:at\s+)?(1[0-2]|0?[1-9])(?::([0-5]\d))?\s*(am|pm)\b""", RegexOption.IGNORE_CASE)
-    private val time24Regex = Regex("""\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b""", RegexOption.IGNORE_CASE)
-    private val dateRelativeRegex = Regex("""\b(today|tomorrow|tonight|day after tomorrow)\b""", RegexOption.IGNORE_CASE)
+    private val explicitForDurationRegex = Regex("""\bfor\s+(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)\b""", RegexOption.IGNORE_CASE)
+    private val fallbackDurationRegex = Regex("""\b(\d+)\s*(minutes|minute|mins|min|m|hours|hour|hrs|hr|h)\b""", RegexOption.IGNORE_CASE)
 
     /**
      * Parses a raw text command into a structured ParsedCommand with calibrated confidence.
      *
      * @param rawText Natural language speech transcript or typed text
      * @param referenceDate Base date for relative date resolution (defaults to today)
+     * @param referenceTime Base time for relative time offset resolution (defaults to now)
      */
     fun parse(
         rawText: String,
-        referenceDate: LocalDate = LocalDate.now()
+        referenceDate: LocalDate = LocalDate.now(),
+        referenceTime: LocalTime = LocalTime.now()
+    ): ParsedCommand = parseInternal(rawText, LocalDateTime.of(referenceDate, referenceTime))
+
+    /**
+     * Overload accepting an explicit reference DateTime for deterministic evaluation.
+     */
+    fun parse(
+        rawText: String,
+        referenceDateTime: LocalDateTime
+    ): ParsedCommand = parseInternal(rawText, referenceDateTime)
+
+    private fun parseInternal(
+        rawText: String,
+        referenceDateTime: LocalDateTime
     ): ParsedCommand {
         val trimmed = rawText.trim()
         if (trimmed.isBlank()) {
@@ -61,7 +113,77 @@ class DeterministicNlpCommandParser {
 
         val lower = trimmed.lowercase(Locale.ROOT)
 
-        // 1. Extract Intensity
+        // =========================================================================
+        // 1. Check for SHIFT_ROUTINE Intent
+        // =========================================================================
+        val bareWithAmount = routineShiftBareWithAmountRegex.find(trimmed)
+        val namedBeforeWithAmount = if (bareWithAmount == null) routineShiftNamedBeforeWithAmountRegex.find(trimmed) else null
+        val namedAfterWithAmount = if (bareWithAmount == null && namedBeforeWithAmount == null) routineShiftNamedAfterWithAmountRegex.find(trimmed) else null
+        val namedNoAmount = if (bareWithAmount == null && namedBeforeWithAmount == null && namedAfterWithAmount == null) routineShiftNamedNoAmountRegex.find(trimmed) else null
+        val bareNoAmount = if (bareWithAmount == null && namedBeforeWithAmount == null && namedAfterWithAmount == null && namedNoAmount == null) routineShiftBareNoAmountRegex.find(trimmed) else null
+
+        if (bareWithAmount != null || namedBeforeWithAmount != null || namedAfterWithAmount != null || namedNoAmount != null || bareNoAmount != null) {
+            val targetRoutineName: String?
+            val shiftMinutes: Int?
+
+            when {
+                bareWithAmount != null -> {
+                    targetRoutineName = null
+                    shiftMinutes = parseShiftMinutes(bareWithAmount.groupValues[1], bareWithAmount.groupValues.getOrNull(2))
+                }
+                namedBeforeWithAmount != null -> {
+                    val rawName = namedBeforeWithAmount.groupValues[1].trim()
+                    targetRoutineName = rawName.takeUnless { it.equals("the", ignoreCase = true) || it.isBlank() }?.lowercase(Locale.ROOT)
+                    shiftMinutes = parseShiftMinutes(namedBeforeWithAmount.groupValues[2], namedBeforeWithAmount.groupValues.getOrNull(3))
+                }
+                namedAfterWithAmount != null -> {
+                    val rawName = namedAfterWithAmount.groupValues[1].trim()
+                    targetRoutineName = rawName.takeUnless { it.equals("the", ignoreCase = true) || it.isBlank() }?.lowercase(Locale.ROOT)
+                    shiftMinutes = parseShiftMinutes(namedAfterWithAmount.groupValues[2], namedAfterWithAmount.groupValues.getOrNull(3))
+                }
+                namedNoAmount != null -> {
+                    val rawName = namedNoAmount.groupValues[1].trim()
+                    targetRoutineName = rawName.takeUnless { it.equals("the", ignoreCase = true) || it.isBlank() }?.lowercase(Locale.ROOT)
+                    shiftMinutes = null
+                }
+                else -> {
+                    targetRoutineName = null
+                    shiftMinutes = null
+                }
+            }
+
+            val routineTitle = if (!targetRoutineName.isNullOrBlank()) {
+                "$targetRoutineName routine"
+            } else {
+                "routine"
+            }
+
+            var routineConfidence = 0.50f // base intent recognized
+            routineConfidence += 0.10f // explicit shift/delay action keyword
+            if (!targetRoutineName.isNullOrBlank()) routineConfidence += 0.15f
+            if (shiftMinutes != null) routineConfidence += 0.15f
+            routineConfidence = routineConfidence.coerceIn(0.0f, 1.0f)
+
+            val tier = when {
+                routineConfidence >= 0.85f -> ConfidenceTier.HIGH
+                routineConfidence >= 0.50f -> ConfidenceTier.MEDIUM
+                else -> ConfidenceTier.LOW
+            }
+
+            return ParsedCommand(
+                rawText = rawText,
+                intent = CommandIntent.SHIFT_ROUTINE,
+                title = routineTitle,
+                confidence = routineConfidence,
+                tier = tier,
+                shiftMinutes = shiftMinutes,
+                targetRoutineName = targetRoutineName
+            )
+        }
+
+        // =========================================================================
+        // 2. Extract Intensity
+        // =========================================================================
         val intensityMatch = intensityRegex.find(lower)
         val deliveryIntensity = when (intensityMatch?.value?.lowercase(Locale.ROOT)) {
             "urgent", "asap", "critical" -> "URGENT"
@@ -70,117 +192,166 @@ class DeterministicNlpCommandParser {
         }
         val hasExplicitIntensity = intensityMatch != null
 
-        // 2. Extract Duration in minutes
+        // =========================================================================
+        // 3. Extract Date and Time via RelativeDateTimeParser
+        // =========================================================================
+        val dtResult = dateTimeParser.parse(trimmed, referenceDateTime)
+        val dateStr = dtResult.date
+        val timeStr = dtResult.time
+        val dateToken = dtResult.dateToken
+        val timeToken = dtResult.timeToken
+
+        // =========================================================================
+        // 4. Extract Duration (minutes)
+        // Ensure duration does not conflict with matched time tokens
+        // =========================================================================
         var durationMinutes: Int? = null
-        val durationMatch = durationRegex.find(lower)
+        var durationToken: String? = null
+
+        val textWithoutTimeToken = if (timeToken != null) {
+            trimmed.replace(timeToken, " ".repeat(timeToken.length))
+        } else {
+            trimmed
+        }
+
+        val forDurationMatch = explicitForDurationRegex.find(textWithoutTimeToken)
+        val fallbackDurationMatch = if (forDurationMatch == null) {
+            fallbackDurationRegex.find(textWithoutTimeToken)
+        } else {
+            null
+        }
+        val durationMatch = forDurationMatch ?: fallbackDurationMatch
+
         if (durationMatch != null) {
-            val amount = durationMatch.groupValues[1].toIntOrNull() ?: 0
+            val rawAmount = durationMatch.groupValues[1].toLongOrNull() ?: 0L
             val unit = durationMatch.groupValues[2].lowercase(Locale.ROOT)
             durationMinutes = if (unit.startsWith("h")) {
-                amount * 60
+                (rawAmount * 60L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             } else {
-                amount
+                rawAmount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
             }
+            durationToken = durationMatch.value
         }
 
-        // 3. Extract Time ("HH:mm")
-        var timeStr: String? = null
-        val timeAmPmMatch = timeAmPmRegex.find(lower)
-        val time24Match = if (timeAmPmMatch == null) time24Regex.find(lower) else null
-        if (timeAmPmMatch != null) {
-            val hour = timeAmPmMatch.groupValues[1].toIntOrNull() ?: 0
-            val minute = timeAmPmMatch.groupValues[2].takeIf { it.isNotBlank() }?.toIntOrNull() ?: 0
-            val period = timeAmPmMatch.groupValues[3].lowercase(Locale.ROOT)
-            val normalizedHour = when {
-                period == "pm" && hour < 12 -> hour + 12
-                period == "am" && hour == 12 -> 0
-                else -> hour
-            }
-            timeStr = String.format(Locale.ROOT, "%02d:%02d", normalizedHour, minute)
-        } else if (time24Match != null) {
-            val hour = time24Match.groupValues[1].toIntOrNull() ?: 0
-            val minute = time24Match.groupValues[2].toIntOrNull() ?: 0
-            timeStr = String.format(Locale.ROOT, "%02d:%02d", hour, minute)
-        }
-
-        // 4. Extract Date ("YYYY-MM-DD")
-        var dateStr: String? = null
-        val dateMatch = dateRelativeRegex.find(lower)
-        if (dateMatch != null) {
-            dateStr = when (dateMatch.value.lowercase(Locale.ROOT)) {
-                "tomorrow" -> referenceDate.plusDays(1).toString()
-                "day after tomorrow" -> referenceDate.plusDays(2).toString()
-                "tonight", "today" -> referenceDate.toString()
-                else -> referenceDate.toString()
-            }
-            if (dateMatch.value.equals("tonight", ignoreCase = true) && timeStr == null) {
-                timeStr = "20:00"
-            }
-        }
-
+        // =========================================================================
         // 5. Detect Intent
+        // =========================================================================
+        val isHabit = habitKeywords.any { lower.contains(it) }
+        val isFocus = focusKeywords.any { lower.contains(it) }
+        val hasTaskActionVerb = taskActionVerbs.any { verb ->
+            lower.startsWith(verb) || Regex("""\b$verb\b""").containsMatchIn(lower)
+        }
+        val hasTaskPrefix = taskPrefixRegex.containsMatchIn(trimmed)
+        val hasExplicitTaskKeyword = hasTaskActionVerb || hasTaskPrefix
+
         val intent = when {
-            habitKeywords.any { lower.contains(it) } -> CommandIntent.LOG_HABIT
-            focusKeywords.any { lower.contains(it) } -> CommandIntent.START_FOCUS
-            taskActionVerbs.any { verb ->
-                lower.startsWith(verb) || Regex("""\b$verb\b""").containsMatchIn(lower)
-            } -> CommandIntent.CREATE_TASK
+            isHabit -> CommandIntent.LOG_HABIT
+            isFocus -> CommandIntent.START_FOCUS
+            hasExplicitTaskKeyword || dateStr != null || timeStr != null || durationMinutes != null || hasExplicitIntensity -> {
+                CommandIntent.CREATE_TASK
+            }
             else -> CommandIntent.UNKNOWN
         }
 
+        // =========================================================================
         // 6. Clean and Extract Title
+        // =========================================================================
         var cleaned = trimmed
+
         if (intensityMatch != null) {
             cleaned = cleaned.replace(Regex("""\b${Regex.escape(intensityMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
         }
-        if (durationMatch != null) {
-            cleaned = cleaned.replace(Regex("""\b(?:for\s+)?${Regex.escape(durationMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
+        if (durationToken != null) {
+            cleaned = cleaned.replace(Regex("""\b(?:for\s+)?${Regex.escape(durationToken)}\b""", RegexOption.IGNORE_CASE), "")
         }
-        if (timeAmPmMatch != null) {
-            cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(timeAmPmMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
-        } else if (time24Match != null) {
-            cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(time24Match.value)}\b""", RegexOption.IGNORE_CASE), "")
+        if (timeToken != null) {
+            cleaned = cleaned.replace(Regex("""\b(?:at\s+)?${Regex.escape(timeToken)}\b""", RegexOption.IGNORE_CASE), "")
         }
-        if (dateMatch != null) {
-            cleaned = cleaned.replace(Regex("""\b${Regex.escape(dateMatch.value)}\b""", RegexOption.IGNORE_CASE), "")
+        if (dateToken != null && !dtResult.isInferredDate) {
+            cleaned = cleaned.replace(Regex("""\b${Regex.escape(dateToken)}\b""", RegexOption.IGNORE_CASE), "")
         }
 
-        // Remove prefix tokens like "add", "remind me to", "schedule", "task"
-        cleaned = cleaned.replace(Regex("""^(?:remind me to|add\s+task|schedule|add|task)\s+""", RegexOption.IGNORE_CASE), "")
-        // Remove habit prefixes if any
-        cleaned = cleaned.replace(Regex("""^(?:log\s+habit|track\s+habit|habit)\s+""", RegexOption.IGNORE_CASE), "")
-        // Clean leftover trailing prepositions
-        cleaned = cleaned.replace(Regex("""\s+(?:for|at|on|by|in)\s*$""", RegexOption.IGNORE_CASE), "")
-        // Collapse multiple whitespace gaps into a single space
+        // Trim leading spaces so leading tokens (like "Tomorrow" or "URGENT") removed above
+        // do not leave whitespace that prevents ^ from matching
+        cleaned = cleaned.trimStart()
+
+        // Remove intent-specific trigger prefixes
+        when (intent) {
+            CommandIntent.LOG_HABIT -> {
+                cleaned = cleaned.replace(habitPrefixRegex, "")
+            }
+            CommandIntent.START_FOCUS -> {
+                cleaned = cleaned.replace(focusPrefixRegex, "")
+            }
+            CommandIntent.CREATE_TASK -> {
+                cleaned = cleaned.replace(taskPrefixRegex, "")
+            }
+            else -> { /* no prefix stripping */ }
+        }
+
+        // Remove leftover trailing prepositions and punctuation
+        cleaned = cleaned.replace(Regex("""\s+(?:for|at|on|by|in|to)\s*$""", RegexOption.IGNORE_CASE), "")
         cleaned = cleaned.replace(Regex("""\s+"""), " ")
         cleaned = cleaned.trim().trim(',', '.', '!', '?').trim()
 
-        val title = if (cleaned.isNotBlank()) cleaned else trimmed
+        // Capitalize first character if lowercase
+        if (cleaned.isNotBlank()) {
+            cleaned = cleaned.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() }
+        }
 
+        val title = when {
+            cleaned.isNotBlank() -> cleaned
+            intent == CommandIntent.START_FOCUS -> "Focus"
+            else -> trimmed
+        }
+
+        // =========================================================================
         // 7. Calculate Calibrated Confidence Score
+        // =========================================================================
         var confidence = 0.0f
 
-        if (intent == CommandIntent.UNKNOWN) {
-            confidence = 0.25f
-        } else {
-            // Recognized intent with a title of reasonable length
-            if (title.length >= 3) {
-                confidence += 0.50f
-            } else {
-                confidence += 0.20f
+        when (intent) {
+            CommandIntent.UNKNOWN -> {
+                confidence = 0.25f
             }
-
-            if (dateStr != null) confidence += 0.15f
-            if (timeStr != null) confidence += 0.15f
-            if (durationMinutes != null) confidence += 0.10f
-            if (hasExplicitIntensity) confidence += 0.05f
+            CommandIntent.LOG_HABIT -> {
+                if (title.length >= 3) {
+                    confidence += 0.50f
+                    confidence += 0.10f // explicit keyword
+                    confidence += 0.25f // habit target specified
+                } else {
+                    confidence += 0.20f
+                }
+            }
+            CommandIntent.START_FOCUS -> {
+                confidence += 0.50f
+                confidence += 0.10f // explicit focus keyword
+                if (durationMinutes != null) {
+                    confidence += 0.25f // required duration specified
+                }
+            }
+            CommandIntent.CREATE_TASK -> {
+                if (title.length >= 3) {
+                    confidence += 0.50f
+                } else {
+                    confidence += 0.20f
+                }
+                if (hasExplicitTaskKeyword) confidence += 0.10f
+                if (dateStr != null) confidence += 0.15f
+                if (timeStr != null) confidence += 0.15f
+                if (durationMinutes != null) confidence += 0.10f
+                if (hasExplicitIntensity) confidence += 0.05f
+            }
+            CommandIntent.SHIFT_ROUTINE -> {
+                // Handled earlier
+            }
         }
 
         confidence = confidence.coerceIn(0.0f, 1.0f)
 
-        // AD-8 exact boundary tiers: High (>0.85), Medium (0.50..0.85), Low (<0.50)
+        // AD-8 exact boundary tiers: High (>= 0.85), Medium (0.50..0.84), Low (< 0.50)
         val tier = when {
-            confidence > 0.85f -> ConfidenceTier.HIGH
+            confidence >= 0.85f -> ConfidenceTier.HIGH
             confidence >= 0.50f -> ConfidenceTier.MEDIUM
             else -> ConfidenceTier.LOW
         }
@@ -196,5 +367,15 @@ class DeterministicNlpCommandParser {
             confidence = confidence,
             tier = tier
         )
+    }
+
+    private fun parseShiftMinutes(amountStr: String, unitStr: String?): Int {
+        val rawAmount = amountStr.toLongOrNull() ?: 0L
+        val unit = unitStr?.lowercase(Locale.ROOT) ?: ""
+        return if (unit.startsWith("h")) {
+            (rawAmount * 60L).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        } else {
+            rawAmount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+        }
     }
 }

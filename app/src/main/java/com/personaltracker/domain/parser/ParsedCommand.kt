@@ -7,13 +7,14 @@ enum class CommandIntent {
     CREATE_TASK,
     LOG_HABIT,
     START_FOCUS,
+    SHIFT_ROUTINE,
     UNKNOWN
 }
 
 /**
  * 3-tier confidence scoring levels governing AI action commitments (AD-8).
  * - HIGH (>= 0.85): Instant commit with reversible undo toast
- * - MEDIUM (0.50..0.85): 1-tap confirmation chips presented in QuickCaptureSheet
+ * - MEDIUM (0.50..0.84): 1-tap confirmation chips presented in QuickCaptureSheet
  * - LOW (< 0.50): Saved to UnfiledCaptureInboxEntity for manual triage
  */
 enum class ConfidenceTier {
@@ -34,5 +35,7 @@ data class ParsedCommand(
     val durationMinutes: Int? = null,
     val deliveryIntensity: String = "ROUTINE", // "ROUTINE", "IMPORTANT", "URGENT"
     val confidence: Float,
-    val tier: ConfidenceTier
+    val tier: ConfidenceTier,
+    val shiftMinutes: Int? = null,
+    val targetRoutineName: String? = null
 )
