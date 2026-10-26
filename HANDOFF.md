@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-26 07:37:00 +05:30
-*   **Current Git Commit:** Tracking Story 2.2 implementation
+*   **Date/Time:** 2026-10-26 08:44:00 +05:30
+*   **Current Git Commit:** Tracking Story 2.3 implementation
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -26,7 +26,7 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (288 tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (294 tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -37,6 +37,7 @@ status: active
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** In Progress (`in-progress`).
         *   **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`):** 100% Complete (`done`).
         *   **Story 2.2 (`2-2-deterministic-kotlin-regex-rule-nlp-parser`):** 100% Complete (`done`).
+        *   **Story 2.3 (`2-3-dual-voice-engine-network-failover-architecture`):** 100% Complete (`done`).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all 5 Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Live and operational on physical mobile device (`10BD9D24YF000BE`, Model `I2223`) with zero crashes.
 
@@ -132,8 +133,8 @@ flowchart TD
 ### Active Epic: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline
 *   [x] **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (Framer spring physics `fabToModalSpringSpec`, RAM-only streaming audio, zero disk writes, 3-tier confidence UI). `[DONE]`
 *   [x] **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency on `Dispatchers.Default`, title/date/time/duration/intensity extraction). `[DONE]`
-*   [ ] **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover). `[READY FOR DEV]`
-*   [ ] **Story 2.4:** Strict AI action boundary & command validation pipeline (unvalidated proposal gate, 0 direct Room DAO mutations from AI/speech).
+*   [x] **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover). `[DONE]`
+*   [ ] **Story 2.4:** Strict AI action boundary & command validation pipeline (unvalidated proposal gate, 0 direct Room DAO mutations from AI/speech). `[READY FOR DEV]`
 *   [ ] **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast.
 
 ---
@@ -149,7 +150,7 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 2.3 Implementation
+### Step 2: Kick off Story 2.4 Implementation
 ```
-/bmad-build 2-3-dual-voice-engine-network-failover-architecture
+/bmad-build 2-4-strict-ai-action-boundary-command-validation-pipeline
 ```

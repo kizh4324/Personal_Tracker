@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import com.personaltracker.R
 import com.personaltracker.domain.parser.ParsedCommand
@@ -101,6 +102,8 @@ fun QuickCaptureSheet(
     isRecording: Boolean = false,
     recordingAmplitude: Float = 0f,
     onToggleRecording: () -> Unit = {},
+    transcriptionStatus: String? = null,
+    partialTranscript: String? = null,
     mediumConfidenceProposal: ParsedCommand? = null,
     onConfirmProposal: (ParsedCommand) -> Unit = {},
     onDiscardProposal: () -> Unit = {},
@@ -109,6 +112,7 @@ fun QuickCaptureSheet(
     onUndoHighConfidence: () -> Unit = {},
     onDismissUndoBanner: () -> Unit = {},
     lowConfidenceNotice: String? = null,
+    errorMessage: String? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     if (!isVisible && highConfidenceCommittedTitle == null) return
@@ -150,11 +154,14 @@ fun QuickCaptureSheet(
                     isRecording = isRecording,
                     recordingAmplitude = recordingAmplitude,
                     onToggleRecording = onToggleRecording,
+                    transcriptionStatus = transcriptionStatus,
+                    partialTranscript = partialTranscript,
                     mediumConfidenceProposal = mediumConfidenceProposal,
                     onConfirmProposal = onConfirmProposal,
                     onDiscardProposal = onDiscardProposal,
                     onProposalChipClick = onProposalChipClick,
                     lowConfidenceNotice = lowConfidenceNotice,
+                    errorMessage = errorMessage,
                     onClose = onDismissRequest
                 )
             }
@@ -194,10 +201,13 @@ fun QuickCaptureSheetContent(
     isRecording: Boolean,
     recordingAmplitude: Float,
     onToggleRecording: () -> Unit,
+    transcriptionStatus: String? = null,
+    partialTranscript: String? = null,
     mediumConfidenceProposal: ParsedCommand?,
     onConfirmProposal: (ParsedCommand) -> Unit,
     onDiscardProposal: () -> Unit,
     lowConfidenceNotice: String?,
+    errorMessage: String? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     onProposalChipClick: (chipType: String) -> Unit = {}
@@ -263,6 +273,23 @@ fun QuickCaptureSheetContent(
             }
         }
 
+        // Error / Notice Banner (e.g. timeout, audio interruption, network failover)
+        if (!errorMessage.isNullOrBlank()) {
+            Surface(
+                shape = shapes.md,
+                color = colors.warningSubtle,
+                border = BorderStroke(spacing.spacing0_5, colors.warning),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = errorMessage,
+                    style = typography.bodySecondary,
+                    color = colors.inkPrimary,
+                    modifier = Modifier.padding(spacing.spacing3)
+                )
+            }
+        }
+
         // Medium Confidence 1-Tap Confirmation Proposal (0.50..0.85)
         if (mediumConfidenceProposal != null) {
             MediumConfidenceProposalCard(
@@ -273,11 +300,11 @@ fun QuickCaptureSheetContent(
             )
         }
 
-        // Voice Recording Visualizer feedback area
-        if (isRecording) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
+        // Voice Recording Visualizer & Live Transcription feedback area
+        if (isRecording || !transcriptionStatus.isNullOrBlank()) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(spacing.spacing1),
                 modifier = Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = spacing.minTouchTarget)
@@ -285,9 +312,27 @@ fun QuickCaptureSheetContent(
             ) {
                 WaveformVisualizer(
                     amplitude = recordingAmplitude,
-                    isRecording = true,
+                    isRecording = isRecording,
                     useBarsLayout = true
                 )
+
+                if (!transcriptionStatus.isNullOrBlank()) {
+                    Text(
+                        text = transcriptionStatus,
+                        style = typography.caption,
+                        color = colors.primary
+                    )
+                }
+
+                if (!partialTranscript.isNullOrBlank()) {
+                    Text(
+                        text = "$partialTranscript...",
+                        style = typography.bodySecondary,
+                        color = colors.inkSecondary,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
 
@@ -302,7 +347,7 @@ fun QuickCaptureSheetContent(
                 onValueChange = onInputTextChanged,
                 placeholder = {
                     Text(
-                        text = if (isRecording) "Listening..." else "Capture a task, habit, or note...",
+                        text = if (isRecording) (transcriptionStatus?.takeIf { it.isNotBlank() } ?: "Listening...") else "Capture a task, habit, or note...",
                         style = typography.body,
                         color = colors.inkTertiary
                     )

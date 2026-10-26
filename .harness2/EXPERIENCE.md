@@ -202,6 +202,16 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** In multi-pass token extraction, stripping leading temporal or intensity tokens (e.g., `"Tomorrow remind me to buy milk"`) leaves leading whitespace. Caret-anchored intent regexes (`^remind me to`) fail to match across leading whitespace, causing intent prefixes to leak into task titles. Additionally, regex digit matching on ISO dates (`\d{4}-\d{2}-\d{2}`) accepts impossible dates (`2026-02-31`), and routine shift patterns risk capturing the English article `"the"` as a target routine name.
 * **Rule:** Always execute `cleaned.trimStart()` immediately before applying caret-anchored intent prefix replacements. Validate ISO date matches with `runCatching { LocalDate.parse(...) }.getOrNull()` before accepting them into `ParsedCommand`. Guard routine names against the article `"the"`, support multi-word routine identifiers (`([a-zA-Z0-9_ -]+?)\s+routine`), and safely convert hour duration units to minutes with `Long` overflow protection.
 
+---
+
+## 14. Native Speech Recognition & Error Failover
+
+### EXP-028: Speech Recognition Stop Handshake & Main Thread Confinement (AD-5, AD-8)
+* **Context:** On-device native `SpeechRecognizer` wrapping (`SpeechRecognitionManager.kt`) and ViewModel dictation lifecycle (`QuickCaptureViewModel.kt`).
+* **Heuristic:** When stopping active voice dictation via microphone toggle, cancelling the observation coroutine job immediately aborts the underlying `callbackFlow`, executing `awaitClose` and destroying the `SpeechRecognizer` before Android can deliver the final transcript via `onResults`. This results in silent transcript loss. Furthermore, Android `SpeechRecognizer` enforces strict main thread confinement (`Looper.getMainLooper()`); calling teardown methods from IO or background dispatchers throws runtime exceptions.
+* **Rule:** Toggling recording off must call `speechRecognitionManager.stopListening()` while allowing the observation job to remain active until final `Result` or `Error` arrives. Reserve immediate hard cancellation (`cancelListening()` and job cancellation) exclusively for explicit UI sheet dismissal (`DismissSheet`). Confine all `SpeechRecognizer` lifecycle operations (`start`, `stop`, `cancel`, `destroy`) to `Dispatchers.Main`, and wrap `createOnDeviceSpeechRecognizer` in `runCatching` with fallback to `createSpeechRecognizer` to handle devices lacking offline speech models.
+
+
 
 
 

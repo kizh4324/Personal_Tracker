@@ -5,6 +5,7 @@ import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.platform.alarm.ExactAlarmScheduler
 import com.personaltracker.platform.alarm.TaskAlarmSchedulerImpl
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
+import com.personaltracker.platform.voice.SpeechRecognitionManager
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -36,4 +37,10 @@ object PlatformModule {
     fun provideQuickCaptureVoiceRecorder(
         @ApplicationContext context: Context
     ): QuickCaptureVoiceRecorder = QuickCaptureVoiceRecorder(context)
+
+    @Provides
+    @Singleton
+    fun provideSpeechRecognitionManager(
+        @ApplicationContext context: Context
+    ): SpeechRecognitionManager = SpeechRecognitionManager(context)
 }

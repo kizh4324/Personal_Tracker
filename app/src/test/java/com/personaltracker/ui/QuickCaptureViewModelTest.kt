@@ -1,17 +1,19 @@
 package com.personaltracker.ui
 
 import app.cash.turbine.test
-import com.personaltracker.domain.parser.CommandIntent
 import com.personaltracker.domain.parser.ConfidenceTier
 import com.personaltracker.domain.parser.DeterministicNlpCommandParser
-import com.personaltracker.domain.parser.ParsedCommand
 import com.personaltracker.domain.usecase.CaptureQuickThoughtUseCase
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
+import com.personaltracker.platform.voice.SpeechRecognitionError
+import com.personaltracker.platform.voice.SpeechRecognitionManager
+import com.personaltracker.platform.voice.SpeechRecognitionState
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureUiEffect
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureUiIntent
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -22,7 +24,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCaptureViewModelTest {
@@ -35,6 +36,7 @@ class QuickCaptureViewModelTest {
     private lateinit var parser: DeterministicNlpCommandParser
     private lateinit var captureUseCase: CaptureQuickThoughtUseCase
     private lateinit var fakeVoiceRecorder: FakeVoiceRecorder
+    private lateinit var fakeSpeechManager: FakeSpeechRecognitionManager
 
     private class FakeVoiceRecorder : QuickCaptureVoiceRecorder(null) {
         var permissionGranted = true
@@ -53,6 +55,42 @@ class QuickCaptureViewModelTest {
         }
     }
 
+    private class FakeSpeechRecognitionManager : SpeechRecognitionManager(null) {
+        var permissionGranted = true
+        var recognitionAvailable = true
+        var listeningStarted = false
+        var listeningStopped = false
+        var listeningCancelled = false
+        var destroyed = false
+        var emitStates: List<SpeechRecognitionState> = listOf(
+            SpeechRecognitionState.Listening(0.25f),
+            SpeechRecognitionState.Listening(0.55f),
+            SpeechRecognitionState.Listening(0.85f)
+        )
+
+        override fun hasRecordPermission(): Boolean = permissionGranted
+        override fun isRecognitionAvailable(): Boolean = recognitionAvailable
+
+        override fun startListening(preferOffline: Boolean): Flow<SpeechRecognitionState> = flow {
+            listeningStarted = true
+            for (state in emitStates) {
+                emit(state)
+            }
+        }
+
+        override fun stopListening() {
+            listeningStopped = true
+        }
+
+        override fun cancelListening() {
+            listeningCancelled = true
+        }
+
+        override fun destroy() {
+            destroyed = true
+        }
+    }
+
     @Before
     fun setUp() {
         fakeTaskRepo = TestTaskRepository()
@@ -60,11 +98,13 @@ class QuickCaptureViewModelTest {
         parser = DeterministicNlpCommandParser()
         captureUseCase = CaptureQuickThoughtUseCase(parser, fakeTaskRepo, fakeInboxRepo)
         fakeVoiceRecorder = FakeVoiceRecorder()
+        fakeSpeechManager = FakeSpeechRecognitionManager()
     }
 
     private fun createViewModel(): QuickCaptureViewModel {
         return QuickCaptureViewModel(
             voiceRecorder = fakeVoiceRecorder,
+            speechRecognitionManager = fakeSpeechManager,
             captureQuickThoughtUseCase = captureUseCase,
             taskRepository = fakeTaskRepo,
             unfiledInboxRepository = fakeInboxRepo
@@ -180,19 +220,19 @@ class QuickCaptureViewModelTest {
         viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
 
         assertTrue(viewModel.uiState.value.isRecording)
-        assertTrue(fakeVoiceRecorder.recordingStarted)
+        assertTrue(fakeSpeechManager.listeningStarted)
         assertEquals(0.85f, viewModel.uiState.value.recordingAmplitude, 0.001f)
 
         // Stop recording
         viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
         assertFalse(viewModel.uiState.value.isRecording)
-        assertTrue(fakeVoiceRecorder.recordingStopped)
+        assertTrue(fakeSpeechManager.listeningStopped)
         assertEquals(0f, viewModel.uiState.value.recordingAmplitude, 0.001f)
     }
 
     @Test
     fun testOpenSheetAutoStartsRecordingWhenPermissionGranted() = runTest {
-        fakeVoiceRecorder.permissionGranted = true
+        fakeSpeechManager.permissionGranted = true
         val viewModel = createViewModel()
 
         viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
@@ -200,12 +240,13 @@ class QuickCaptureViewModelTest {
         val state = viewModel.uiState.value
         assertTrue(state.isVisible)
         assertTrue(state.isRecording)
-        assertTrue(fakeVoiceRecorder.recordingStarted)
+        assertTrue(fakeSpeechManager.listeningStarted)
         assertEquals(0.85f, state.recordingAmplitude, 0.001f)
     }
 
     @Test
     fun testOpenSheetShowsPermissionSnackbarWhenDenied() = runTest {
+        fakeSpeechManager.permissionGranted = false
         fakeVoiceRecorder.permissionGranted = false
         val viewModel = createViewModel()
 
@@ -219,14 +260,14 @@ class QuickCaptureViewModelTest {
             val state = viewModel.uiState.value
             assertTrue(state.isVisible)
             assertFalse(state.isRecording)
-            assertFalse(fakeVoiceRecorder.recordingStarted)
+            assertFalse(fakeSpeechManager.listeningStarted)
             assertEquals(0f, state.recordingAmplitude, 0.001f)
         }
     }
 
     @Test
     fun testDismissSheetStopsRecordingAndResetsAmplitude() = runTest {
-        fakeVoiceRecorder.permissionGranted = true
+        fakeSpeechManager.permissionGranted = true
         val viewModel = createViewModel()
 
         viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
@@ -236,13 +277,13 @@ class QuickCaptureViewModelTest {
         val state = viewModel.uiState.value
         assertFalse(state.isVisible)
         assertFalse(state.isRecording)
-        assertTrue(fakeVoiceRecorder.recordingStopped)
+        assertTrue(fakeSpeechManager.listeningCancelled)
         assertEquals(0f, state.recordingAmplitude, 0.001f)
     }
 
     @Test
     fun testSubmitTextStopsActiveRecording() = runTest {
-        fakeVoiceRecorder.permissionGranted = true
+        fakeSpeechManager.permissionGranted = true
         val viewModel = createViewModel()
 
         viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
@@ -254,8 +295,187 @@ class QuickCaptureViewModelTest {
             awaitItem() // CloseSheet
 
             assertFalse(viewModel.uiState.value.isRecording)
-            assertTrue(fakeVoiceRecorder.recordingStopped)
+            assertTrue(fakeSpeechManager.listeningStopped)
             assertEquals(0f, viewModel.uiState.value.recordingAmplitude, 0.001f)
         }
+    }
+
+    @Test
+    fun testSpeechTranscriptionHighConfidenceAutoCommit() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.3f),
+            SpeechRecognitionState.Processing,
+            SpeechRecognitionState.Result("Study algorithms for 45 minutes at 4pm tomorrow urgent", isFinal = true)
+        )
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is QuickCaptureUiEffect.ShowUndoToast)
+            val effect2 = awaitItem()
+            assertTrue(effect2 is QuickCaptureUiEffect.CloseSheet)
+
+            assertEquals(1, fakeTaskRepo.tasksFlow.value.size)
+            assertTrue(fakeTaskRepo.tasksFlow.value.first().title.contains("Study algorithms", ignoreCase = true))
+        }
+
+        assertNotNull(viewModel.uiState.value.highConfidenceCommittedTask)
+        assertFalse(viewModel.uiState.value.isRecording)
+    }
+
+    @Test
+    fun testSpeechTranscriptionMediumConfidenceProposal() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.4f),
+            SpeechRecognitionState.Processing,
+            SpeechRecognitionState.Result("Buy groceries tomorrow", isFinal = true)
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertNotNull(state.mediumProposal)
+        assertEquals("Buy groceries", state.mediumProposal?.title)
+        assertEquals(0, fakeTaskRepo.tasksFlow.value.size) // No database mutation before confirmation
+
+        viewModel.onIntent(QuickCaptureUiIntent.ConfirmProposal(state.mediumProposal!!))
+
+        assertEquals(1, fakeTaskRepo.tasksFlow.value.size)
+        assertEquals("Buy groceries", fakeTaskRepo.tasksFlow.value.first().title)
+    }
+
+    @Test
+    fun testSpeechTranscriptionLowConfidenceUnfiledInbox() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.2f),
+            SpeechRecognitionState.Result("some random noise gibberish words xyz", isFinal = true)
+        )
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is QuickCaptureUiEffect.ShowSnackbar)
+            val effect2 = awaitItem()
+            assertTrue(effect2 is QuickCaptureUiEffect.CloseSheet)
+
+            assertEquals(1, fakeInboxRepo.inboxItemsFlow.value.size)
+            assertEquals("some random noise gibberish words xyz", fakeInboxRepo.inboxItemsFlow.value.first().rawTranscriptText)
+            assertEquals("VOICE_STT", fakeInboxRepo.inboxItemsFlow.value.first().captureSource)
+            assertEquals(0, fakeTaskRepo.tasksFlow.value.size)
+        }
+
+        assertNotNull(viewModel.uiState.value.lowConfidenceNotice)
+    }
+
+    @Test
+    fun testSpeechRecognitionProcessingUpdatesTranscriptionStatus() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.3f),
+            SpeechRecognitionState.Processing
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isRecording)
+        assertFalse(state.isListening)
+        assertEquals(0f, state.recordingAmplitude, 0.001f)
+        assertEquals("Processing...", state.transcriptionStatus)
+    }
+
+    @Test
+    fun testBlankFinalSpeechResultSetsNoSpeechDetectedError() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.2f),
+            SpeechRecognitionState.Result("   ", isFinal = true)
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isRecording)
+        assertFalse(state.isListening)
+        assertEquals(0f, state.recordingAmplitude, 0.001f)
+        assertEquals("No speech detected. Tap mic to retry.", state.errorMessage)
+        assertEquals(0, fakeTaskRepo.tasksFlow.value.size)
+        assertEquals(0, fakeInboxRepo.inboxItemsFlow.value.size)
+    }
+
+    @Test
+    fun testSpeechRecognitionTimeoutShowsRetryNotice() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.1f),
+            SpeechRecognitionState.Error(SpeechRecognitionError.SPEECH_TIMEOUT, "No speech detected. Tap mic to retry.")
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isRecording)
+        assertFalse(state.isListening)
+        assertEquals(0f, state.recordingAmplitude, 0.001f)
+        assertEquals("No speech detected. Tap mic to retry.", state.errorMessage)
+    }
+
+    @Test
+    fun testSpeechRecognitionNetworkErrorFailover() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.2f),
+            SpeechRecognitionState.Error(SpeechRecognitionError.NETWORK, "Network connection lost. Switched to offline mode.")
+        )
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+            val snackbar = awaitItem()
+            assertTrue(snackbar is QuickCaptureUiEffect.ShowSnackbar)
+            assertTrue((snackbar as QuickCaptureUiEffect.ShowSnackbar).message.contains("offline", ignoreCase = true))
+        }
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isRecording)
+        assertNotNull(state.errorMessage)
+    }
+
+    @Test
+    fun testSpeechRecognitionPartialResultsUpdateUiState() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.3f),
+            SpeechRecognitionState.Result("Buy groc", isFinal = false)
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isRecording)
+        assertEquals("Buy groc", state.partialTranscript)
+        assertEquals("Listening...", state.transcriptionStatus)
+    }
+
+    @Test
+    fun testAudioInterruptionPreservesPartialDraft() = runTest {
+        fakeSpeechManager.emitStates = listOf(
+            SpeechRecognitionState.Listening(0.3f),
+            SpeechRecognitionState.Result("Call doctor tom", isFinal = false),
+            SpeechRecognitionState.Error(SpeechRecognitionError.AUDIO, "Audio recording error. Please check microphone.")
+        )
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.ToggleRecording)
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isRecording)
+        assertEquals("Call doctor tom", state.inputText)
+        assertTrue(state.errorMessage?.contains("interrupted", ignoreCase = true) == true)
     }
 }

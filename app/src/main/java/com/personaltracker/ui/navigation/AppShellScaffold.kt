@@ -116,6 +116,9 @@ fun AppShellScaffold(
     val mediumProposal = qcState?.mediumProposal ?: localMediumProposal
     val highConfidenceCommittedTitle = qcState?.highConfidenceCommittedTitle ?: localHighConfidenceCommittedTitle
     val lowConfidenceNotice = qcState?.lowConfidenceNotice ?: localLowConfidenceNotice
+    val transcriptionStatus = qcState?.transcriptionStatus
+    val partialTranscript = qcState?.partialTranscript
+    val errorMessage = qcState?.errorMessage
 
     // FAB visible on Home, Habits, and Study surfaces (EXPERIENCE.md §2)
     val showQuickCaptureFab = currentDestination in listOf(
@@ -309,7 +312,10 @@ fun AppShellScaffold(
                         localHighConfidenceCommittedTitle = null
                     }
                 },
-                lowConfidenceNotice = lowConfidenceNotice
+                lowConfidenceNotice = lowConfidenceNotice,
+                transcriptionStatus = transcriptionStatus,
+                partialTranscript = partialTranscript,
+                errorMessage = errorMessage
             )
         }
     }
