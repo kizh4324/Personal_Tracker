@@ -5,4 +5,5 @@ package com.personaltracker.ui.screens.settings
  */
 sealed interface SettingsUiEffect {
     data class ShowSnackbar(val message: String) : SettingsUiEffect
+    data class OpenSystemSetting(val action: String) : SettingsUiEffect
 }

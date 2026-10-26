@@ -158,7 +158,8 @@ class StudyViewModel @Inject constructor(
             context = ctx,
             sessionId = sessionId,
             subjectTag = subjectTag,
-            durationSeconds = durationSeconds
+            durationSeconds = durationSeconds,
+            intervalType = intervalType
         )
     }
 

@@ -1,5 +1,6 @@
 package com.personaltracker.ui
 
+import android.provider.Settings
 import app.cash.turbine.test
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.model.DayOverride
@@ -60,6 +61,8 @@ class SettingsViewModelTest {
             assertEquals(2, state.allDayTypes.size)
             assertNotNull(state.activeDayType)
             assertNull(state.dateOverride)
+            assertFalse(state.isAccessibilityGranted)
+            assertFalse(state.isOverlayGranted)
         }
     }
 
@@ -119,6 +122,62 @@ class SettingsViewModelTest {
             val effect = awaitItem()
             assertTrue(effect is SettingsUiEffect.ShowSnackbar)
             assertTrue((effect as SettingsUiEffect.ShowSnackbar).message.contains("Encrypted backup generated"))
+        }
+    }
+
+    @Test
+    fun testOpenAccessibilitySettingsEmitsSystemAction() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.OpenAccessibilitySettings)
+
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.OpenSystemSetting)
+            assertEquals(
+                Settings.ACTION_ACCESSIBILITY_SETTINGS,
+                (effect as SettingsUiEffect.OpenSystemSetting).action
+            )
+        }
+    }
+
+    @Test
+    fun testOpenOverlaySettingsEmitsSystemAction() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.OpenOverlaySettings)
+
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.OpenSystemSetting)
+            assertEquals(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                (effect as SettingsUiEffect.OpenSystemSetting).action
+            )
+        }
+    }
+
+    @Test
+    fun testCheckPermissionsIntentUpdatesState() = runTest {
+        var accessibilityGranted = false
+        var overlayGranted = false
+
+        val viewModel = createViewModel().apply {
+            permissionChecker = { Pair(accessibilityGranted, overlayGranted) }
+        }
+
+        viewModel.uiState.test {
+            val initialState = awaitItem()
+            assertFalse(initialState.isAccessibilityGranted)
+            assertFalse(initialState.isOverlayGranted)
+
+            accessibilityGranted = true
+            overlayGranted = true
+            viewModel.onIntent(SettingsUiIntent.CheckPermissions)
+
+            val updatedState = awaitItem()
+            assertTrue(updatedState.isAccessibilityGranted)
+            assertTrue(updatedState.isOverlayGranted)
         }
     }
 }

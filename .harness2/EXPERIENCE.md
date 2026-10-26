@@ -202,17 +202,18 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** In multi-pass token extraction, stripping leading temporal or intensity tokens (e.g., `"Tomorrow remind me to buy milk"`) leaves leading whitespace. Caret-anchored intent regexes (`^remind me to`) fail to match across leading whitespace, causing intent prefixes to leak into task titles. Additionally, regex digit matching on ISO dates (`\d{4}-\d{2}-\d{2}`) accepts impossible dates (`2026-02-31`), and routine shift patterns risk capturing the English article `"the"` as a target routine name.
 * **Rule:** Always execute `cleaned.trimStart()` immediately before applying caret-anchored intent prefix replacements. Validate ISO date matches with `runCatching { LocalDate.parse(...) }.getOrNull()` before accepting them into `ParsedCommand`. Guard routine names against the article `"the"`, support multi-word routine identifiers (`([a-zA-Z0-9_ -]+?)\s+routine`), and safely convert hour duration units to minutes with `Long` overflow protection.---
 
-## 16. Focus Interval Progression & Contribution Heatmap Ledger
+## 17. Distraction Interception & System Overlay Privacy
 
-### EXP-031: Interval-Aware Focus Tracking & Pomodoro Cycle State Escalation (AD-1, FR-4.1)
-* **Context:** Classifying focus sessions into structured work and break intervals (`FocusIntervalType`, `FocusRescheduleEngine.kt`).
-* **Heuristic:** Treating all focus timer executions as identical raw minute countdowns prevents automatic transitions between structured Pomodoro work and recovery periods. Failing to track completed work cycle counts causes long break recommendations to either never trigger or trigger prematurely, leading to cognitive fatigue.
-* **Rule:** Maintain pure Kotlin interval models (`FocusIntervalType`: `DEEP_WORK`, `POMODORO_WORK`, `SHORT_BREAK`, `LONG_BREAK`, `REVIEW`). Compute transitions deterministically: work cycles 1 through 3 advance to `SHORT_BREAK` (5 min) while incrementing cycle count; cycle 4 advances to `LONG_BREAK` (15 min) and resets cycles upon subsequent work resumption. Keep all interval progression logic in `domain/` without Android OS timing dependencies.
+### EXP-033: Standalone Lifecycle & ViewTree Owners for WindowManager Compose Overlays (AD-1, AD-7)
+* **Context:** Rendering Jetpack Compose within a system alert window (`SYSTEM_ALERT_WINDOW`) or platform service context (`InterventionOverlay.kt`).
+* **Heuristic:** When instantiating `ComposeView` directly within `WindowManager` outside an `Activity` lifecycle, Compose throws `IllegalStateException: ViewTreeLifecycleOwner not found from ...` or `ViewTreeSavedStateRegistryOwner not found...`.
+* **Rule:** Create an isolated `OverlayLifecycleOwner` implementing `LifecycleOwner`, `ViewModelStoreOwner`, and `SavedStateRegistryOwner` with initialized state registry controllers. Explicitly attach owners via `setViewTreeLifecycleOwner`, `setViewTreeViewModelStoreOwner`, and `setViewTreeSavedStateRegistryOwner` on the `ComposeView` instance before setting content. Handle `onResume` upon window addition and `onDestroy` upon removal to prevent memory leaks.
 
-### EXP-032: Heatmap Contribution Rollups & Break Session Exclusion (AD-1, AD-4, FR-4.2)
-* **Context:** Aggregating historical study blocks into GitHub-style 5-tier contribution graphs (`HeatmapLedgerEngine.kt`, `StudyScreen.kt`).
-* **Heuristic:** Including rest intervals (`isBreak = true`) in study heatmaps inflates reported productivity and distorts user self-assessment. Conversely, completely discarding interrupted sessions discards legitimate user effort, violating non-punishing psychological principles (AD-4).
-* **Rule:** Filter out break intervals (`!it.isBreak`) when aggregating study minutes into heatmap cells. Credit actual elapsed duration (`actualElapsedMinutes`) for interrupted sessions. Map daily totals deterministically into 5 intensity tiers: Tier 0 (0m), Tier 1 (1–29m), Tier 2 (30–59m), Tier 3 (60–119m), Tier 4 (120m+). Generate exactly 28 chronological cells ending at today, rendering cells with saturated Warm Organic Tactile color tokens (`colors.surfaceSunken`, `colors.iconSoftPeach`, `colors.iconSoftMatcha`, `colors.primaryLight`, `colors.primary`) with 48dp touch floor and calm zero-guilt empty state guidance.
+### EXP-034: Event-Driven Zero-Keylogging Privacy Invariant in Accessibility Services (AD-8, NFR-4)
+* **Context:** Detecting foreground app transitions during focus blocks (`DistractionInterceptionService.kt`).
+* **Heuristic:** Broad accessibility filters or enabling `canRetrieveWindowContent = true` exposes sensitive user keystrokes, password fields, and on-screen content, violating the project's strict privacy invariants and inviting OS security warnings.
+* **Rule:** Restrict `accessibility_service_config.xml` strictly to `android:accessibilityEventTypes="typeWindowStateChanged"` and set `android:canRetrieveWindowContent="false"`. In `onAccessibilityEvent`, immediately discard any event where `eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED`, extracting only `event.packageName?.toString()`. Never inspect `event.text`, `event.source`, or traverse accessibility node hierarchies under any circumstances.
+
 
 
 

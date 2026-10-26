@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-26 08:44:00 +05:30
-*   **Current Git Commit:** Tracking Story 2.3 implementation
+*   **Date/Time:** 2026-10-26 14:38:00 +05:30
+*   **Current Git Commit:** Tracking Story 3.2 completion
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -26,7 +26,7 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (294 tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (378 tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -143,8 +143,8 @@ flowchart TD
 
 ### Active Epic: Epic 3 — Focus Mode, Distraction Interception & Resumption Engine (IN PROGRESS)
 *   [x] **Story 3.1:** Focus study session models, timer & heatmap tracking (`3-1-focus-study-session-models-timer-heatmap-tracking`, interval classification `FocusIntervalType`, Pomodoro cycle escalation in `FocusRescheduleEngine`, 28-day 5-tier contribution heatmap in `HeatmapLedgerEngine`, MVI integration). `[DONE]`
-*   [ ] **Story 3.2:** Event-driven accessibility distraction interception & privacy (`3-2-event-driven-accessibility-distraction-interception-privacy`). `[READY FOR DEV]`
-*   [ ] **Story 3.3:** Emergency telecom dynamic whitelist bypass (`3-3-emergency-telecom-dynamic-whitelist-bypass`).
+*   [x] **Story 3.2:** Event-driven accessibility distraction interception & privacy (`3-2-event-driven-accessibility-distraction-interception-privacy`, privacy-first AccessibilityService, `canRetrieveWindowContent = false`, `TYPE_WINDOW_STATE_CHANGED` filter, pure Kotlin `InterceptDistractionUseCase`, Warm Organic Tactile `InterventionOverlay` & `InterventionCard` via `OverlayLifecycleOwner`, Settings MVI permission checks). `[DONE]`
+*   [ ] **Story 3.3:** Emergency telecom dynamic whitelist bypass (`3-3-emergency-telecom-dynamic-whitelist-bypass`). `[READY FOR DEV]`
 *   [ ] **Story 3.4:** Adaptive intervention ladder & JITAI restraint override friction (`3-4-adaptive-intervention-ladder-jitai-restraint-override-fricti`).
 *   [ ] **Story 3.5:** Ovsiankina resumption engine & Hero resumption card (`3-5-ovsiankina-resumption-engine-hero-resumption-card`).
 *   [ ] **Story 3.6:** OS process termination reboot state reconstruction (`3-6-os-process-termination-reboot-state-reconstruction`).
@@ -162,7 +162,7 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 3.2 Implementation
+### Step 2: Kick off Story 3.3 Implementation
 ```
-/bmad-build 3-2-event-driven-accessibility-distraction-interception-privacy
+/bmad-build 3-3-emergency-telecom-dynamic-whitelist-bypass
 ```

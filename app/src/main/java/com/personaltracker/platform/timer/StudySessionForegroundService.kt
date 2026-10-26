@@ -13,6 +13,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.personaltracker.MainActivity
 import com.personaltracker.R
+import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.repository.StudySessionRepository
 import dagger.hilt.android.AndroidEntryPoint
@@ -60,7 +61,11 @@ class StudySessionForegroundService : Service() {
                 val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: UUID.randomUUID().toString()
                 val subjectTag = intent.getStringExtra(EXTRA_SUBJECT_TAG) ?: "Focus"
                 val durationSeconds = intent.getLongExtra(EXTRA_DURATION_SECONDS, 25 * 60L)
-                startSession(sessionId, subjectTag, durationSeconds)
+                val intervalTypeName = intent.getStringExtra(EXTRA_INTERVAL_TYPE)
+                val intervalType = intervalTypeName?.let {
+                    runCatching { FocusIntervalType.valueOf(it) }.getOrDefault(FocusIntervalType.DEEP_WORK)
+                } ?: FocusIntervalType.DEEP_WORK
+                startSession(sessionId, subjectTag, durationSeconds, intervalType)
             }
             ACTION_PAUSE -> {
                 timer?.pause()
@@ -76,7 +81,12 @@ class StudySessionForegroundService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startSession(sessionId: String, subjectTag: String, durationSeconds: Long) {
+    private fun startSession(
+        sessionId: String,
+        subjectTag: String,
+        durationSeconds: Long,
+        intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK
+    ) {
         // Save active session ID in SharedPreferences for reboot recovery
         val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putString(KEY_ACTIVE_SESSION_ID, sessionId).apply()
@@ -93,7 +103,8 @@ class StudySessionForegroundService : Service() {
             durationMinutes = durationMinutes,
             coinsEarned = 0,
             linkedTaskId = null,
-            isInterrupted = false
+            isInterrupted = false,
+            intervalType = intervalType
         )
 
         serviceScope.launch(Dispatchers.IO) {
@@ -121,7 +132,8 @@ class StudySessionForegroundService : Service() {
                 totalSeconds = durationSeconds,
                 remainingSeconds = durationSeconds,
                 isRunning = true,
-                isPaused = false
+                isPaused = false,
+                intervalType = intervalType
             )
         )
 
@@ -136,7 +148,7 @@ class StudySessionForegroundService : Service() {
             startForeground(NOTIFICATION_ID, initialNotification)
         }
 
-        timer?.start(sessionId, subjectTag, durationSeconds)
+        timer?.start(sessionId, subjectTag, durationSeconds, intervalType)
     }
 
     private fun onSessionCompleted(state: StudySessionTimerState, baseSession: StudySession) {
@@ -193,7 +205,8 @@ class StudySessionForegroundService : Service() {
                         startTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
                         durationMinutes = ((currentState.totalSeconds - currentState.remainingSeconds) / 60).toInt(),
                         coinsEarned = 0,
-                        isInterrupted = true
+                        isInterrupted = true,
+                        intervalType = currentState.intervalType
                     )
                     studySessionRepository.saveSession(session)
                 }
@@ -301,6 +314,7 @@ class StudySessionForegroundService : Service() {
         const val EXTRA_SESSION_ID = "extra_session_id"
         const val EXTRA_SUBJECT_TAG = "extra_subject_tag"
         const val EXTRA_DURATION_SECONDS = "extra_duration_seconds"
+        const val EXTRA_INTERVAL_TYPE = "extra_interval_type"
 
         const val NOTIFICATION_ID = 2001
         const val CHANNEL_ID = "study_session_channel"
@@ -312,12 +326,19 @@ class StudySessionForegroundService : Service() {
         private val _timerState = MutableStateFlow(StudySessionTimerState())
         val timerState: StateFlow<StudySessionTimerState> = _timerState.asStateFlow()
 
-        fun startService(context: Context, sessionId: String, subjectTag: String, durationSeconds: Long) {
+        fun startService(
+            context: Context,
+            sessionId: String,
+            subjectTag: String,
+            durationSeconds: Long,
+            intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK
+        ) {
             val intent = Intent(context, StudySessionForegroundService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_SESSION_ID, sessionId)
                 putExtra(EXTRA_SUBJECT_TAG, subjectTag)
                 putExtra(EXTRA_DURATION_SECONDS, durationSeconds)
+                putExtra(EXTRA_INTERVAL_TYPE, intervalType.name)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

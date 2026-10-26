@@ -7,5 +7,8 @@ sealed interface SettingsUiIntent {
     data class SelectDayTypeOverride(val dayTypeId: String) : SettingsUiIntent
     object ClearDayTypeOverride : SettingsUiIntent
     object ExportEncryptedBackup : SettingsUiIntent
+    object CheckPermissions : SettingsUiIntent
+    object OpenAccessibilitySettings : SettingsUiIntent
+    object OpenOverlaySettings : SettingsUiIntent
     object Refresh : SettingsUiIntent
 }

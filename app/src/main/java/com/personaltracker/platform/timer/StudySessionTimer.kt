@@ -1,5 +1,6 @@
 package com.personaltracker.platform.timer
 
+import com.personaltracker.domain.model.FocusIntervalType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -7,26 +8,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-
-/**
- * Immutable state model representing a study/focus session timer countdown.
- */
-data class StudySessionTimerState(
-    val sessionId: String? = null,
-    val subjectTag: String = "Focus",
-    val totalSeconds: Long = 0L,
-    val remainingSeconds: Long = 0L,
-    val isRunning: Boolean = false,
-    val isPaused: Boolean = false,
-    val isCompleted: Boolean = false
-) {
-    val formattedRemainingTime: String
-        get() {
-            val minutes = remainingSeconds / 60
-            val seconds = remainingSeconds % 60
-            return "%02d:%02d".format(minutes, seconds)
-        }
-}
 
 /**
  * Deterministic countdown timer controller for study and focus sessions (FR-4.1, AD-1).
@@ -45,7 +26,12 @@ class StudySessionTimer(
     /**
      * Starts a new countdown session.
      */
-    fun start(sessionId: String, subjectTag: String, durationSeconds: Long) {
+    fun start(
+        sessionId: String,
+        subjectTag: String,
+        durationSeconds: Long,
+        intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK
+    ) {
         require(durationSeconds > 0) { "durationSeconds must be greater than 0: $durationSeconds" }
         countdownJob?.cancel()
 
@@ -56,7 +42,8 @@ class StudySessionTimer(
             remainingSeconds = durationSeconds,
             isRunning = true,
             isPaused = false,
-            isCompleted = false
+            isCompleted = false,
+            intervalType = intervalType
         )
         _timerState.value = newState
         onTick(newState)

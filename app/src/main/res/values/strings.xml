@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Personal Tracker</string>
+    <string name="accessibility_service_description">Detects when configured distracting applications open during active focus sessions to provide gentle intervention reminders. Strictly restricted to window change detection with zero text or keystroke logging.</string>
+</resources>
