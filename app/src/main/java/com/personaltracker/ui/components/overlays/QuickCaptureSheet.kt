@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import com.personaltracker.R
 import com.personaltracker.domain.parser.ParsedCommand
+import com.personaltracker.domain.validation.InvalidField
 import com.personaltracker.ui.components.atoms.WaveformVisualizer
 import com.personaltracker.ui.theme.AnimationTokens
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -63,17 +64,21 @@ import kotlinx.coroutines.delay
 data class ProposalChipData(
     val chipType: String,
     val label: String,
-    val value: String
+    val value: String,
+    val isInvalid: Boolean = false
 )
 
 /**
  * Pure function resolving the 5 medium-confidence proposal chips.
  */
-fun resolveProposalChips(proposal: ParsedCommand): List<ProposalChipData> {
+fun resolveProposalChips(
+    proposal: ParsedCommand,
+    invalidField: InvalidField? = null
+): List<ProposalChipData> {
     return listOf(
-        ProposalChipData(chipType = "Title", label = "Title", value = proposal.title),
-        ProposalChipData(chipType = "Date", label = "Date", value = proposal.date ?: "Today"),
-        ProposalChipData(chipType = "Time", label = "Time", value = proposal.time ?: "Flexible"),
+        ProposalChipData(chipType = "Title", label = "Title", value = proposal.title, isInvalid = invalidField == InvalidField.TITLE),
+        ProposalChipData(chipType = "Date", label = "Date", value = proposal.date ?: "Today", isInvalid = invalidField == InvalidField.DATE),
+        ProposalChipData(chipType = "Time", label = "Time", value = proposal.time ?: "Flexible", isInvalid = invalidField == InvalidField.TIME),
         ProposalChipData(chipType = "Type", label = "Type", value = proposal.intent.name),
         ProposalChipData(chipType = "Urgency", label = "Urgency", value = proposal.deliveryIntensity)
     )
@@ -113,6 +118,7 @@ fun QuickCaptureSheet(
     onDismissUndoBanner: () -> Unit = {},
     lowConfidenceNotice: String? = null,
     errorMessage: String? = null,
+    invalidField: InvalidField? = null,
     sheetState: SheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 ) {
     if (!isVisible && highConfidenceCommittedTitle == null) return
@@ -162,6 +168,7 @@ fun QuickCaptureSheet(
                     onProposalChipClick = onProposalChipClick,
                     lowConfidenceNotice = lowConfidenceNotice,
                     errorMessage = errorMessage,
+                    invalidField = invalidField,
                     onClose = onDismissRequest
                 )
             }
@@ -208,6 +215,7 @@ fun QuickCaptureSheetContent(
     onDiscardProposal: () -> Unit,
     lowConfidenceNotice: String?,
     errorMessage: String? = null,
+    invalidField: InvalidField? = null,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     onProposalChipClick: (chipType: String) -> Unit = {}
@@ -296,6 +304,7 @@ fun QuickCaptureSheetContent(
                 proposal = mediumConfidenceProposal,
                 onConfirm = { onConfirmProposal(mediumConfidenceProposal) },
                 onDiscard = onDiscardProposal,
+                invalidField = invalidField,
                 onChipClick = onProposalChipClick
             )
         }
@@ -424,6 +433,7 @@ fun MediumConfidenceProposalCard(
     onConfirm: () -> Unit,
     onDiscard: () -> Unit,
     modifier: Modifier = Modifier,
+    invalidField: InvalidField? = null,
     onChipClick: (chipType: String) -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -431,7 +441,7 @@ fun MediumConfidenceProposalCard(
     val spacing = PersonalTrackerTheme.spacing
     val shapes = PersonalTrackerTheme.shapes
 
-    val chips = resolveProposalChips(proposal)
+    val chips = resolveProposalChips(proposal, invalidField)
 
     Surface(
         shape = shapes.xxl,
@@ -460,6 +470,7 @@ fun MediumConfidenceProposalCard(
                     ConfirmationChip(
                         label = chip.label,
                         value = chip.value,
+                        isInvalid = chip.isInvalid,
                         onClick = { onChipClick(chip.chipType) }
                     )
                 }
@@ -510,6 +521,7 @@ fun ConfirmationChip(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    isInvalid: Boolean = false,
     onClick: (() -> Unit)? = null
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -540,8 +552,8 @@ fun ConfirmationChip(
     ) {
         Surface(
             shape = shapes.full,
-            color = colors.surfaceRaised,
-            border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+            color = if (isInvalid) colors.warningSubtle else colors.surfaceRaised,
+            border = BorderStroke(spacing.spacing0_5, if (isInvalid) colors.warning else colors.borderSubtle),
             modifier = Modifier.defaultMinSize(minHeight = spacing.chipHeight)
         ) {
             Row(
@@ -555,7 +567,7 @@ fun ConfirmationChip(
                 Text(
                     text = "$label:",
                     style = typography.caption,
-                    color = colors.inkTertiary
+                    color = if (isInvalid) colors.warning else colors.inkTertiary
                 )
                 Text(
                     text = value,

@@ -2,6 +2,7 @@ package com.personaltracker.ui.screens.quickcapture
 
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.parser.ParsedCommand
+import com.personaltracker.domain.validation.InvalidField
 
 /**
  * Immutable UI state for the ubiquitous Quick Capture sheet (AD-2, AD-8).
@@ -19,5 +20,6 @@ data class QuickCaptureUiState(
     val highConfidenceCommittedTitle: String? = null,
     val lowConfidenceNotice: String? = null,
     val isProcessing: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val invalidField: InvalidField? = null
 )

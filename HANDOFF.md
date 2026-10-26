@@ -34,10 +34,12 @@ status: active
     *   Assemble Debug APK: `.\gradlew assembleDebug`
 *   **Overall Status:**
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
-    *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** In Progress (`in-progress`).
+    *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
         *   **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`):** 100% Complete (`done`).
         *   **Story 2.2 (`2-2-deterministic-kotlin-regex-rule-nlp-parser`):** 100% Complete (`done`).
         *   **Story 2.3 (`2-3-dual-voice-engine-network-failover-architecture`):** 100% Complete (`done`).
+        *   **Story 2.4 (`2-4-strict-ai-action-boundary-command-validation-pipeline`):** 100% Complete (`done`).
+        *   **Story 2.5 (`2-5-three-tier-confidence-routing-instant-commit-undo-toast`):** 100% Complete (`done`).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all 5 Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Live and operational on physical mobile device (`10BD9D24YF000BE`, Model `I2223`) with zero crashes.
 
@@ -130,12 +132,20 @@ flowchart TD
 
 ## 4. Pending Work & Roadmap
 
-### Active Epic: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline
+### Completed Epic: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline (100% DONE)
 *   [x] **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (Framer spring physics `fabToModalSpringSpec`, RAM-only streaming audio, zero disk writes, 3-tier confidence UI). `[DONE]`
 *   [x] **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency on `Dispatchers.Default`, title/date/time/duration/intensity extraction). `[DONE]`
 *   [x] **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover). `[DONE]`
-*   [ ] **Story 2.4:** Strict AI action boundary & command validation pipeline (unvalidated proposal gate, 0 direct Room DAO mutations from AI/speech). `[READY FOR DEV]`
-*   [ ] **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast.
+*   [x] **Story 2.4:** Strict AI action boundary & command validation pipeline (unvalidated proposal gate, 0 direct Room DAO mutations from AI/speech, temporal safety, relational integrity, task deduplication, confidence downgrade handshake). `[DONE]`
+*   [x] **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast and unfiled triage inbox. `[DONE]`
+
+### Next Epic: Epic 3 — Focus Mode, Distraction Interception & Resumption Engine
+*   [ ] **Story 3.1:** Focus study session models, timer & heatmap tracking (`3-1-focus-study-session-models-timer-heatmap-tracking`). `[READY FOR DEV]`
+*   [ ] **Story 3.2:** Event-driven accessibility distraction interception & privacy (`3-2-event-driven-accessibility-distraction-interception-privacy`).
+*   [ ] **Story 3.3:** Emergency telecom dynamic whitelist bypass (`3-3-emergency-telecom-dynamic-whitelist-bypass`).
+*   [ ] **Story 3.4:** Adaptive intervention ladder & JITAI restraint override friction (`3-4-adaptive-intervention-ladder-jitai-restraint-override-fricti`).
+*   [ ] **Story 3.5:** Ovsiankina resumption engine & Hero resumption card (`3-5-ovsiankina-resumption-engine-hero-resumption-card`).
+*   [ ] **Story 3.6:** OS process termination reboot state reconstruction (`3-6-os-process-termination-reboot-state-reconstruction`).
 
 ---
 
@@ -150,7 +160,7 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 2.4 Implementation
+### Step 2: Kick off Story 3.1 Implementation
 ```
-/bmad-build 2-4-strict-ai-action-boundary-command-validation-pipeline
+/bmad-build 3-1-focus-study-session-models-timer-heatmap-tracking
 ```

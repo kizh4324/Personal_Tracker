@@ -7,6 +7,8 @@ import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.repository.UnfiledInboxRepository
 import com.personaltracker.domain.usecase.CaptureQuickThoughtUseCase
 import com.personaltracker.domain.usecase.QuickCaptureResult
+import com.personaltracker.domain.validation.CommandValidationPipeline
+import com.personaltracker.domain.validation.ValidationResult
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
 import com.personaltracker.platform.voice.SpeechRecognitionError
 import com.personaltracker.platform.voice.SpeechRecognitionManager
@@ -37,7 +39,8 @@ class QuickCaptureViewModel @Inject constructor(
     private val speechRecognitionManager: SpeechRecognitionManager,
     private val captureQuickThoughtUseCase: CaptureQuickThoughtUseCase,
     private val taskRepository: TaskRepository,
-    private val unfiledInboxRepository: UnfiledInboxRepository
+    private val unfiledInboxRepository: UnfiledInboxRepository,
+    private val validationPipeline: CommandValidationPipeline
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(QuickCaptureUiState())
@@ -332,7 +335,9 @@ class QuickCaptureViewModel @Inject constructor(
                                 highConfidenceCommittedTask = result.committedTask,
                                 highConfidenceCommittedTitle = result.committedTask.title,
                                 mediumProposal = null,
-                                lowConfidenceNotice = null
+                                lowConfidenceNotice = null,
+                                errorMessage = null,
+                                invalidField = null
                             )
                         }
                         _uiEffect.send(QuickCaptureUiEffect.ShowUndoToast(result.committedTask.title))
@@ -345,7 +350,9 @@ class QuickCaptureViewModel @Inject constructor(
                                 mediumProposal = result.draftCommand,
                                 highConfidenceCommittedTask = null,
                                 highConfidenceCommittedTitle = null,
-                                lowConfidenceNotice = null
+                                lowConfidenceNotice = null,
+                                errorMessage = result.validationWarning,
+                                invalidField = (result.validationResult as? ValidationResult.Invalid)?.invalidField
                             )
                         }
                     }
@@ -358,7 +365,9 @@ class QuickCaptureViewModel @Inject constructor(
                                 lowConfidenceNotice = "Saved to unfiled inbox • Triage whenever you're ready",
                                 mediumProposal = null,
                                 highConfidenceCommittedTask = null,
-                                highConfidenceCommittedTitle = null
+                                highConfidenceCommittedTitle = null,
+                                errorMessage = null,
+                                invalidField = null
                             )
                         }
                         _uiEffect.send(QuickCaptureUiEffect.ShowSnackbar("Saved to unfiled inbox"))
@@ -386,6 +395,18 @@ class QuickCaptureViewModel @Inject constructor(
     private fun handleConfirmProposal(intent: QuickCaptureUiIntent.ConfirmProposal) {
         val proposal = intent.proposal
         viewModelScope.launch {
+            val validation = validationPipeline.validate(proposal)
+            if (validation is ValidationResult.Invalid) {
+                _uiState.update {
+                    it.copy(
+                        errorMessage = validation.message,
+                        invalidField = validation.invalidField
+                    )
+                }
+                _uiEffect.send(QuickCaptureUiEffect.ShowSnackbar(validation.message))
+                return@launch
+            }
+
             runCatching {
                 val task = Task(
                     id = UUID.randomUUID().toString(),
@@ -402,6 +423,8 @@ class QuickCaptureViewModel @Inject constructor(
                     it.copy(
                         mediumProposal = null,
                         isVisible = false,
+                        errorMessage = null,
+                        invalidField = null,
                         highConfidenceCommittedTask = task,
                         highConfidenceCommittedTitle = task.title
                     )

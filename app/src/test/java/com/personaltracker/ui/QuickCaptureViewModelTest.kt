@@ -3,7 +3,13 @@ package com.personaltracker.ui
 import app.cash.turbine.test
 import com.personaltracker.domain.parser.ConfidenceTier
 import com.personaltracker.domain.parser.DeterministicNlpCommandParser
+import com.personaltracker.domain.parser.ParsedCommand
+import com.personaltracker.domain.parser.CommandIntent
 import com.personaltracker.domain.usecase.CaptureQuickThoughtUseCase
+import com.personaltracker.domain.validation.CommandValidationPipeline
+import com.personaltracker.domain.validation.RelationalIntegrityValidator
+import com.personaltracker.domain.validation.TaskDeduplicationValidator
+import com.personaltracker.domain.validation.TemporalSafetyValidator
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
 import com.personaltracker.platform.voice.SpeechRecognitionError
 import com.personaltracker.platform.voice.SpeechRecognitionManager
@@ -33,6 +39,9 @@ class QuickCaptureViewModelTest {
 
     private lateinit var fakeTaskRepo: TestTaskRepository
     private lateinit var fakeInboxRepo: TestUnfiledInboxRepository
+    private lateinit var fakeHabitRepo: TestHabitRepository
+    private lateinit var fakeRoutineRepo: TestRoutineRepository
+    private lateinit var validationPipeline: CommandValidationPipeline
     private lateinit var parser: DeterministicNlpCommandParser
     private lateinit var captureUseCase: CaptureQuickThoughtUseCase
     private lateinit var fakeVoiceRecorder: FakeVoiceRecorder
@@ -95,8 +104,15 @@ class QuickCaptureViewModelTest {
     fun setUp() {
         fakeTaskRepo = TestTaskRepository()
         fakeInboxRepo = TestUnfiledInboxRepository()
+        fakeHabitRepo = TestHabitRepository()
+        fakeRoutineRepo = TestRoutineRepository()
+        validationPipeline = CommandValidationPipeline(
+            TemporalSafetyValidator(),
+            RelationalIntegrityValidator(fakeHabitRepo, fakeRoutineRepo),
+            TaskDeduplicationValidator(fakeTaskRepo)
+        )
         parser = DeterministicNlpCommandParser()
-        captureUseCase = CaptureQuickThoughtUseCase(parser, fakeTaskRepo, fakeInboxRepo)
+        captureUseCase = CaptureQuickThoughtUseCase(parser, fakeTaskRepo, fakeInboxRepo, validationPipeline)
         fakeVoiceRecorder = FakeVoiceRecorder()
         fakeSpeechManager = FakeSpeechRecognitionManager()
     }
@@ -107,7 +123,8 @@ class QuickCaptureViewModelTest {
             speechRecognitionManager = fakeSpeechManager,
             captureQuickThoughtUseCase = captureUseCase,
             taskRepository = fakeTaskRepo,
-            unfiledInboxRepository = fakeInboxRepo
+            unfiledInboxRepository = fakeInboxRepo,
+            validationPipeline = validationPipeline
         )
     }
 
@@ -477,5 +494,105 @@ class QuickCaptureViewModelTest {
         assertFalse(state.isRecording)
         assertEquals("Call doctor tom", state.inputText)
         assertTrue(state.errorMessage?.contains("interrupted", ignoreCase = true) == true)
+    }
+
+    @Test
+    fun testConfirmProposalWithPastTimeIsRejectedAndBlocksPersistence() = runTest {
+        val viewModel = createViewModel()
+        viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+
+        val invalidProposal = ParsedCommand(
+            rawText = "Meeting at 10:00 today",
+            intent = CommandIntent.CREATE_TASK,
+            title = "Meeting",
+            date = java.time.LocalDate.now().toString(),
+            time = "00:01", // Past time (assuming test does not run at midnight 00:00)
+            deliveryIntensity = "ROUTINE",
+            confidence = 0.70f,
+            tier = ConfidenceTier.MEDIUM
+        )
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.ConfirmProposal(invalidProposal))
+
+            val snackbar = awaitItem()
+            assertTrue(snackbar is QuickCaptureUiEffect.ShowSnackbar)
+            val msg = (snackbar as QuickCaptureUiEffect.ShowSnackbar).message
+            assertTrue(msg.contains("past", ignoreCase = true))
+
+            // Zero mutation to tasks table
+            assertEquals(0, fakeTaskRepo.tasksFlow.value.size)
+
+            val state = viewModel.uiState.value
+            assertTrue(state.isVisible)
+            assertNotNull(state.errorMessage)
+            assertTrue(state.errorMessage?.contains("past", ignoreCase = true) == true)
+        }
+    }
+
+    @Test
+    fun testConfirmProposalWithDuplicateActiveTaskIsRejectedAndBlocksPersistence() = runTest {
+        val today = java.time.LocalDate.now().toString()
+        val existingTask = com.personaltracker.domain.model.Task(
+            id = "task-existing",
+            title = "Gym Workout",
+            scheduledDate = today,
+            state = "PENDING"
+        )
+        fakeTaskRepo.saveTask(existingTask)
+        assertEquals(1, fakeTaskRepo.tasksFlow.value.size)
+
+        val viewModel = createViewModel()
+        viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+
+        val duplicateProposal = ParsedCommand(
+            rawText = "Gym workout tomorrow",
+            intent = CommandIntent.CREATE_TASK,
+            title = "Gym Workout",
+            date = today,
+            confidence = 0.70f,
+            tier = ConfidenceTier.MEDIUM
+        )
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.ConfirmProposal(duplicateProposal))
+
+            val snackbar = awaitItem()
+            assertTrue(snackbar is QuickCaptureUiEffect.ShowSnackbar)
+            val msg = (snackbar as QuickCaptureUiEffect.ShowSnackbar).message
+            assertTrue(msg.contains("already active", ignoreCase = true))
+
+            // Still only the original 1 task in repository
+            assertEquals(1, fakeTaskRepo.tasksFlow.value.size)
+
+            val state = viewModel.uiState.value
+            assertTrue(state.isVisible)
+            assertNotNull(state.errorMessage)
+        }
+    }
+
+    @Test
+    fun testHighConfidenceCaptureFailingValidationDowngradesToMediumConfidenceInViewModel() = runTest {
+        val yesterday = java.time.LocalDate.now().minusDays(1).toString()
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            // High confidence syntax with "urgent" and duration, but date is yesterday!
+            viewModel.onIntent(QuickCaptureUiIntent.SubmitText("Study algorithms for 45 minutes $yesterday urgent"))
+
+            // Since it fails validation, it should NOT emit ShowUndoToast or CloseSheet!
+            expectNoEvents()
+
+            // Database must have ZERO tasks committed
+            assertEquals(0, fakeTaskRepo.tasksFlow.value.size)
+
+            // UI state must hold mediumProposal with warning banner
+            val state = viewModel.uiState.value
+            assertNotNull(state.mediumProposal)
+            assertEquals(ConfidenceTier.MEDIUM, state.mediumProposal?.tier)
+            assertNotNull(state.errorMessage)
+            assertTrue(state.errorMessage?.contains("past", ignoreCase = true) == true)
+            assertNull(state.highConfidenceCommittedTask)
+        }
     }
 }

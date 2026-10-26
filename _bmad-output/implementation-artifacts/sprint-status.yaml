@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-15-2026 22:07
-last_updated: 10-26-2026 08:43
+last_updated: 10-26-2026 11:59
 project: Personal-Tracker
 project_key: NOKEY
 tracking_system: file-system
@@ -49,12 +49,12 @@ development_status:
   1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat: done
   epic-1-retrospective: optional
 
-  epic-2: in-progress
+  epic-2: done
   2-1-morphing-voice-capture-fab-audio-input-lifecycle: done
   2-2-deterministic-kotlin-regex-rule-nlp-parser: done
   2-3-dual-voice-engine-network-failover-architecture: done
-  2-4-strict-ai-action-boundary-command-validation-pipeline: backlog
-  2-5-three-tier-confidence-routing-instant-commit-undo-toast: backlog
+  2-4-strict-ai-action-boundary-command-validation-pipeline: done
+  2-5-three-tier-confidence-routing-instant-commit-undo-toast: done
   epic-2-retrospective: optional
 
   epic-3: backlog
