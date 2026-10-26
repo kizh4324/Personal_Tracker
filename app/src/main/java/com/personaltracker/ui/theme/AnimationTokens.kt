@@ -5,6 +5,7 @@ import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.SpringSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Immutable
@@ -44,37 +45,37 @@ object AnimationTokens {
     /**
      * 7-Day Capsule Morph physics: Framer stiffness 380, damping 28.
      */
-    fun <T> dayCapsuleSpringSpec(): AnimationSpec<T> =
+    fun <T> dayCapsuleSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.72f, stiffness = 380f)
 
     /**
      * Timeline Checkmark Burst: Framer stiffness 450, damping 20, 1.0 -> 1.25 -> 1.0.
      */
-    fun <T> timelineBurstSpringSpec(): AnimationSpec<T> =
+    fun <T> timelineBurstSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.55f, stiffness = 450f)
 
     /**
      * Shared Element FAB -> Modal Sheet: Framer stiffness 320, damping 26.
      */
-    fun <T> fabToModalSpringSpec(): AnimationSpec<T> =
+    fun <T> fabToModalSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.75f, stiffness = 320f)
 
     /**
      * Staggered Vertical Progress Bar Growth: Framer stiffness 220, damping 24.
      */
-    fun <T> staggeredBarSpringSpec(): AnimationSpec<T> =
+    fun <T> staggeredBarSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.81f, stiffness = 220f)
 
     /**
      * Focus Timer Pause/Resume feedback: Framer stiffness 350, damping 25.
      */
-    fun <T> timerPauseResumeSpringSpec(): AnimationSpec<T> =
+    fun <T> timerPauseResumeSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.74f, stiffness = 350f)
 
     /**
      * Shop Purchase Burst physics: Framer stiffness 400, damping 18.
      */
-    fun <T> shopPurchaseBurstSpringSpec(): AnimationSpec<T> =
+    fun <T> shopPurchaseBurstSpringSpec(): SpringSpec<T> =
         spring(dampingRatio = 0.50f, stiffness = 400f)
 
     // ─── Standard Animation Specs ───
@@ -107,7 +108,7 @@ object AnimationTokens {
     fun <T> rewardSpringSpec(
         dampingRatio: Float = Spring.DampingRatioMediumBouncy,
         stiffness: Float = Spring.StiffnessLow
-    ): AnimationSpec<T> = spring(dampingRatio = dampingRatio, stiffness = stiffness)
+    ): SpringSpec<T> = spring(dampingRatio = dampingRatio, stiffness = stiffness)
 
     /**
      * Continuous session: Focus session growth metaphor, streak flame flicker.

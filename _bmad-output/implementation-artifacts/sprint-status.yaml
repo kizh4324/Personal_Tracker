@@ -49,8 +49,8 @@ development_status:
   1-11-sequential-routine-domain-engine-mid-day-schedule-recalculat: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-morphing-voice-capture-fab-audio-input-lifecycle: backlog
+  epic-2: in-progress
+  2-1-morphing-voice-capture-fab-audio-input-lifecycle: done
   2-2-deterministic-kotlin-regex-rule-nlp-parser: backlog
   2-3-dual-voice-engine-network-failover-architecture: backlog
   2-4-strict-ai-action-boundary-command-validation-pipeline: backlog

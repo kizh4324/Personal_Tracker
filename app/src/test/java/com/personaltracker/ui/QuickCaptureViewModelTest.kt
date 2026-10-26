@@ -189,4 +189,73 @@ class QuickCaptureViewModelTest {
         assertTrue(fakeVoiceRecorder.recordingStopped)
         assertEquals(0f, viewModel.uiState.value.recordingAmplitude, 0.001f)
     }
+
+    @Test
+    fun testOpenSheetAutoStartsRecordingWhenPermissionGranted() = runTest {
+        fakeVoiceRecorder.permissionGranted = true
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+
+        val state = viewModel.uiState.value
+        assertTrue(state.isVisible)
+        assertTrue(state.isRecording)
+        assertTrue(fakeVoiceRecorder.recordingStarted)
+        assertEquals(0.85f, state.recordingAmplitude, 0.001f)
+    }
+
+    @Test
+    fun testOpenSheetShowsPermissionSnackbarWhenDenied() = runTest {
+        fakeVoiceRecorder.permissionGranted = false
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+
+            val effect = awaitItem()
+            assertTrue(effect is QuickCaptureUiEffect.ShowSnackbar)
+            assertTrue((effect as QuickCaptureUiEffect.ShowSnackbar).message.contains("permission", ignoreCase = true))
+
+            val state = viewModel.uiState.value
+            assertTrue(state.isVisible)
+            assertFalse(state.isRecording)
+            assertFalse(fakeVoiceRecorder.recordingStarted)
+            assertEquals(0f, state.recordingAmplitude, 0.001f)
+        }
+    }
+
+    @Test
+    fun testDismissSheetStopsRecordingAndResetsAmplitude() = runTest {
+        fakeVoiceRecorder.permissionGranted = true
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+        assertTrue(viewModel.uiState.value.isRecording)
+
+        viewModel.onIntent(QuickCaptureUiIntent.DismissSheet)
+        val state = viewModel.uiState.value
+        assertFalse(state.isVisible)
+        assertFalse(state.isRecording)
+        assertTrue(fakeVoiceRecorder.recordingStopped)
+        assertEquals(0f, state.recordingAmplitude, 0.001f)
+    }
+
+    @Test
+    fun testSubmitTextStopsActiveRecording() = runTest {
+        fakeVoiceRecorder.permissionGranted = true
+        val viewModel = createViewModel()
+
+        viewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+        assertTrue(viewModel.uiState.value.isRecording)
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(QuickCaptureUiIntent.SubmitText("Study algorithms for 45 minutes at 4pm tomorrow urgent"))
+            awaitItem() // ShowUndoToast
+            awaitItem() // CloseSheet
+
+            assertFalse(viewModel.uiState.value.isRecording)
+            assertTrue(fakeVoiceRecorder.recordingStopped)
+            assertEquals(0f, viewModel.uiState.value.recordingAmplitude, 0.001f)
+        }
+    }
 }

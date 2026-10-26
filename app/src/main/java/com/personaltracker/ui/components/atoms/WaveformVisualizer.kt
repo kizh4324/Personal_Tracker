@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -76,6 +77,7 @@ fun WaveformVisualizer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.spacing1),
             modifier = modifier
+                .defaultMinSize(minWidth = spacing.minTouchTarget, minHeight = spacing.minTouchTarget)
                 .padding(horizontal = spacing.spacing2, vertical = spacing.spacing1)
                 .semantics {
                     contentDescription = if (isRecording) {
@@ -114,6 +116,7 @@ fun WaveformVisualizer(
             contentAlignment = Alignment.Center,
             modifier = modifier
                 .size(spacing.fabSize)
+                .defaultMinSize(minWidth = spacing.minTouchTarget, minHeight = spacing.minTouchTarget)
                 .semantics {
                     contentDescription = if (isRecording) "Voice capture listening" else "Voice capture idle"
                 }

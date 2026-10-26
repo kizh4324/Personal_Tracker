@@ -3,6 +3,8 @@ package com.personaltracker.ui.components.overlays
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,9 +48,11 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.unit.IntOffset
 import com.personaltracker.R
 import com.personaltracker.domain.parser.ParsedCommand
 import com.personaltracker.ui.components.atoms.WaveformVisualizer
+import com.personaltracker.ui.theme.AnimationTokens
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 import kotlinx.coroutines.delay
 
@@ -125,30 +130,48 @@ fun QuickCaptureSheet(
             sheetState = sheetState,
             containerColor = colors.surfaceBase,
             shape = shapes.xxxl,
-            modifier = modifier
+            modifier = modifier.imePadding()
         ) {
-            QuickCaptureSheetContent(
-                inputText = inputText,
-                onInputTextChanged = onInputTextChanged,
-                onSubmitText = onSubmitText,
-                isRecording = isRecording,
-                recordingAmplitude = recordingAmplitude,
-                onToggleRecording = onToggleRecording,
-                mediumConfidenceProposal = mediumConfidenceProposal,
-                onConfirmProposal = onConfirmProposal,
-                onDiscardProposal = onDiscardProposal,
-                onProposalChipClick = onProposalChipClick,
-                lowConfidenceNotice = lowConfidenceNotice,
-                onClose = onDismissRequest
-            )
+            AnimatedVisibility(
+                visible = isVisible,
+                enter = slideInVertically(
+                    initialOffsetY = { it },
+                    animationSpec = AnimationTokens.fabToModalSpringSpec<IntOffset>()
+                ) + fadeIn(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()),
+                exit = slideOutVertically(
+                    targetOffsetY = { it },
+                    animationSpec = AnimationTokens.fabToModalSpringSpec<IntOffset>()
+                ) + fadeOut(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>())
+            ) {
+                QuickCaptureSheetContent(
+                    inputText = inputText,
+                    onInputTextChanged = onInputTextChanged,
+                    onSubmitText = onSubmitText,
+                    isRecording = isRecording,
+                    recordingAmplitude = recordingAmplitude,
+                    onToggleRecording = onToggleRecording,
+                    mediumConfidenceProposal = mediumConfidenceProposal,
+                    onConfirmProposal = onConfirmProposal,
+                    onDiscardProposal = onDiscardProposal,
+                    onProposalChipClick = onProposalChipClick,
+                    lowConfidenceNotice = lowConfidenceNotice,
+                    onClose = onDismissRequest
+                )
+            }
         }
     }
 
     // High Confidence 5s Reversible Undo Toast Banner (rendered at root overlay level)
     AnimatedVisibility(
         visible = highConfidenceCommittedTitle != null,
-        enter = fadeIn(),
-        exit = fadeOut()
+        enter = fadeIn(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()) + slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = AnimationTokens.fabToModalSpringSpec<IntOffset>()
+        ),
+        exit = fadeOut(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()) + slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = AnimationTokens.fabToModalSpringSpec<IntOffset>()
+        )
     ) {
         if (highConfidenceCommittedTitle != null) {
             HighConfidenceUndoToast(
@@ -191,6 +214,7 @@ fun QuickCaptureSheetContent(
             .padding(horizontal = spacing.spacing4)
             .padding(bottom = spacing.spacing6)
             .navigationBarsPadding()
+            .imePadding()
     ) {
         // Header Row
         Row(
@@ -256,6 +280,7 @@ fun QuickCaptureSheetContent(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .defaultMinSize(minHeight = spacing.minTouchTarget)
                     .padding(vertical = spacing.spacing2)
             ) {
                 WaveformVisualizer(

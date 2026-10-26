@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-10-25 22:05:00 +05:30
-*   **Current Git Commit:** `ad241ac` (pushed clean to `origin/main`)
+*   **Date/Time:** 2026-10-26 06:10:00 +05:30
+*   **Current Git Commit:** Tracking Story 2.1 implementation
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -26,20 +26,16 @@ status: active
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (262 tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (275 tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
     *   Harness² Baseline Check: `python .agents/scripts/harness2_bridge.py --check` (`All 8 H0 components valid`)
     *   Assemble Debug APK: `.\gradlew assembleDebug`
-    *   Install & Launch on Connected Device:
-        ```powershell
-        & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE install -r -d app\build\outputs\apk\debug\app-debug.apk
-        & "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" -s 10BD9D24YF000BE shell am start -n com.personaltracker/.MainActivity
-        ```
-*   **Knowledge Graph (Graphify):** Updated and current at `graphify-out/` (2,798 nodes, 3,644 edges, 257 communities across 212 files).
 *   **Overall Status:**
-    *   **Epic 1 (Core Architecture & Persistence):** 100% Complete.
+    *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
+    *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** In Progress (`in-progress`).
+        *   **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`):** 100% Complete (`done`).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all 5 Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Live and operational on physical mobile device (`10BD9D24YF000BE`, Model `I2223`) with zero crashes.
 
@@ -130,22 +126,18 @@ flowchart TD
 
 ---
 
-## 4. Pending Work & Roadmap for Tomorrow
+## 4. Pending Work & Roadmap
 
-### Immediate Option Choice for Tomorrow Morning:
-1.  **Option A (Hero Focus Session Connection):** Connect "Start Now" on `HeroActionCard` directly to `StudySessionForegroundService` / `StudySessionTimer`, transitioning the card into Priority 1 (`ActiveFocus`) with live countdown, pause, and end controls instead of prematurely completing tasks.
-2.  **Option B (Sprint Plan Sequence — Epic 2 Kickoff):** Begin **Epic 2: Low-Friction Multimodal Capture & Confidence Routing Pipeline**, starting with **Story 2.1 (`2-1-morphing-voice-capture-fab-audio-input-lifecycle`)**.
-
-### Epic 2 Stories Breakdown:
-*   **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (300ms morph to waveform pill, RAM-only streaming audio, zero disk writes).
-*   **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency, title/date/time/duration/intensity extraction).
-*   **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover).
-*   **Story 2.4:** Strict AI action boundary & command validation pipeline.
-*   **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast.
+### Active Epic: Epic 2 — Low-Friction Multimodal Capture & Confidence Routing Pipeline
+*   [x] **Story 2.1:** Morphing voice capture FAB & audio input lifecycle (Framer spring physics `fabToModalSpringSpec`, RAM-only streaming audio, zero disk writes, 3-tier confidence UI). `[DONE]`
+*   [ ] **Story 2.2:** Deterministic Kotlin regex & rule NLP parser (<300ms latency on `Dispatchers.Default`, title/date/time/duration/intensity extraction). `[READY FOR DEV]`
+*   [ ] **Story 2.3:** Dual voice engine & network failover architecture (Gemini Live WebSocket streaming with seamless on-device SpeechRecognizer failover).
+*   [ ] **Story 2.4:** Strict AI action boundary & command validation pipeline (unvalidated proposal gate, 0 direct Room DAO mutations from AI/speech).
+*   [ ] **Story 2.5:** Three-tier confidence routing with 5-second instant commit undo toast.
 
 ---
 
-## 5. Tomorrow Morning Kickoff Runbook
+## 5. Next Session Kickoff Runbook
 
 ### Step 1: Health & Workspace Verification
 ```powershell
@@ -156,13 +148,7 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Device Check
-```powershell
-& "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" devices -l
-& "C:\Users\User\AppData\Local\Android\Sdk\platform-tools\adb.exe" shell "ps -A | grep personaltracker"
+### Step 2: Kick off Story 2.2 Implementation
 ```
-
-### Step 3: Execute Selected Story / Work Package
-*   Read `_bmad-output/planning-artifacts/epics.md` for target story criteria.
-*   If Option A: Wire `HomeViewModel.handleStartHeroItem` to initiate `StudySessionForegroundService` and emit `HeroCardState.ActiveFocus`.
-*   If Option B: Implement Story 2.1 morphing voice capture FAB in `QuickCaptureSheet` and `QuickCaptureVoiceRecorder`.
+/bmad-build 2-2-deterministic-kotlin-regex-rule-nlp-parser
+```

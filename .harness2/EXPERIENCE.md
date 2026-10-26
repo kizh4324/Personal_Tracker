@@ -184,6 +184,16 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Shifting routines forward mid-day can easily trigger two failure modes: (1) wrapping around midnight (e.g. 23:50 + 20 min = 00:10 next day) causing negative intervals and UI crashes, and (2) mutatively overriding base template step durations in SQLite, which permanently corrupts DayType baselines. Additionally, if the user replays or refreshes the routine, re-awarding completion coins causes ledger inflation.
 * **Rule:** (1) Always clamp end times at `23:59` via `safePlusMinutes` to avoid cross-day midnight wrap-around. (2) Keep baseline `routine_steps` rows in Room immutable during dynamic timeline shifting and scaling; recalculations must compute purely in-memory models (`ScheduledRoutineStep`). (3) Verify the deterministic idempotency key `ROUTINE_COMP_${routineId}_$date` against `EconomyRepository.getTransactionByIdempotencyKey(key)` inside the completion use case to guarantee strictly one 15-coin reward per routine per day.
 
+---
+
+## 12. Morphing Shared-Element Overlays & Audio Lifecycle
+
+### EXP-026: Shared-Element Spring Physics & IME Avoidance in Morphing Overlays (AD-5, AD-7, AD-8)
+* **Context:** Shared-element animation transitions between FAB and modal sheets (`AppShellScaffold.kt`, `QuickCaptureSheet.kt`) and IME keyboard avoidance.
+* **Heuristic:** Declaring animation token methods with return type `AnimationSpec<T>` prevents compatibility with Compose enter/exit transitions (`slideInVertically`, `fadeIn`, `scaleIn`, `scaleOut`) which strictly require `FiniteAnimationSpec<T>`. Returning `SpringSpec<T>` provides full compatibility with both finite and general animation APIs. Furthermore, omitting `.imePadding()` alongside `.navigationBarsPadding()` causes the Android soft keyboard to occlude input fields, action buttons, and live waveform visualizers.
+* **Rule:** Expose spring physics tokens as `SpringSpec<T>` in `AnimationTokens.kt`. Always chain `.navigationBarsPadding().imePadding()` on modal overlays. Auto-initiate microphone recording immediately upon opening `QuickCaptureSheet` when audio permission is already granted, and ensure unconditional buffer zeroing and recording job cancellation on dismiss.
+
+
 
 
 

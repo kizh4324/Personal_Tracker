@@ -1,5 +1,10 @@
 package com.personaltracker.ui.navigation
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -8,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -47,6 +53,7 @@ import com.personaltracker.ui.components.overlays.QuickCaptureSheet
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureUiEffect
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureUiIntent
 import com.personaltracker.ui.screens.quickcapture.QuickCaptureViewModel
+import com.personaltracker.ui.theme.AnimationTokens
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
 /**
@@ -170,35 +177,44 @@ fun AppShellScaffold(
                 },
                 floatingActionButton = {
                     if (showQuickCaptureFab) {
-                        FloatingActionButton(
-                            onClick = {
-                                if (quickCaptureViewModel != null) {
-                                    quickCaptureViewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
-                                } else {
-                                    localIsOpen = true
-                                }
-                            },
-                            containerColor = colors.primary,
-                            contentColor = colors.surfaceRaised,
-                            shape = shapes.full,
-                            elevation = FloatingActionButtonDefaults.elevation(
-                                defaultElevation = elevation.medium
-                            ),
-                            modifier = Modifier
-                                .size(spacing.fabSize)
-                                .defaultMinSize(
-                                    minWidth = spacing.minTouchTarget,
-                                    minHeight = spacing.minTouchTarget
-                                )
-                                .semantics {
-                                    contentDescription = "Open quick capture drawer"
-                                }
+                        AnimatedVisibility(
+                            visible = !isQuickCaptureOpen,
+                            enter = scaleIn(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()) + fadeIn(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()),
+                            exit = scaleOut(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>()) + fadeOut(animationSpec = AnimationTokens.fabToModalSpringSpec<Float>())
                         ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_waveform),
-                                contentDescription = null,
-                                modifier = Modifier.size(spacing.spacing6)
-                            )
+                            FloatingActionButton(
+                                onClick = {
+                                    if (quickCaptureViewModel != null) {
+                                        quickCaptureViewModel.onIntent(QuickCaptureUiIntent.OpenSheet)
+                                    } else {
+                                        localIsOpen = true
+                                        localIsRecording = true
+                                        localRecordingAmplitude = 0.65f
+                                    }
+                                },
+                                containerColor = colors.primaryDark,
+                                contentColor = colors.surfaceRaised,
+                                shape = shapes.full,
+                                elevation = FloatingActionButtonDefaults.elevation(
+                                    defaultElevation = elevation.medium
+                                ),
+                                modifier = Modifier
+                                    .imePadding()
+                                    .size(spacing.fabSize)
+                                    .defaultMinSize(
+                                        minWidth = spacing.minTouchTarget,
+                                        minHeight = spacing.minTouchTarget
+                                    )
+                                    .semantics {
+                                        contentDescription = "Open quick capture drawer"
+                                    }
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_waveform),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(spacing.spacing6)
+                                )
+                            }
                         }
                     }
                 },

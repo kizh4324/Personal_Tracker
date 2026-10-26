@@ -46,6 +46,13 @@ class QuickCaptureViewModel @Inject constructor(
         when (intent) {
             is QuickCaptureUiIntent.OpenSheet -> {
                 _uiState.update { it.copy(isVisible = true) }
+                if (voiceRecorder.hasRecordPermission()) {
+                    startRecordingInternal()
+                } else {
+                    viewModelScope.launch {
+                        _uiEffect.send(QuickCaptureUiEffect.ShowSnackbar("Microphone permission required for voice capture"))
+                    }
+                }
             }
             is QuickCaptureUiIntent.DismissSheet -> {
                 stopRecordingInternal()
@@ -81,7 +88,8 @@ class QuickCaptureViewModel @Inject constructor(
     private fun handleSubmitText(text: String) {
         if (text.isBlank()) return
 
-        _uiState.update { it.copy(isProcessing = true, errorMessage = null) }
+        stopRecordingInternal()
+        _uiState.update { it.copy(isProcessing = true, isRecording = false, recordingAmplitude = 0f, errorMessage = null) }
 
         viewModelScope.launch {
             runCatching {
@@ -146,23 +154,27 @@ class QuickCaptureViewModel @Inject constructor(
             stopRecordingInternal()
             _uiState.update { it.copy(isRecording = false, recordingAmplitude = 0f) }
         } else {
-            if (!voiceRecorder.hasRecordPermission()) {
-                viewModelScope.launch {
-                    _uiEffect.send(QuickCaptureUiEffect.ShowSnackbar("Microphone permission required for voice capture"))
-                }
-                return
-            }
+            startRecordingInternal()
+        }
+    }
 
-            _uiState.update { it.copy(isRecording = true) }
-            recordingJob?.cancel()
-            recordingJob = viewModelScope.launch {
-                runCatching {
-                    voiceRecorder.startRecording().collect { amplitude ->
-                        _uiState.update { it.copy(recordingAmplitude = amplitude) }
-                    }
-                }.onFailure {
-                    _uiState.update { it.copy(isRecording = false, recordingAmplitude = 0f) }
+    private fun startRecordingInternal() {
+        if (!voiceRecorder.hasRecordPermission()) {
+            viewModelScope.launch {
+                _uiEffect.send(QuickCaptureUiEffect.ShowSnackbar("Microphone permission required for voice capture"))
+            }
+            return
+        }
+
+        _uiState.update { it.copy(isRecording = true) }
+        recordingJob?.cancel()
+        recordingJob = viewModelScope.launch {
+            runCatching {
+                voiceRecorder.startRecording().collect { amplitude ->
+                    _uiState.update { it.copy(recordingAmplitude = amplitude) }
                 }
+            }.onFailure {
+                _uiState.update { it.copy(isRecording = false, recordingAmplitude = 0f) }
             }
         }
     }
