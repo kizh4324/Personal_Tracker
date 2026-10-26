@@ -121,4 +121,98 @@ class FocusRescheduleEngineTest {
         assertEquals("23:59", pauseAdjustment.adjustedEndTime)
         assertTrue(pauseAdjustment.advisoryMessage.contains("capped at 23:59 day boundary"))
     }
+
+    // ==========================================
+    // 4. Pomodoro Interval Progression & Cycle Tests (FR-4.1)
+    // ==========================================
+
+    @Test
+    fun testPomodoroCycle1TransitionRecommendsShortBreak() {
+        val transition = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK,
+            completedWorkCycles = 0
+        )
+
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK, transition.nextIntervalType)
+        assertEquals(5, transition.suggestedDurationMinutes)
+        assertEquals(1, transition.completedWorkCycles)
+        assertTrue(transition.advisoryMessage.contains("1/4"))
+        assertTrue(transition.advisoryMessage.contains("5-minute short break"))
+    }
+
+    @Test
+    fun testPomodoroCycle4TransitionRecommendsLongBreak() {
+        val transition = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK,
+            completedWorkCycles = 3
+        )
+
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.LONG_BREAK, transition.nextIntervalType)
+        assertEquals(15, transition.suggestedDurationMinutes)
+        assertEquals(4, transition.completedWorkCycles)
+        assertTrue(transition.advisoryMessage.contains("4 focus cycles completed"))
+        assertTrue(transition.advisoryMessage.contains("15-minute long break"))
+    }
+
+    @Test
+    fun testShortBreakCompletionTransitionsToPomodoroWorkPreservingCycles() {
+        val transition = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK,
+            completedWorkCycles = 2
+        )
+
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK, transition.nextIntervalType)
+        assertEquals(25, transition.suggestedDurationMinutes)
+        assertEquals(2, transition.completedWorkCycles)
+        assertTrue(transition.advisoryMessage.contains("Break complete"))
+    }
+
+    @Test
+    fun testLongBreakCompletionResetsCyclesToZero() {
+        val transition = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.LONG_BREAK,
+            completedWorkCycles = 4
+        )
+
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK, transition.nextIntervalType)
+        assertEquals(25, transition.suggestedDurationMinutes)
+        assertEquals(0, transition.completedWorkCycles)
+        assertTrue(transition.advisoryMessage.contains("Long break complete"))
+    }
+
+    @Test
+    fun testDeepWorkAndReviewCompletionSuggestsShortBreak() {
+        val transitionDeep = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.DEEP_WORK
+        )
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK, transitionDeep.nextIntervalType)
+        assertEquals(5, transitionDeep.suggestedDurationMinutes)
+
+        val transitionReview = engine.calculateIntervalTransition(
+            currentIntervalType = com.personaltracker.domain.model.FocusIntervalType.REVIEW
+        )
+        assertEquals(com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK, transitionReview.nextIntervalType)
+        assertEquals(5, transitionReview.suggestedDurationMinutes)
+    }
+
+    @Test
+    fun testCycleTrackingAndDurationHelpers() {
+        assertEquals(
+            com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK,
+            engine.getNextIntervalType(com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK, 0)
+        )
+        assertEquals(
+            com.personaltracker.domain.model.FocusIntervalType.LONG_BREAK,
+            engine.getNextIntervalType(com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK, 3)
+        )
+        assertEquals(
+            com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK,
+            engine.getNextIntervalType(com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK, 2)
+        )
+
+        assertEquals(25, engine.getSuggestedDuration(com.personaltracker.domain.model.FocusIntervalType.POMODORO_WORK))
+        assertEquals(5, engine.getSuggestedDuration(com.personaltracker.domain.model.FocusIntervalType.SHORT_BREAK))
+        assertEquals(15, engine.getSuggestedDuration(com.personaltracker.domain.model.FocusIntervalType.LONG_BREAK))
+        assertEquals(45, engine.getSuggestedDuration(com.personaltracker.domain.model.FocusIntervalType.DEEP_WORK))
+    }
 }

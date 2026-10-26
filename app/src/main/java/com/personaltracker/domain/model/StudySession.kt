@@ -12,5 +12,11 @@ data class StudySession(
     val coinsEarned: Int = 0,
     val linkedTaskId: String? = null,
     val isInterrupted: Boolean = false,
-    val createdTimestamp: Long = System.currentTimeMillis()
-)
+    val createdTimestamp: Long = System.currentTimeMillis(),
+    val targetDurationMinutes: Int = durationMinutes,
+    val actualElapsedMinutes: Int = durationMinutes,
+    val intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK
+) {
+    val isBreak: Boolean
+        get() = intervalType.isBreak
+}

@@ -1,11 +1,12 @@
 package com.personaltracker.domain.engine
 
+import com.personaltracker.domain.model.FocusIntervalType
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
 /**
  * Pure Kotlin behavioral engine managing study session pause/resume recalculation,
- * break overrun adjustments, and non-punitive schedule shifting (FR-4.1, FR-4.5, AD-1, AD-3).
+ * break overrun adjustments, Pomodoro cycle progression, and non-punitive schedule shifting (FR-4.1, FR-4.5, AD-1, AD-3).
  *
  * Contains zero Android framework dependencies and zero guilt copy.
  */
@@ -35,6 +36,13 @@ class FocusRescheduleEngine {
         val plannedDurationMinutes: Int,
         val elapsedMinutes: Int,
         val remainingMinutes: Int,
+        val advisoryMessage: String
+    )
+
+    data class IntervalTransition(
+        val nextIntervalType: FocusIntervalType,
+        val suggestedDurationMinutes: Int,
+        val completedWorkCycles: Int,
         val advisoryMessage: String
     )
 
@@ -156,5 +164,99 @@ class FocusRescheduleEngine {
             remainingMinutes = remainingMinutes,
             advisoryMessage = "Focus block paused with $remainingMinutes min remaining. You can resume anytime."
         )
+    }
+
+    /**
+     * Calculates the next interval transition upon interval completion (FR-4.1).
+     * Implements standard Pomodoro cycle progression (4 cycles -> Long Break) and non-punishing copy (AD-4).
+     */
+    fun calculateIntervalTransition(
+        currentIntervalType: FocusIntervalType,
+        completedWorkCycles: Int = 0,
+        pomodoroWorkMinutes: Int = 25,
+        shortBreakMinutes: Int = 5,
+        longBreakMinutes: Int = 15,
+        longBreakCycleThreshold: Int = 4
+    ): IntervalTransition {
+        require(completedWorkCycles >= 0) { "completedWorkCycles must be non-negative" }
+        require(pomodoroWorkMinutes > 0) { "pomodoroWorkMinutes must be positive" }
+        require(shortBreakMinutes > 0) { "shortBreakMinutes must be positive" }
+        require(longBreakMinutes > 0) { "longBreakMinutes must be positive" }
+
+        return when (currentIntervalType) {
+            FocusIntervalType.POMODORO_WORK -> {
+                val newCycles = completedWorkCycles + 1
+                if (newCycles >= longBreakCycleThreshold) {
+                    IntervalTransition(
+                        nextIntervalType = FocusIntervalType.LONG_BREAK,
+                        suggestedDurationMinutes = longBreakMinutes,
+                        completedWorkCycles = newCycles,
+                        advisoryMessage = "$longBreakCycleThreshold focus cycles completed! Time for a well-deserved $longBreakMinutes-minute long break."
+                    )
+                } else {
+                    IntervalTransition(
+                        nextIntervalType = FocusIntervalType.SHORT_BREAK,
+                        suggestedDurationMinutes = shortBreakMinutes,
+                        completedWorkCycles = newCycles,
+                        advisoryMessage = "Focus interval complete ($newCycles/$longBreakCycleThreshold). Take a $shortBreakMinutes-minute short break."
+                    )
+                }
+            }
+            FocusIntervalType.SHORT_BREAK -> {
+                IntervalTransition(
+                    nextIntervalType = FocusIntervalType.POMODORO_WORK,
+                    suggestedDurationMinutes = pomodoroWorkMinutes,
+                    completedWorkCycles = completedWorkCycles,
+                    advisoryMessage = "Break complete. Ready for the next focus block."
+                )
+            }
+            FocusIntervalType.LONG_BREAK -> {
+                IntervalTransition(
+                    nextIntervalType = FocusIntervalType.POMODORO_WORK,
+                    suggestedDurationMinutes = pomodoroWorkMinutes,
+                    completedWorkCycles = 0, // Reset cycle counter after long break
+                    advisoryMessage = "Long break complete. Refreshed and ready for a new focus cycle."
+                )
+            }
+            FocusIntervalType.DEEP_WORK,
+            FocusIntervalType.REVIEW -> {
+                IntervalTransition(
+                    nextIntervalType = FocusIntervalType.SHORT_BREAK,
+                    suggestedDurationMinutes = shortBreakMinutes,
+                    completedWorkCycles = completedWorkCycles,
+                    advisoryMessage = "Session complete. Take a $shortBreakMinutes-minute break to recharge."
+                )
+            }
+        }
+    }
+
+    /**
+     * Determines next interval type based on current interval and completed cycles.
+     */
+    fun getNextIntervalType(
+        currentIntervalType: FocusIntervalType,
+        completedWorkCycles: Int = 0,
+        longBreakCycleThreshold: Int = 4
+    ): FocusIntervalType {
+        return when (currentIntervalType) {
+            FocusIntervalType.POMODORO_WORK -> {
+                if (completedWorkCycles + 1 >= longBreakCycleThreshold) {
+                    FocusIntervalType.LONG_BREAK
+                } else {
+                    FocusIntervalType.SHORT_BREAK
+                }
+            }
+            FocusIntervalType.SHORT_BREAK,
+            FocusIntervalType.LONG_BREAK -> FocusIntervalType.POMODORO_WORK
+            FocusIntervalType.DEEP_WORK,
+            FocusIntervalType.REVIEW -> FocusIntervalType.SHORT_BREAK
+        }
+    }
+
+    /**
+     * Helper to retrieve suggested duration for a given interval type.
+     */
+    fun getSuggestedDuration(intervalType: FocusIntervalType): Int {
+        return intervalType.defaultDurationMinutes
     }
 }

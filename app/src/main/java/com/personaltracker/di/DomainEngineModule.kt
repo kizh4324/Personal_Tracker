@@ -3,6 +3,7 @@ package com.personaltracker.di
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.engine.GamificationLedgerEngine
+import com.personaltracker.domain.engine.HeatmapLedgerEngine
 import com.personaltracker.domain.engine.InterventionRuleEngine
 import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.parser.DeterministicNlpCommandParser
@@ -49,6 +50,12 @@ internal object DomainEngineModule {
     @Singleton
     fun provideFocusRescheduleEngine(): FocusRescheduleEngine {
         return FocusRescheduleEngine()
+    }
+
+    @Provides
+    @Singleton
+    fun provideHeatmapLedgerEngine(): HeatmapLedgerEngine {
+        return HeatmapLedgerEngine()
     }
 
     @Provides
