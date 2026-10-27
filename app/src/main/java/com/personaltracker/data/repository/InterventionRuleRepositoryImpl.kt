@@ -18,6 +18,16 @@ internal class InterventionRuleRepositoryImpl @Inject constructor(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) : InterventionRuleRepository {
 
+    override fun getAllRules(): Flow<List<InterventionRule>> =
+        interventionRuleDao.getAllRules()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+
+    override fun getWhitelistedRules(): Flow<List<InterventionRule>> =
+        interventionRuleDao.getWhitelistedRules()
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+
     override fun getBlockedAppRules(): Flow<List<InterventionRule>> =
         interventionRuleDao.getBlockedAppRules()
             .map { list -> list.map { it.toDomain() } }

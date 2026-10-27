@@ -7,8 +7,9 @@ import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
 
 /**
- * Pure Kotlin use case evaluating foreground package transitions against distraction rules
- * and active focus session intervals (FR-4.3, FR-10.1, AD-1, AD-8).
+ * Pure Kotlin use case evaluating foreground package transitions against distraction rules,
+ * active focus session intervals, telecom call state, and emergency/dynamic whitelist exemptions
+ * (FR-4.3, FR-4.6, FR-10.1, AD-1, AD-8).
  *
  * Guarantees zero Android framework dependencies and zero inspection of window contents.
  */
@@ -27,13 +28,19 @@ class InterceptDistractionUseCase @Inject constructor(
         private val SYSTEM_EXCLUDED_PACKAGES = setOf(
             "android",
             "com.android.systemui",
+            "com.android.emergency",
             "com.google.android.dialer",
             "com.android.dialer",
             "com.android.server.telecom",
             "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
             "com.android.settings",
             "com.android.phone",
-            "com.google.android.inputmethod.latin"
+            "com.google.android.inputmethod.latin",
+            "com.google.android.apps.safetyhub",
+            "com.samsung.android.emergency",
+            "com.samsung.android.dialer",
+            "com.samsung.android.incallui"
         )
     }
 
@@ -45,15 +52,28 @@ class InterceptDistractionUseCase @Inject constructor(
      * @param isTimerPaused Whether the study/focus timer is currently paused
      * @param intervalType The current interval type (e.g. DEEP_WORK, POMODORO_WORK, SHORT_BREAK, LONG_BREAK)
      * @param ownPackageName The application's own package name to prevent self-interception
+     * @param defaultDialerPackage Dynamic default dialer package name from TelecomManager
+     * @param isCallActive Whether an incoming or outgoing telecom call is currently ringing or active
      */
     suspend operator fun invoke(
         packageName: String,
         isTimerRunning: Boolean,
         isTimerPaused: Boolean = false,
         intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK,
-        ownPackageName: String = "com.personaltracker"
+        ownPackageName: String = "com.personaltracker",
+        defaultDialerPackage: String? = null,
+        isCallActive: Boolean = false
     ): InterceptionResult {
-        // 1. Never intercept if timer is not running or is paused
+        // 1. Unconditionally bypass interception during active or ringing telecom calls (FR-4.6)
+        if (isCallActive) {
+            return InterceptionResult(
+                shouldIntercept = false,
+                packageName = packageName,
+                reason = "Active phone call or ringing state detected; emergency bypass engaged."
+            )
+        }
+
+        // 2. Never intercept if timer is not running or is paused
         if (!isTimerRunning || isTimerPaused) {
             return InterceptionResult(
                 shouldIntercept = false,
@@ -62,7 +82,7 @@ class InterceptDistractionUseCase @Inject constructor(
             )
         }
 
-        // 2. Never intercept during rest intervals (SHORT_BREAK, LONG_BREAK)
+        // 3. Never intercept during rest intervals (SHORT_BREAK, LONG_BREAK)
         if (intervalType.isBreak) {
             return InterceptionResult(
                 shouldIntercept = false,
@@ -71,7 +91,7 @@ class InterceptDistractionUseCase @Inject constructor(
             )
         }
 
-        // 3. Restrict triggers strictly to active work intervals (DEEP_WORK, POMODORO_WORK)
+        // 4. Restrict triggers strictly to active work intervals (DEEP_WORK, POMODORO_WORK)
         if (intervalType != FocusIntervalType.DEEP_WORK && intervalType != FocusIntervalType.POMODORO_WORK) {
             return InterceptionResult(
                 shouldIntercept = false,
@@ -80,18 +100,18 @@ class InterceptDistractionUseCase @Inject constructor(
             )
         }
 
-        // 4. Never intercept system packages, dialers, or Personal-Tracker's own package
-        if (isSystemOrSelf(packageName, ownPackageName)) {
+        // 5. Never intercept emergency services, dialers, telecom components, or system UI (FR-4.6, FR-10.1)
+        if (isSystemOrDialerOrEmergency(packageName, ownPackageName, defaultDialerPackage)) {
             return InterceptionResult(
                 shouldIntercept = false,
                 packageName = packageName,
-                reason = "System, dialer, or application self-package is exempted."
+                reason = "Emergency, dialer, telecom, system UI, or application self-package is exempted."
             )
         }
 
-        // 5. Evaluate against configured blocked app rules
-        val rules = ruleRepository.getBlockedAppRules().firstOrNull() ?: emptyList()
-        val matchedRule = rules.find { it.packageName.equals(packageName, ignoreCase = true) }
+        // 6. Evaluate against configured rules (checking direct package lookup then active rule list)
+        val matchedRule = ruleRepository.getRuleForPackage(packageName)
+            ?: ruleRepository.getAllRules().firstOrNull()?.find { it.packageName.equals(packageName, ignoreCase = true) }
 
         if (matchedRule == null) {
             return InterceptionResult(
@@ -113,17 +133,32 @@ class InterceptDistractionUseCase @Inject constructor(
                 shouldIntercept = false,
                 packageName = packageName,
                 matchedRule = matchedRule,
-                reason = "Rule configured with strict blocking disabled."
+                reason = "Package is explicitly whitelisted by user."
             )
         }
     }
 
-    private fun isSystemOrSelf(packageName: String, ownPackageName: String): Boolean {
+    private fun isSystemOrDialerOrEmergency(
+        packageName: String,
+        ownPackageName: String,
+        defaultDialerPackage: String?
+    ): Boolean {
         if (packageName.isBlank()) return true
         if (packageName.equals(ownPackageName, ignoreCase = true)) return true
-        if (SYSTEM_EXCLUDED_PACKAGES.contains(packageName.lowercase())) return true
-        if (packageName.startsWith("com.android.systemui", ignoreCase = true)) return true
-        if (packageName.contains("dialer", ignoreCase = true) || packageName.contains("telecom", ignoreCase = true)) return true
+        if (defaultDialerPackage != null && packageName.equals(defaultDialerPackage, ignoreCase = true)) return true
+
+        val lower = packageName.lowercase()
+        if (SYSTEM_EXCLUDED_PACKAGES.contains(lower)) return true
+        if (lower.startsWith("com.android.systemui") || lower.startsWith("com.android.emergency")) return true
+
+        // Strict segment checking prevents false matches on apps like com.phonepe.app or com.sostravel.app
+        val segments = lower.split('.')
+        if (segments.any { seg ->
+            seg == "dialer" || seg == "emergency" || seg == "telecom" || seg == "incall" || seg == "telephony" || seg == "sos" || seg == "phone"
+        }) {
+            return true
+        }
+
         return false
     }
 }

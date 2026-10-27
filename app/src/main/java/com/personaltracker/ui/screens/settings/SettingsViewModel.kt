@@ -8,8 +8,14 @@ import android.text.TextUtils
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personaltracker.domain.model.DayOverride
+import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.repository.DayTypeRepository
+import com.personaltracker.domain.usecase.AddWhitelistedAppUseCase
+import com.personaltracker.domain.usecase.GetWhitelistRulesUseCase
+import com.personaltracker.domain.usecase.RemoveWhitelistedAppUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
+import com.personaltracker.domain.usecase.ToggleAppWhitelistUseCase
+import com.personaltracker.platform.accessibility.DistractionInterceptionService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
@@ -29,16 +35,24 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 /**
- * Production ViewModel driving Settings, DayType template swaps, and focus interception permissions (AD-1, AD-2).
+ * Production ViewModel driving Settings, DayType template swaps, focus interception permissions,
+ * and emergency / dynamic app whitelist management (AD-1, AD-2, FR-4.6, FR-10.1).
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val dayTypeRepository: DayTypeRepository,
     private val resolveDayTypeUseCase: ResolveDayTypeUseCase,
+    private val getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
+    private val toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
+    private val addWhitelistedAppUseCase: AddWhitelistedAppUseCase,
+    private val removeWhitelistedAppUseCase: RemoveWhitelistedAppUseCase,
     @ApplicationContext private val context: Context? = null
 ) : ViewModel() {
 
     internal var permissionChecker: (() -> Pair<Boolean, Boolean>)? = null
+
+    private val _focusTimerPolicy = MutableStateFlow(DistractionInterceptionService.activeFocusTimerPolicy)
+    private val _isWhitelistSheetOpen = MutableStateFlow(false)
 
     private val _uiState = MutableStateFlow(SettingsUiState(isLoading = true))
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -56,20 +70,37 @@ class SettingsViewModel @Inject constructor(
         observeDataJob?.cancel()
         val today = LocalDate.now().toString()
 
-        val dayTypesFlow = dayTypeRepository.getAllDayTypes()
-        val overrideFlow = dayTypeRepository.observeOverrideForDate(today)
+        val dayDataFlow = combine(
+            dayTypeRepository.getAllDayTypes(),
+            dayTypeRepository.observeOverrideForDate(today)
+        ) { dayTypes, override ->
+            Pair(dayTypes, override)
+        }
+
+        val rulesFlow = combine(
+            getWhitelistRulesUseCase(onlyWhitelisted = true),
+            getWhitelistRulesUseCase(onlyWhitelisted = false)
+        ) { whitelisted, allRules ->
+            Pair(whitelisted, allRules)
+        }
 
         observeDataJob = combine(
-            dayTypesFlow,
-            overrideFlow
-        ) { dayTypes, override ->
-            val resolvedActive = runCatching { resolveDayTypeUseCase(today) }.getOrNull()
+            dayDataFlow,
+            rulesFlow,
+            _focusTimerPolicy,
+            _isWhitelistSheetOpen
+        ) { (dayTypes, override), (whitelisted, allRules), timerPolicy, isSheetOpen ->
+            val resolvedActive = resolveDayTypeUseCase.resolve(today, override, dayTypes)
             val (accessibility, overlay) = checkPermissionsStatus()
 
             SettingsUiState(
                 allDayTypes = dayTypes,
                 activeDayType = resolvedActive,
                 dateOverride = override,
+                whitelistedRules = whitelisted,
+                allInterventionRules = allRules,
+                focusTimerPolicy = timerPolicy,
+                isWhitelistSheetOpen = isSheetOpen,
                 isAccessibilityGranted = accessibility,
                 isOverlayGranted = overlay,
                 isLoading = false,
@@ -93,6 +124,11 @@ class SettingsViewModel @Inject constructor(
                 observeSettingsData()
                 checkPermissions()
             }
+            is SettingsUiIntent.ToggleAppWhitelist -> handleToggleAppWhitelist(intent.packageName, intent.appDisplayName)
+            is SettingsUiIntent.AddCustomWhitelistPackage -> handleAddCustomWhitelistPackage(intent.packageName, intent.appDisplayName)
+            is SettingsUiIntent.RemoveWhitelistPackage -> handleRemoveWhitelistPackage(intent.packageName)
+            is SettingsUiIntent.SetFocusTimerPolicy -> handleSetFocusTimerPolicy(intent.policy)
+            is SettingsUiIntent.ToggleWhitelistSheet -> handleToggleWhitelistSheet(intent.isOpen)
         }
     }
 
@@ -189,5 +225,56 @@ class SettingsViewModel @Inject constructor(
             _uiEffect.send(SettingsUiEffect.ShowSnackbar("Encrypted backup generated safely"))
             _uiState.update { it.copy(isExportingBackup = false, backupExportSuccess = true) }
         }
+    }
+
+    private fun handleToggleAppWhitelist(packageName: String, appDisplayName: String?) {
+        viewModelScope.launch {
+            runCatching {
+                toggleAppWhitelistUseCase(packageName, appDisplayName)
+                _uiEffect.send(SettingsUiEffect.ShowSnackbar("App whitelist status updated"))
+            }.onFailure {
+                _uiEffect.send(SettingsUiEffect.ShowSnackbar("Could not update app whitelist"))
+            }
+        }
+    }
+
+    private fun handleAddCustomWhitelistPackage(packageName: String, appDisplayName: String) {
+        viewModelScope.launch {
+            runCatching {
+                val success = addWhitelistedAppUseCase(packageName, appDisplayName)
+                if (success) {
+                    val label = appDisplayName.trim().ifBlank { packageName.trim().substringAfterLast('.') }
+                    _uiEffect.send(SettingsUiEffect.ShowSnackbar("Added $label to whitelist"))
+                    _isWhitelistSheetOpen.value = false
+                } else {
+                    _uiEffect.send(SettingsUiEffect.ShowSnackbar("Package name cannot be blank"))
+                }
+            }.onFailure {
+                _uiEffect.send(SettingsUiEffect.ShowSnackbar("Could not add package to whitelist"))
+            }
+        }
+    }
+
+    private fun handleRemoveWhitelistPackage(packageName: String) {
+        viewModelScope.launch {
+            runCatching {
+                removeWhitelistedAppUseCase(packageName)
+                _uiEffect.send(SettingsUiEffect.ShowSnackbar("Removed package from whitelist"))
+            }.onFailure {
+                _uiEffect.send(SettingsUiEffect.ShowSnackbar("Could not remove package"))
+            }
+        }
+    }
+
+    private fun handleSetFocusTimerPolicy(policy: FocusTimerPolicy) {
+        _focusTimerPolicy.value = policy
+        DistractionInterceptionService.activeFocusTimerPolicy = policy
+        viewModelScope.launch {
+            _uiEffect.send(SettingsUiEffect.ShowSnackbar("Call policy: ${policy.displayName}"))
+        }
+    }
+
+    private fun handleToggleWhitelistSheet(isOpen: Boolean) {
+        _isWhitelistSheetOpen.value = isOpen
     }
 }

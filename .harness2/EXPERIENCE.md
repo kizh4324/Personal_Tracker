@@ -214,6 +214,17 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Broad accessibility filters or enabling `canRetrieveWindowContent = true` exposes sensitive user keystrokes, password fields, and on-screen content, violating the project's strict privacy invariants and inviting OS security warnings.
 * **Rule:** Restrict `accessibility_service_config.xml` strictly to `android:accessibilityEventTypes="typeWindowStateChanged"` and set `android:canRetrieveWindowContent="false"`. In `onAccessibilityEvent`, immediately discard any event where `eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED`, extracting only `event.packageName?.toString()`. Never inspect `event.text`, `event.source`, or traverse accessibility node hierarchies under any circumstances.
 
+### EXP-035: Emergency Telecom & Dialer Immunity Heuristics (AD-1, FR-4.6, FR-10.1)
+* **Context:** Preventing distraction interception from obstructing emergency services, dialers, or active telecom calls (`InterceptDistractionUseCase.kt`, `DistractionInterceptionService.kt`).
+* **Heuristic:** Naive substring matching (`lower.contains("phone")` or `lower.contains("sos")`) creates false exemptions for unrelated apps (e.g., `com.phonepe.app` or `com.sostravel.app`). Conversely, failing to dismiss the overlay during `CALL_STATE_RINGING` or `CALL_STATE_OFFHOOK` traps the user behind an intervention card during an incoming call. Furthermore, dismissing the overlay on generic `com.android.systemui` window transitions opens an exploit loophole where pulling down the notification shade permanently dismisses the blocker.
+* **Rule:** Restrict safety token matching strictly to package dot segments (`val segments = lower.split('.'); segments.any { ... }`). Dynamic dialers must be queried via `TelecomManager.getDefaultDialerPackage()`. Active calls (`CALL_STATE_RINGING`, `CALL_STATE_OFFHOOK`) must unconditionally bypass interception and dismiss active overlays, while generic system UI (`com.android.systemui`) transitions must NOT dismiss the intervention overlay.
+
+### EXP-036: Non-Punitive App Whitelist Inversion & Exemption Deletion (AD-1, AD-4)
+* **Context:** Managing user exemptions for utility tools (`ToggleAppWhitelistUseCase.kt`, `SettingsScreen.kt`).
+* **Heuristic:** Inverting `isStrictBlocked = !existing.isStrictBlocked` when a user deselects a whitelisted utility preset (such as Authenticator or Password Manager) flips `isStrictBlocked` to `true`, inadvertently converting essential security tools into blocked distraction apps.
+* **Rule:** When toggling an already whitelisted app (`!existingRule.isStrictBlocked`), toggling it off must delete the rule via `ruleRepository.deleteRule(packageName)` to restore the app to neutral unlisted state. Only apps explicitly created as blocked distraction targets should have `isStrictBlocked = true`.
+
+
 
 
 

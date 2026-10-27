@@ -9,3 +9,6 @@
 - source_spec: `_bmad-output/implementation-artifacts/spec-2-2-deterministic-kotlin-regex-rule-nlp-parser.md`
   summary: Support complex multi-word date phrases (e.g. 'October 26th', '26 Oct') in local regex rules
   evidence: Deterministic NLP currently focuses on ISO-8601, relative days, and weekdays; broad conversational date formats will be expanded during Story 2.3 Gemini Live multimodal parser integration.
+- source_spec: `_bmad-output/implementation-artifacts/spec-3-3-emergency-telecom-dynamic-whitelist-bypass.md`
+  summary: FocusTimerPolicy persistence across device reboot and process death
+  evidence: FocusTimerPolicy is currently maintained via in-memory StateFlow and service companion object; persistent settings baseline is scheduled in Story 6.4 (6-4-app-settings-management-local-privacy-baseline).

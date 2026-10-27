@@ -7,6 +7,7 @@ import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLog
+import com.personaltracker.domain.model.InterventionRule
 import com.personaltracker.domain.model.Routine
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.ShopItem
@@ -16,6 +17,7 @@ import com.personaltracker.domain.model.UnfiledInboxItem
 import com.personaltracker.domain.repository.DayTypeRepository
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
+import com.personaltracker.domain.repository.InterventionRuleRepository
 import com.personaltracker.domain.repository.RoutineRepository
 import com.personaltracker.domain.repository.StudySessionRepository
 import com.personaltracker.domain.repository.TaskRepository
@@ -311,5 +313,37 @@ class TestTaskAlarmScheduler : TaskAlarmScheduler {
     fun clear() {
         scheduledTasks.clear()
         cancelledAlarms.clear()
+    }
+}
+
+class TestInterventionRuleRepository(
+    initialRules: List<InterventionRule> = emptyList()
+) : InterventionRuleRepository {
+    val rulesFlow = MutableStateFlow<List<InterventionRule>>(initialRules)
+
+    override fun getAllRules(): Flow<List<InterventionRule>> = rulesFlow
+
+    override fun getWhitelistedRules(): Flow<List<InterventionRule>> =
+        rulesFlow.map { list -> list.filter { !it.isStrictBlocked } }
+
+    override fun getBlockedAppRules(): Flow<List<InterventionRule>> =
+        rulesFlow.map { list -> list.filter { it.isStrictBlocked } }
+
+    override suspend fun getRuleForPackage(packageName: String): InterventionRule? =
+        rulesFlow.value.find { it.packageName.equals(packageName, ignoreCase = true) }
+
+    override suspend fun saveRule(rule: InterventionRule) {
+        val current = rulesFlow.value.toMutableList()
+        val index = current.indexOfFirst { it.packageName.equals(rule.packageName, ignoreCase = true) }
+        if (index >= 0) {
+            current[index] = rule
+        } else {
+            current.add(rule)
+        }
+        rulesFlow.value = current
+    }
+
+    override suspend fun deleteRule(packageName: String) {
+        rulesFlow.value = rulesFlow.value.filterNot { it.packageName.equals(packageName, ignoreCase = true) }
     }
 }

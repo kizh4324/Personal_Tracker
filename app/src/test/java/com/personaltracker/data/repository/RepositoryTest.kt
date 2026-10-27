@@ -897,6 +897,11 @@ private class FakeUnfiledInboxDao : UnfiledInboxDao {
 private class FakeInterventionRuleDao : InterventionRuleDao {
     private val rules = MutableStateFlow<List<InterventionRuleEntity>>(emptyList())
 
+    override fun getAllRules(): Flow<List<InterventionRuleEntity>> = rules
+
+    override fun getWhitelistedRules(): Flow<List<InterventionRuleEntity>> =
+        rules.map { list -> list.filter { !it.isStrictBlocked } }
+
     override fun getBlockedAppRules(): Flow<List<InterventionRuleEntity>> =
         rules.map { list -> list.filter { it.isStrictBlocked } }
 

@@ -17,17 +17,22 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +41,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
@@ -94,7 +100,8 @@ fun SettingsRoute(
 }
 
 /**
- * 100% Stateless Composable rendering Settings, template controls, and focus privacy settings.
+ * 100% Stateless Composable rendering Settings, template controls, focus privacy settings,
+ * and emergency/telecom whitelist management.
  * Strictly consumes design tokens with zero hardcoded literals and 48dp touch targets (AD-4, AD-7).
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -108,6 +115,92 @@ fun SettingsScreenContent(
     val typography = PersonalTrackerTheme.typography
     val spacing = PersonalTrackerTheme.spacing
     val shapes = PersonalTrackerTheme.shapes
+
+    // Quick exemption preset definitions (Story 3.3)
+    val presets = remember {
+        listOf(
+            "com.google.android.apps.authenticator2" to "Authenticator",
+            "com.bitwarden.bitwarden" to "Bitwarden",
+            "com.google.android.keep" to "Google Keep",
+            "com.google.android.calculator" to "Calculator"
+        )
+    }
+
+    // Custom exemption dialog
+    if (state.isWhitelistSheetOpen) {
+        var customPackageName by remember { mutableStateOf("") }
+        var customDisplayName by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { onIntent(SettingsUiIntent.ToggleWhitelistSheet(false)) },
+            shape = shapes.lg,
+            containerColor = colors.surfaceRaised,
+            title = {
+                Text(
+                    text = "Add Whitelist Exemption",
+                    style = typography.headline,
+                    color = colors.inkPrimary
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                ) {
+                    Text(
+                        text = "Whitelisted apps can be opened during focus sessions without triggering an intervention.",
+                        style = typography.caption,
+                        color = colors.inkSecondary
+                    )
+                    OutlinedTextField(
+                        value = customPackageName,
+                        onValueChange = { customPackageName = it },
+                        label = { Text("Package Name (e.g. com.example.app)", style = typography.caption) },
+                        singleLine = true,
+                        shape = shapes.sm,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = customDisplayName,
+                        onValueChange = { customDisplayName = it },
+                        label = { Text("Display Name (optional)", style = typography.caption) },
+                        singleLine = true,
+                        shape = shapes.sm,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        onIntent(
+                            SettingsUiIntent.AddCustomWhitelistPackage(
+                                packageName = customPackageName,
+                                appDisplayName = customDisplayName
+                            )
+                        )
+                    },
+                    shape = shapes.md,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.surfaceBase
+                    ),
+                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text("Add Exemption", style = typography.label)
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = { onIntent(SettingsUiIntent.ToggleWhitelistSheet(false)) },
+                    shape = shapes.md,
+                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text("Cancel", style = typography.label)
+                }
+            }
+        )
+    }
 
     Column(
         modifier = modifier
@@ -324,7 +417,180 @@ fun SettingsScreenContent(
 
         Spacer(modifier = Modifier.height(spacing.sectionGap))
 
-        // 3. Local-First Encryption & Data Card (AD-5)
+        // 3. Emergency Telecom & Whitelist Manager Card (Story 3.3, FR-4.6, FR-10.1)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shapes.lg,
+            color = colors.surfaceRaised
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacing.spacing4)
+            ) {
+                Text(
+                    text = "Emergency Telecom & App Whitelist",
+                    style = typography.headline,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing1))
+
+                // Immune components reassurance banner
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = shapes.sm,
+                    color = colors.surfaceSunken
+                ) {
+                    Text(
+                        text = "Phone dialers, emergency calls (911, 112, SOS), and system UI are always immune to interception.",
+                        style = typography.caption,
+                        color = colors.inkSecondary,
+                        modifier = Modifier.padding(spacing.spacing2)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Call Progression Policy Selector
+                Text(
+                    text = "Timer Behavior During Phone Calls:",
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    FocusTimerPolicy.entries.forEach { policy ->
+                        val isSelected = state.focusTimerPolicy == policy
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { onIntent(SettingsUiIntent.SetFocusTimerPolicy(policy)) },
+                            label = { Text(text = policy.displayName, style = typography.caption) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.primary,
+                                selectedLabelColor = colors.surfaceBase,
+                                containerColor = colors.surfaceSunken,
+                                labelColor = colors.inkPrimary
+                            ),
+                            modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Quick Exemption Presets
+                Text(
+                    text = "Quick Exemption Presets:",
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    presets.forEach { (pkg, name) ->
+                        val isWhitelisted = state.whitelistedRules.any { it.packageName.equals(pkg, ignoreCase = true) }
+                        FilterChip(
+                            selected = isWhitelisted,
+                            onClick = { onIntent(SettingsUiIntent.ToggleAppWhitelist(pkg, name)) },
+                            label = { Text(text = if (isWhitelisted) "$name ✓" else "+ $name", style = typography.caption) },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.companion,
+                                selectedLabelColor = colors.surfaceBase,
+                                containerColor = colors.surfaceSunken,
+                                labelColor = colors.inkPrimary
+                            ),
+                            modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Whitelisted Rules List
+                Text(
+                    text = "Active Exemption Rules (${state.whitelistedRules.size}):",
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                if (state.whitelistedRules.isEmpty()) {
+                    Text(
+                        text = "No custom exempt apps configured. System apps remain exempt.",
+                        style = typography.caption,
+                        color = colors.inkSecondary
+                    )
+                } else {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                    ) {
+                        state.whitelistedRules.forEach { rule ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(colors.surfaceSunken, shapes.sm)
+                                    .padding(
+                                        horizontal = spacing.spacing3,
+                                        vertical = spacing.spacing2
+                                    ),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = rule.appDisplayName,
+                                        style = typography.title,
+                                        color = colors.inkPrimary
+                                    )
+                                    Text(
+                                        text = rule.packageName,
+                                        style = typography.caption,
+                                        color = colors.inkSecondary
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = { onIntent(SettingsUiIntent.RemoveWhitelistPackage(rule.packageName)) },
+                                    shape = shapes.sm,
+                                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
+                                ) {
+                                    Text("Remove", style = typography.caption)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                Button(
+                    onClick = { onIntent(SettingsUiIntent.ToggleWhitelistSheet(true)) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.surfaceBase
+                    ),
+                    shape = shapes.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Add Custom App Exemption", style = typography.label)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(spacing.sectionGap))
+
+        // 4. Local-First Encryption & Data Card (AD-5)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = shapes.lg,

@@ -501,7 +501,9 @@ private class FakeUnfiledInboxRepository : UnfiledInboxRepository {
 private class FakeInterventionRuleRepository : InterventionRuleRepository {
     private val rules = mutableListOf<InterventionRule>()
 
-    override fun getBlockedAppRules(): Flow<List<InterventionRule>> = MutableStateFlow(rules)
+    override fun getAllRules(): Flow<List<InterventionRule>> = MutableStateFlow(rules)
+    override fun getWhitelistedRules(): Flow<List<InterventionRule>> = MutableStateFlow(rules.filter { !it.isStrictBlocked })
+    override fun getBlockedAppRules(): Flow<List<InterventionRule>> = MutableStateFlow(rules.filter { it.isStrictBlocked })
     override suspend fun getRuleForPackage(packageName: String): InterventionRule? = rules.find { it.packageName == packageName }
     override suspend fun saveRule(rule: InterventionRule) { rules.removeAll { it.packageName == rule.packageName }; rules.add(rule) }
     override suspend fun deleteRule(packageName: String) { rules.removeAll { it.packageName == packageName } }

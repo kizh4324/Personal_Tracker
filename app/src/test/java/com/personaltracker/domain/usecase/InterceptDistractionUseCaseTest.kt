@@ -15,8 +15,8 @@ import org.junit.Before
 import org.junit.Test
 
 /**
- * Pure JVM unit tests validating [InterceptDistractionUseCase] (AD-1, AD-3, FR-4.3, NFR-4).
- * Guarantees zero Android framework imports and tests all interval/package permutations.
+ * Pure JVM unit tests validating [InterceptDistractionUseCase] (AD-1, AD-3, FR-4.3, FR-4.6, FR-10.1, NFR-4).
+ * Guarantees zero Android framework imports and tests all interval/package/telecom permutations.
  */
 class InterceptDistractionUseCaseTest {
 
@@ -37,7 +37,12 @@ class InterceptDistractionUseCaseTest {
         InterventionRule(
             packageName = "com.reddit.frontpage",
             appDisplayName = "Reddit",
-            isStrictBlocked = false // Non-strict rule
+            isStrictBlocked = false // Whitelisted rule
+        ),
+        InterventionRule(
+            packageName = "com.google.android.apps.authenticator2",
+            appDisplayName = "Authenticator",
+            isStrictBlocked = false // Explicitly whitelisted
         )
     )
 
@@ -130,7 +135,7 @@ class InterceptDistractionUseCaseTest {
     @Test
     fun testUnlistedPackageNotIntercepted() = runTest {
         val result = useCase(
-            packageName = "com.google.android.calculator",
+            packageName = "com.unlisted.productivity.app",
             isTimerRunning = true,
             isTimerPaused = false,
             intervalType = FocusIntervalType.DEEP_WORK
@@ -182,6 +187,86 @@ class InterceptDistractionUseCaseTest {
     }
 
     @Test
+    fun testEmergencyDialerNeverIntercepted() = runTest {
+        val emergencyPackages = listOf(
+            "com.android.emergency",
+            "com.google.android.dialer",
+            "com.samsung.android.emergency",
+            "com.carrier.emergency.sos"
+        )
+
+        for (pkg in emergencyPackages) {
+            val result = useCase(
+                packageName = pkg,
+                isTimerRunning = true,
+                isTimerPaused = false,
+                intervalType = FocusIntervalType.DEEP_WORK
+            )
+            assertFalse("Expected emergency package $pkg never to be intercepted", result.shouldIntercept)
+            assertTrue(result.reason.contains("exempted"))
+        }
+    }
+
+    @Test
+    fun testTightSegmentSafetyTokensDoNotExemptSubstringPackages() = runTest {
+        val nonEmergencyPackages = listOf("com.phonepe.app", "com.sostravel.app")
+        for (pkg in nonEmergencyPackages) {
+            val result = useCase(
+                packageName = pkg,
+                isTimerRunning = true,
+                isTimerPaused = false,
+                intervalType = FocusIntervalType.DEEP_WORK
+            )
+            assertFalse(result.shouldIntercept)
+            assertFalse("Expected $pkg not to match emergency/telecom safety tokens", result.reason.contains("exempted"))
+        }
+    }
+
+    @Test
+    fun testDynamicDefaultDialerBypass() = runTest {
+        val result = useCase(
+            packageName = "com.oem.custom.dialer.app",
+            isTimerRunning = true,
+            isTimerPaused = false,
+            intervalType = FocusIntervalType.DEEP_WORK,
+            defaultDialerPackage = "com.oem.custom.dialer.app"
+        )
+
+        assertFalse("Expected dynamic default dialer to be exempted", result.shouldIntercept)
+        assertTrue(result.reason.contains("exempted"))
+    }
+
+    @Test
+    fun testActiveTelecomCallNeverIntercepted() = runTest {
+        // Even if the foreground package is a strictly blocked app like Instagram,
+        // an active phone call must unconditionally bypass interception
+        val result = useCase(
+            packageName = "com.instagram.android",
+            isTimerRunning = true,
+            isTimerPaused = false,
+            intervalType = FocusIntervalType.DEEP_WORK,
+            isCallActive = true
+        )
+
+        assertFalse("Expected interception suppressed when call is active", result.shouldIntercept)
+        assertTrue(result.reason.contains("emergency bypass engaged"))
+    }
+
+    @Test
+    fun testUserWhitelistedAppExemptedWithCorrectReason() = runTest {
+        val result = useCase(
+            packageName = "com.google.android.apps.authenticator2",
+            isTimerRunning = true,
+            isTimerPaused = false,
+            intervalType = FocusIntervalType.DEEP_WORK
+        )
+
+        assertFalse("Expected whitelisted authenticator not to be intercepted", result.shouldIntercept)
+        assertNotNull(result.matchedRule)
+        assertEquals("Package is explicitly whitelisted by user.", result.reason)
+    }
+
+    @Test
     fun testNonStrictRuleNotIntercepted() = runTest {
         val result = useCase(
             packageName = "com.reddit.frontpage",
@@ -192,13 +277,15 @@ class InterceptDistractionUseCaseTest {
 
         assertFalse("Expected non-strict rule not to trigger interception", result.shouldIntercept)
         assertNotNull(result.matchedRule)
-        assertFalse(result.matchedRule?.isStrictBlocked ?: true)
+        assertEquals("Package is explicitly whitelisted by user.", result.reason)
     }
 
     private class FakeInterventionRuleRepository(
         private val rules: List<InterventionRule>
     ) : InterventionRuleRepository {
-        override fun getBlockedAppRules(): Flow<List<InterventionRule>> = flowOf(rules)
+        override fun getAllRules(): Flow<List<InterventionRule>> = flowOf(rules)
+        override fun getWhitelistedRules(): Flow<List<InterventionRule>> = flowOf(rules.filter { !it.isStrictBlocked })
+        override fun getBlockedAppRules(): Flow<List<InterventionRule>> = flowOf(rules.filter { it.isStrictBlocked })
         override suspend fun getRuleForPackage(packageName: String): InterventionRule? =
             rules.find { it.packageName.equals(packageName, ignoreCase = true) }
         override suspend fun saveRule(rule: InterventionRule) {}

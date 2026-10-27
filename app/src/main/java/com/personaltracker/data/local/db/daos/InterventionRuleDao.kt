@@ -13,6 +13,12 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 internal interface InterventionRuleDao {
 
+    @Query("SELECT * FROM intervention_rules ORDER BY appDisplayName ASC")
+    fun getAllRules(): Flow<List<InterventionRuleEntity>>
+
+    @Query("SELECT * FROM intervention_rules WHERE isStrictBlocked = 0 ORDER BY appDisplayName ASC")
+    fun getWhitelistedRules(): Flow<List<InterventionRuleEntity>>
+
     @Query("SELECT * FROM intervention_rules WHERE isStrictBlocked = 1")
     fun getBlockedAppRules(): Flow<List<InterventionRuleEntity>>
 
