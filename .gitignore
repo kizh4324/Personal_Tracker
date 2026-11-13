@@ -43,6 +43,7 @@ __pycache__/
 .harness2/runs/
 
 # Third-Party MCP Servers & Local Tooling
+tools/artemis/
 cursor-talk-to-figma-mcp/
 .mcp.json
 .cursor/

@@ -224,6 +224,16 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Inverting `isStrictBlocked = !existing.isStrictBlocked` when a user deselects a whitelisted utility preset (such as Authenticator or Password Manager) flips `isStrictBlocked` to `true`, inadvertently converting essential security tools into blocked distraction apps.
 * **Rule:** When toggling an already whitelisted app (`!existingRule.isStrictBlocked`), toggling it off must delete the rule via `ruleRepository.deleteRule(packageName)` to restore the app to neutral unlisted state. Only apps explicitly created as blocked distraction targets should have `isStrictBlocked = true`.
 
+---
+
+## 18. Artemis Real-Device Autonomous Testing
+
+### EXP-037: Autonomous Real-Device E2E Verification via Artemis MCP (Gate 6)
+* **Context:** Testing UI transitions, theme token fidelity, and crash-free runtime stability on physical devices (`com.personaltracker`, Model `I2223`).
+* **Heuristic:** Unit tests and headless JVM simulations pass even when UI layouts clip on specific screen resolutions, system alert overlays fail to attach, or JNI libraries fail to link at runtime. Manual exploratory testing after every build is slow and prone to missed regression paths.
+* **Rule:** Enforce Gate 6 via the Artemis MCP toolchain (`mobile_get_device_state`, `mobile_run_task --profile flash`, `mobile_diagnose`) whenever a physical device (`adb devices`) or emulator is attached. Adhere strictly to the "Dynamic-First, Coordinate-Fallback" locating philosophy, verify 0 Logcat runtime crashes, and confirm Warm Organic Tactile visual rendering before marking stories complete.
+
+
 
 
 

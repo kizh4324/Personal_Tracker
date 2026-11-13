@@ -50,6 +50,13 @@ If a layer's instruction requires subagents and none are available, for each suc
      ```
    - **reject** — Drop silently.
 
+### Gate 6: Artemis Real-Device E2E Verification
+
+Whenever a physical Android device or active emulator is connected (db devices / mobile_get_device_state):
+1. **Build & Install Debug APK**: Run .\gradlew installDebug to deploy the latest artifacts to the target device.
+2. **Autonomous Exploration & Interaction**: Use mobile_get_device_state and mobile_run_task (with --profile flash for fast verification or pro for multi-branch verification) to autonomously exercise the newly built story's UI flow on com.personaltracker.
+3. **Diagnostics & Zero Crash Invariant**: Run mobile_diagnose / mobile_inspect_trace to confirm 0 runtime crashes or unhandled exceptions in Logcat, and visually verify Warm Organic Tactile UI token rendering.
+
 ## NEXT
 
 Read fully and follow `[[bmad-snapshot:step-05-present.md]]`

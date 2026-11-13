@@ -31,6 +31,7 @@ status: active
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
     *   Harness² Baseline Check: `python .agents/scripts/harness2_bridge.py --check` (`All 8 H0 components valid`)
+    *   Artemis Real-Device E2E Verification (Gate 6): Deploy with `.\gradlew installDebug`, then run autonomous exploration and diagnostics via Artemis MCP (`mobile_get_device_state`, `mobile_run_task --profile flash`, `mobile_diagnose`) on `com.personaltracker`.
     *   Assemble Debug APK: `.\gradlew assembleDebug`
 *   **Overall Status:**
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
@@ -124,8 +125,9 @@ flowchart TD
 ### Verification Gate Results
 *   **`python .agents/scripts/domain_purity_check.py`:** **PASSED** (0 `android.*` in domain, 0 raw hex in UI)
 *   **`python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .`:** **PASSED** (0 findings)
-*   **`.\gradlew test`:** **PASSED** (All 262 JVM unit tests passing)
+*   **`.\gradlew test`:** **PASSED** (All 398 JVM unit tests passing)
 *   **`.\gradlew lintDebug`:** **PASSED** (0 errors)
+*   **Gate 6 (Artemis E2E Real-Device Verification):** **CONFIGURED** (`tools/artemis`, `.agents/rules/artemis-mobile-testing.md`, `.agents/mcp_config.json`)
 *   **`adb install` & Launch:** **PASSED** (Verified on physical device `10BD9D24YF000BE`)
 *   **Graphify Knowledge Graph:** **CURRENT** (`graphify update .` completed)
 *   **Git Status:** **CLEAN** (Commit `ad241ac` on `origin/main`)

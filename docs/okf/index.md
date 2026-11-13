@@ -93,4 +93,8 @@ python .agents/scripts/harness_gate.py --test
 
 # 6. Google Research Harness² H0 Baseline & Component Validation
 python .agents/scripts/harness2_bridge.py --check
+
+# 7. Artemis Real-Device E2E Autonomous Verification (Gate 6)
+.\gradlew installDebug
+# Run mobile_get_device_state & mobile_run_task via Artemis MCP
 ```

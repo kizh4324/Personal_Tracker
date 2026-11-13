@@ -1,5 +1,24 @@
 {
   "mcpServers": {
+    "artemis": {
+      "command": "${workspaceFolder}/tools/artemis/.venv/Scripts/python.exe",
+      "args": [
+        "-m",
+        "mcp_server"
+      ],
+      "cwd": "${workspaceFolder}/tools/artemis",
+      "env": {
+        "PYTHONUNBUFFERED": "1",
+        "PYTHONPATH": "${workspaceFolder}/tools/artemis"
+      },
+      "eagerTools": [
+        "mobile_run_task",
+        "mobile_manage_task",
+        "mobile_get_device_state",
+        "mobile_inspect_trace",
+        "mobile_diagnose"
+      ]
+    },
     "stitch": {
       "command": "npx",
       "args": [
