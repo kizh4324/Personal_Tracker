@@ -8,10 +8,12 @@ import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.model.InterventionRule
 import com.personaltracker.domain.usecase.AddWhitelistedAppUseCase
+import com.personaltracker.domain.usecase.GetInterventionRulesUseCase
 import com.personaltracker.domain.usecase.GetWhitelistRulesUseCase
 import com.personaltracker.domain.usecase.RemoveWhitelistedAppUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ToggleAppWhitelistUseCase
+import com.personaltracker.domain.usecase.TogglePackageInterceptionRuleUseCase
 import com.personaltracker.platform.accessibility.DistractionInterceptionService
 import com.personaltracker.ui.screens.settings.SettingsUiEffect
 import com.personaltracker.ui.screens.settings.SettingsUiIntent
@@ -38,6 +40,8 @@ class SettingsViewModelTest {
     private lateinit var ruleRepository: TestInterventionRuleRepository
     private lateinit var adaptiveEngine: AdaptiveScheduleEngine
     private lateinit var resolveDayTypeUseCase: ResolveDayTypeUseCase
+    private lateinit var getInterventionRulesUseCase: GetInterventionRulesUseCase
+    private lateinit var togglePackageInterceptionRuleUseCase: TogglePackageInterceptionRuleUseCase
     private lateinit var getWhitelistRulesUseCase: GetWhitelistRulesUseCase
     private lateinit var toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase
     private lateinit var addWhitelistedAppUseCase: AddWhitelistedAppUseCase
@@ -65,8 +69,10 @@ class SettingsViewModelTest {
         )
         adaptiveEngine = AdaptiveScheduleEngine()
         resolveDayTypeUseCase = ResolveDayTypeUseCase(dayTypeRepository, adaptiveEngine)
+        getInterventionRulesUseCase = GetInterventionRulesUseCase(ruleRepository)
+        togglePackageInterceptionRuleUseCase = TogglePackageInterceptionRuleUseCase(ruleRepository)
         getWhitelistRulesUseCase = GetWhitelistRulesUseCase(ruleRepository)
-        toggleAppWhitelistUseCase = ToggleAppWhitelistUseCase(ruleRepository)
+        toggleAppWhitelistUseCase = ToggleAppWhitelistUseCase(ruleRepository, togglePackageInterceptionRuleUseCase)
         addWhitelistedAppUseCase = AddWhitelistedAppUseCase(ruleRepository)
         removeWhitelistedAppUseCase = RemoveWhitelistedAppUseCase(ruleRepository)
     }
@@ -75,10 +81,12 @@ class SettingsViewModelTest {
         return SettingsViewModel(
             dayTypeRepository = dayTypeRepository,
             resolveDayTypeUseCase = resolveDayTypeUseCase,
-            getWhitelistRulesUseCase = getWhitelistRulesUseCase,
-            toggleAppWhitelistUseCase = toggleAppWhitelistUseCase,
+            getInterventionRulesUseCase = getInterventionRulesUseCase,
+            togglePackageInterceptionRuleUseCase = togglePackageInterceptionRuleUseCase,
             addWhitelistedAppUseCase = addWhitelistedAppUseCase,
-            removeWhitelistedAppUseCase = removeWhitelistedAppUseCase
+            removeWhitelistedAppUseCase = removeWhitelistedAppUseCase,
+            getWhitelistRulesUseCase = getWhitelistRulesUseCase,
+            toggleAppWhitelistUseCase = toggleAppWhitelistUseCase
         )
     }
 
@@ -100,7 +108,10 @@ class SettingsViewModelTest {
             assertFalse(state.isOverlayGranted)
             assertEquals(1, state.whitelistedRules.size)
             assertEquals("com.google.android.apps.authenticator2", state.whitelistedRules.first().packageName)
+            assertEquals(1, state.blockedRules.size)
+            assertEquals("com.instagram.android", state.blockedRules.first().packageName)
             assertEquals(2, state.allInterventionRules.size)
+            assertEquals("", state.searchQuery)
             assertEquals(FocusTimerPolicy.AUTO_PAUSE, state.focusTimerPolicy)
             assertFalse(state.isWhitelistSheetOpen)
         }
@@ -236,6 +247,59 @@ class SettingsViewModelTest {
             val rule = ruleRepository.getRuleForPackage("com.instagram.android")
             assertNotNull(rule)
             assertFalse(rule!!.isStrictBlocked)
+        }
+    }
+
+    @Test
+    fun testTogglePackageInterceptionRuleUpdatesExemption() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            // Instagram was isStrictBlocked = true; toggling should make it false (whitelisted)
+            viewModel.onIntent(SettingsUiIntent.TogglePackageInterceptionRule("com.instagram.android"))
+
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.ShowSnackbar)
+            assertTrue((effect as SettingsUiEffect.ShowSnackbar).message.contains("whitelist status updated"))
+
+            val rule = ruleRepository.getRuleForPackage("com.instagram.android")
+            assertNotNull(rule)
+            assertFalse(rule!!.isStrictBlocked)
+        }
+    }
+
+    @Test
+    fun testSearchWhitelistRulesFiltersRulesInUiState() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiState.test {
+            val initial = awaitItem()
+            assertEquals(1, initial.whitelistedRules.size)
+            assertEquals(1, initial.blockedRules.size)
+            assertEquals("", initial.searchQuery)
+
+            // Search for "auth" -> should match Authenticator (whitelisted) only
+            viewModel.onIntent(SettingsUiIntent.SearchWhitelistRules("auth"))
+            val filtered = awaitItem()
+            assertEquals("auth", filtered.searchQuery)
+            assertEquals(1, filtered.whitelistedRules.size)
+            assertEquals(0, filtered.blockedRules.size)
+            assertEquals("Authenticator", filtered.whitelistedRules.first().appDisplayName)
+
+            // Search for "insta" -> should match Instagram (blocked) only
+            viewModel.onIntent(SettingsUiIntent.SearchWhitelistRules("insta"))
+            val filteredBlocked = awaitItem()
+            assertEquals("insta", filteredBlocked.searchQuery)
+            assertEquals(0, filteredBlocked.whitelistedRules.size)
+            assertEquals(1, filteredBlocked.blockedRules.size)
+            assertEquals("Instagram", filteredBlocked.blockedRules.first().appDisplayName)
+
+            // Clear search query -> restores full list
+            viewModel.onIntent(SettingsUiIntent.SearchWhitelistRules(""))
+            val restored = awaitItem()
+            assertEquals("", restored.searchQuery)
+            assertEquals(1, restored.whitelistedRules.size)
+            assertEquals(1, restored.blockedRules.size)
         }
     }
 

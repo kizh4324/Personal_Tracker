@@ -126,81 +126,11 @@ fun SettingsScreenContent(
         )
     }
 
-    // Custom exemption dialog
-    if (state.isWhitelistSheetOpen) {
-        var customPackageName by remember { mutableStateOf("") }
-        var customDisplayName by remember { mutableStateOf("") }
-
-        AlertDialog(
-            onDismissRequest = { onIntent(SettingsUiIntent.ToggleWhitelistSheet(false)) },
-            shape = shapes.lg,
-            containerColor = colors.surfaceRaised,
-            title = {
-                Text(
-                    text = "Add Whitelist Exemption",
-                    style = typography.headline,
-                    color = colors.inkPrimary
-                )
-            },
-            text = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2)
-                ) {
-                    Text(
-                        text = "Whitelisted apps can be opened during focus sessions without triggering an intervention.",
-                        style = typography.caption,
-                        color = colors.inkSecondary
-                    )
-                    OutlinedTextField(
-                        value = customPackageName,
-                        onValueChange = { customPackageName = it },
-                        label = { Text("Package Name (e.g. com.example.app)", style = typography.caption) },
-                        singleLine = true,
-                        shape = shapes.sm,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = customDisplayName,
-                        onValueChange = { customDisplayName = it },
-                        label = { Text("Display Name (optional)", style = typography.caption) },
-                        singleLine = true,
-                        shape = shapes.sm,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onIntent(
-                            SettingsUiIntent.AddCustomWhitelistPackage(
-                                packageName = customPackageName,
-                                appDisplayName = customDisplayName
-                            )
-                        )
-                    },
-                    shape = shapes.md,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = colors.primary,
-                        contentColor = colors.surfaceBase
-                    ),
-                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
-                ) {
-                    Text("Add Exemption", style = typography.label)
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { onIntent(SettingsUiIntent.ToggleWhitelistSheet(false)) },
-                    shape = shapes.md,
-                    modifier = Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)
-                ) {
-                    Text("Cancel", style = typography.label)
-                }
-            }
-        )
-    }
+    // Dedicated Stateless Whitelist Manager Sheet (Story 3.3, AD-7)
+    WhitelistManagerSheet(
+        state = state,
+        onIntent = onIntent
+    )
 
     Column(
         modifier = modifier
@@ -583,7 +513,7 @@ fun SettingsScreenContent(
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = spacing.minTouchTarget)
                 ) {
-                    Text(text = "Add Custom App Exemption", style = typography.label)
+                    Text(text = "Manage Whitelist & App Rules", style = typography.label)
                 }
             }
         }

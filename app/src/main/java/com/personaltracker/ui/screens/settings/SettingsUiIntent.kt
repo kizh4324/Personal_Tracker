@@ -15,6 +15,8 @@ sealed interface SettingsUiIntent {
     object Refresh : SettingsUiIntent
 
     // Whitelist and Call Policy Intents (Story 3.3)
+    data class SearchWhitelistRules(val query: String) : SettingsUiIntent
+    data class TogglePackageInterceptionRule(val packageName: String, val appDisplayName: String? = null) : SettingsUiIntent
     data class ToggleAppWhitelist(val packageName: String, val appDisplayName: String? = null) : SettingsUiIntent
     data class AddCustomWhitelistPackage(val packageName: String, val appDisplayName: String) : SettingsUiIntent
     data class RemoveWhitelistPackage(val packageName: String) : SettingsUiIntent

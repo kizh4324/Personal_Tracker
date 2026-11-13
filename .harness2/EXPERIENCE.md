@@ -233,6 +233,12 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Unit tests and headless JVM simulations pass even when UI layouts clip on specific screen resolutions, system alert overlays fail to attach, or JNI libraries fail to link at runtime. Manual exploratory testing after every build is slow and prone to missed regression paths.
 * **Rule:** Enforce Gate 6 via the Artemis MCP toolchain (`mobile_get_device_state`, `mobile_run_task --profile flash`, `mobile_diagnose`) whenever a physical device (`adb devices`) or emulator is attached. Adhere strictly to the "Dynamic-First, Coordinate-Fallback" locating philosophy, verify 0 Logcat runtime crashes, and confirm Warm Organic Tactile visual rendering before marking stories complete.
 
+### EXP-038: Soft Keyboard & Input Method Immunity in Accessibility Interception (AD-1, FR-4.6, FR-10.1)
+* **Context:** Preventing accessibility services from triggering distraction interception or obstructing text entry during IME (keyboard) transitions (`InterceptDistractionUseCase.kt`, `DistractionInterceptionService.kt`).
+* **Heuristic:** Virtual keyboards (such as Gboard, Samsung Keyboard, SwiftKey) transition between window states during text input. If soft keyboard package transitions (`com.google.android.inputmethod.latin`, `com.touchtype.swiftkey`, `com.samsung.android.honeyboard`) are evaluated as potential distractions or treated as target foreground apps, text input during legitimate note-taking, quick-capture, or whitelisted apps gets obstructed or causes spurious overlay re-evaluations.
+* **Rule:** Unconditionally exempt all input method editors and soft keyboard packages via explicit package matching and segment filtering (`.inputmethod.`, `.keyboard.`, `swiftkey`, `honeyboard`, `ime`) in `InterceptDistractionUseCase`. Treat IME window transitions as non-distracting interactions that neither trigger an intervention card nor dismiss active overlays.
+
+
 
 
 

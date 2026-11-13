@@ -191,6 +191,7 @@ class InterceptDistractionUseCaseTest {
         val emergencyPackages = listOf(
             "com.android.emergency",
             "com.google.android.dialer",
+            "com.android.dialer",
             "com.samsung.android.emergency",
             "com.carrier.emergency.sos"
         )
@@ -203,6 +204,50 @@ class InterceptDistractionUseCaseTest {
                 intervalType = FocusIntervalType.DEEP_WORK
             )
             assertFalse("Expected emergency package $pkg never to be intercepted", result.shouldIntercept)
+            assertTrue(result.reason.contains("exempted"))
+        }
+    }
+
+    @Test
+    fun testInCallUiAndTelecomNeverIntercepted() = runTest {
+        val telecomPackages = listOf(
+            "com.android.incallui",
+            "com.samsung.android.incallui",
+            "com.android.server.telecom",
+            "com.android.phone"
+        )
+
+        for (pkg in telecomPackages) {
+            val result = useCase(
+                packageName = pkg,
+                isTimerRunning = true,
+                isTimerPaused = false,
+                intervalType = FocusIntervalType.DEEP_WORK
+            )
+            assertFalse("Expected telecom package $pkg never to be intercepted", result.shouldIntercept)
+            assertTrue(result.reason.contains("exempted"))
+        }
+    }
+
+    @Test
+    fun testSoftKeyboardsAndImesNeverIntercepted() = runTest {
+        val imePackages = listOf(
+            "com.google.android.inputmethod.latin",
+            "com.touchtype.swiftkey",
+            "com.samsung.android.honeyboard",
+            "com.custom.inputmethod",
+            "com.vendor.ime",
+            "com.test.keyboard"
+        )
+
+        for (pkg in imePackages) {
+            val result = useCase(
+                packageName = pkg,
+                isTimerRunning = true,
+                isTimerPaused = false,
+                intervalType = FocusIntervalType.DEEP_WORK
+            )
+            assertFalse("Expected keyboard/IME package $pkg never to be intercepted", result.shouldIntercept)
             assertTrue(result.reason.contains("exempted"))
         }
     }

@@ -29,7 +29,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 # - Retrospective appends its action items to action_items; the status view surfaces open ones
 generated: 08-15-2026 22:07
-last_updated: 10-27-2026 11:12
+last_updated: 11-13-2026 16:45
 project: Personal-Tracker
 project_key: NOKEY
 tracking_system: file-system

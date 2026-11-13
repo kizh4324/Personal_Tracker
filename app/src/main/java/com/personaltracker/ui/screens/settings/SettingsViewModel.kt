@@ -11,10 +11,12 @@ import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.repository.DayTypeRepository
 import com.personaltracker.domain.usecase.AddWhitelistedAppUseCase
+import com.personaltracker.domain.usecase.GetInterventionRulesUseCase
 import com.personaltracker.domain.usecase.GetWhitelistRulesUseCase
 import com.personaltracker.domain.usecase.RemoveWhitelistedAppUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ToggleAppWhitelistUseCase
+import com.personaltracker.domain.usecase.TogglePackageInterceptionRuleUseCase
 import com.personaltracker.platform.accessibility.DistractionInterceptionService
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,15 +44,18 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val dayTypeRepository: DayTypeRepository,
     private val resolveDayTypeUseCase: ResolveDayTypeUseCase,
-    private val getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
-    private val toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
+    private val getInterventionRulesUseCase: GetInterventionRulesUseCase,
+    private val togglePackageInterceptionRuleUseCase: TogglePackageInterceptionRuleUseCase,
     private val addWhitelistedAppUseCase: AddWhitelistedAppUseCase,
     private val removeWhitelistedAppUseCase: RemoveWhitelistedAppUseCase,
+    private val getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
+    private val toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
     @ApplicationContext private val context: Context? = null
 ) : ViewModel() {
 
     internal var permissionChecker: (() -> Pair<Boolean, Boolean>)? = null
 
+    private val _searchQuery = MutableStateFlow("")
     private val _focusTimerPolicy = MutableStateFlow(DistractionInterceptionService.activeFocusTimerPolicy)
     private val _isWhitelistSheetOpen = MutableStateFlow(false)
 
@@ -77,19 +82,14 @@ class SettingsViewModel @Inject constructor(
             Pair(dayTypes, override)
         }
 
-        val rulesFlow = combine(
-            getWhitelistRulesUseCase(onlyWhitelisted = true),
-            getWhitelistRulesUseCase(onlyWhitelisted = false)
-        ) { whitelisted, allRules ->
-            Pair(whitelisted, allRules)
-        }
+        val rulesFlow = getInterventionRulesUseCase(_searchQuery)
 
         observeDataJob = combine(
             dayDataFlow,
             rulesFlow,
             _focusTimerPolicy,
             _isWhitelistSheetOpen
-        ) { (dayTypes, override), (whitelisted, allRules), timerPolicy, isSheetOpen ->
+        ) { (dayTypes, override), categorizedRules, timerPolicy, isSheetOpen ->
             val resolvedActive = resolveDayTypeUseCase.resolve(today, override, dayTypes)
             val (accessibility, overlay) = checkPermissionsStatus()
 
@@ -97,8 +97,10 @@ class SettingsViewModel @Inject constructor(
                 allDayTypes = dayTypes,
                 activeDayType = resolvedActive,
                 dateOverride = override,
-                whitelistedRules = whitelisted,
-                allInterventionRules = allRules,
+                whitelistedRules = categorizedRules.whitelistedRules,
+                blockedRules = categorizedRules.blockedRules,
+                allInterventionRules = categorizedRules.allRules,
+                searchQuery = categorizedRules.searchQuery,
                 focusTimerPolicy = timerPolicy,
                 isWhitelistSheetOpen = isSheetOpen,
                 isAccessibilityGranted = accessibility,
@@ -124,7 +126,9 @@ class SettingsViewModel @Inject constructor(
                 observeSettingsData()
                 checkPermissions()
             }
-            is SettingsUiIntent.ToggleAppWhitelist -> handleToggleAppWhitelist(intent.packageName, intent.appDisplayName)
+            is SettingsUiIntent.SearchWhitelistRules -> handleSearchRules(intent.query)
+            is SettingsUiIntent.TogglePackageInterceptionRule -> handleTogglePackageRule(intent.packageName, intent.appDisplayName)
+            is SettingsUiIntent.ToggleAppWhitelist -> handleTogglePackageRule(intent.packageName, intent.appDisplayName)
             is SettingsUiIntent.AddCustomWhitelistPackage -> handleAddCustomWhitelistPackage(intent.packageName, intent.appDisplayName)
             is SettingsUiIntent.RemoveWhitelistPackage -> handleRemoveWhitelistPackage(intent.packageName)
             is SettingsUiIntent.SetFocusTimerPolicy -> handleSetFocusTimerPolicy(intent.policy)
@@ -227,10 +231,14 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    private fun handleToggleAppWhitelist(packageName: String, appDisplayName: String?) {
+    private fun handleSearchRules(query: String) {
+        _searchQuery.value = query
+    }
+
+    private fun handleTogglePackageRule(packageName: String, appDisplayName: String?) {
         viewModelScope.launch {
             runCatching {
-                toggleAppWhitelistUseCase(packageName, appDisplayName)
+                togglePackageInterceptionRuleUseCase(packageName, appDisplayName)
                 _uiEffect.send(SettingsUiEffect.ShowSnackbar("App whitelist status updated"))
             }.onFailure {
                 _uiEffect.send(SettingsUiEffect.ShowSnackbar("Could not update app whitelist"))

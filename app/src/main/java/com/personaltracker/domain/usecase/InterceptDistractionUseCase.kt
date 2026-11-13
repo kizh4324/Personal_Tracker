@@ -31,6 +31,7 @@ class InterceptDistractionUseCase @Inject constructor(
             "com.android.emergency",
             "com.google.android.dialer",
             "com.android.dialer",
+            "com.android.incallui",
             "com.android.server.telecom",
             "com.google.android.packageinstaller",
             "com.android.packageinstaller",
@@ -40,7 +41,9 @@ class InterceptDistractionUseCase @Inject constructor(
             "com.google.android.apps.safetyhub",
             "com.samsung.android.emergency",
             "com.samsung.android.dialer",
-            "com.samsung.android.incallui"
+            "com.samsung.android.incallui",
+            "com.touchtype.swiftkey",
+            "com.samsung.android.honeyboard"
         )
     }
 
@@ -151,10 +154,21 @@ class InterceptDistractionUseCase @Inject constructor(
         if (SYSTEM_EXCLUDED_PACKAGES.contains(lower)) return true
         if (lower.startsWith("com.android.systemui") || lower.startsWith("com.android.emergency")) return true
 
+        // Soft keyboards / Input Method Editors (IMEs)
+        if (lower.contains(".inputmethod.") || lower.endsWith(".inputmethod") ||
+            lower.contains(".keyboard.") || lower.endsWith(".keyboard")
+        ) {
+            return true
+        }
+
         // Strict segment checking prevents false matches on apps like com.phonepe.app or com.sostravel.app
         val segments = lower.split('.')
         if (segments.any { seg ->
-            seg == "dialer" || seg == "emergency" || seg == "telecom" || seg == "incall" || seg == "telephony" || seg == "sos" || seg == "phone"
+            seg == "dialer" || seg == "emergency" || seg == "telecom" ||
+                seg == "incall" || seg == "incallui" || seg == "telephony" ||
+                seg == "sos" || seg == "phone" || seg == "ime" ||
+                seg == "inputmethod" || seg == "swiftkey" || seg == "honeyboard" ||
+                seg == "keyboard"
         }) {
             return true
         }

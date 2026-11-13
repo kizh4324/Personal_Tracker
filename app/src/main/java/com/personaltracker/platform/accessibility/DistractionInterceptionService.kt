@@ -185,6 +185,7 @@ class DistractionInterceptionService : AccessibilityService() {
             "com.android.emergency",
             "com.google.android.dialer",
             "com.android.dialer",
+            "com.android.incallui",
             "com.android.server.telecom",
             "com.android.phone",
             "com.samsung.android.emergency",
@@ -195,7 +196,7 @@ class DistractionInterceptionService : AccessibilityService() {
 
         val segments = lower.split('.')
         return segments.any { seg ->
-            seg == "dialer" || seg == "emergency" || seg == "telecom" || seg == "incall" || seg == "telephony" || seg == "sos" || seg == "phone"
+            seg == "dialer" || seg == "emergency" || seg == "telecom" || seg == "incall" || seg == "incallui" || seg == "telephony" || seg == "sos" || seg == "phone"
         }
     }
 
