@@ -353,7 +353,7 @@ class ComponentStateTest {
     }
 
     @Test
-    fun `RewardMotionStageState completes previous event when preempted by new coin dispatch`() {
+    fun `RewardMotionStageState preserves active events concurrently without preemption on new coin dispatch`() {
         val controller = RewardMotionStageState()
         var firstEventCompleted = false
         var secondEventCompleted = false
@@ -371,11 +371,19 @@ class ComponentStateTest {
             coinCount = 10,
             onComplete = { secondEventCompleted = true }
         )
-        // First event was completed on preemption
-        assertTrue(firstEventCompleted)
+        // Story 4.3: Concurrent bursts supported without mid-air cancellation
+        assertFalse(firstEventCompleted)
         assertFalse(secondEventCompleted)
+        assertEquals(2, controller.state.activeCoinEvents.size)
         assertEquals(10, controller.state.activeCoinEvent?.coinCount)
 
+        // Complete first burst
+        controller.onCoinArcCompleted()
+        assertTrue(firstEventCompleted)
+        assertFalse(secondEventCompleted)
+        assertEquals(1, controller.state.activeCoinEvents.size)
+
+        // Complete second burst
         controller.onCoinArcCompleted()
         assertTrue(secondEventCompleted)
         assertNull(controller.state.activeCoinEvent)

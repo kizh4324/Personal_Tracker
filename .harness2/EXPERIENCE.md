@@ -281,6 +281,26 @@ Authoritative repository of verified engineering heuristics, operational invaria
   4. **Single-Transaction Atomicity (AD-3, AD-6):** Use cases (`CompleteTaskUseCase`, `LogHabitUseCase`) compute the capped coin award first, then pass it into atomic repository methods (`completeTaskWithReward`, `logHabitWithReward`) inside Room `@Transaction` blocks on `Dispatchers.IO`.
   5. **Non-Negative Clawback Floor & Non-Punitive Copy (AD-4):** 5-second quick-capture undo reversals (`CAPTURE_REVERSAL`) clamp deductions to `minOf(amount, currentBalance)`, guaranteeing `balanceAfter >= 0`. When earn caps are saturated, emit affirmative celebratory copy ("Daily coin goal reached! Awesome work today.") without blocking task/habit completion.
 
+---
+
+## 23. VSYNC-Aligned Bézier Trajectories & Persistent Coin HUD
+
+### EXP-046: Zero-Allocation Bézier Particles, HUD Arrival Coordination & RenderThread Badge Transforms (AD-1, AD-7, Story 4.3)
+* **Context:** High-performance particle animation along quadratic Bézier curves, top-bar HUD balance roll-up, 1.18x spring scale bursts, and floating badges in `BezierMath.kt`, `CoinArcAnimation.kt`, `RewardMotionStage.kt`, and `CoinPill.kt`.
+* **Heuristic:**
+  1. Multiple independent `Animatable` coroutines or allocations (`Offset`, `Color`, lists) inside `Canvas(fillMaxSize) { ... }` cause GC thrashing and frame drops at 60Hz and 120Hz.
+  2. Dynamic apex calculation $\min(P_0.y, P_2.y) - \text{arcHeight}$ yields negative Y coordinates when targets are near the top of the window, driving coins off-screen into status bars and camera notches.
+  3. Room commits coin transactions immediately at $t = 0\text{ms}$, causing `CoinPill` to roll up balance 600ms–1080ms before coins arrive at the HUD if observing the database balance directly.
+  4. Reading animated progress values in composition-phase modifiers (`Modifier.offset`, `Modifier.alpha`) forces the entire HUD and its text/icon child trees to recompose 60–120 times per second during spring bursts.
+  5. Single-slot state machines in hoisted overlay layers cancel and obliterate in-flight particles when a user rapidly completes multiple items.
+* **Rule:**
+  1. **Monotonic Single-Loop Clock & Zero Allocation:** Drive multi-coin staggered progression ($T = D + (N - 1) \times S$) via a single monotonic frame clock loop (`withFrameNanos`), precomputing control points in outer scope and pre-caching colors/radii as primitive floats before `onDraw`.
+  2. **Safe Viewport Headroom Clamping:** Dynamic curve apex control points must clamp $\text{peakY} = \max(\text{minHeadroomPx}, \text{rawPeakY})$ using `PersonalTrackerTheme.spacing.minTouchTarget`, guaranteeing trajectories remain strictly inside the visible viewport.
+  3. **Arrival Coordination Protocol:** `RewardMotionStageState` must coordinate coin arrival via `onCoinArrival: (count: Int) -> Unit`. `CoinPill` holds its displayed balance until coins land at the target `Offset`, smoothly rolling up with Framer spring physics (`shopPurchaseBurstSpringSpec`) on impact.
+  4. **RenderThread Transforms:** Animate floating `"+X"` badge pills strictly via `Modifier.graphicsLayer { translationY = -spacing.spacing4.toPx() * progress; alpha = 1f - progress }` to bypass composition and execute exclusively on the RenderThread.
+  5. **Concurrent Multi-Burst State:** `RewardMotionStageState` must store `activeCoinEvents: List<CoinRewardEvent>`, rendering concurrent bursts independently without mid-air particle cancellation.
+  6. **Accessibility & Cold-Start Guards:** Check `Settings.Global.ANIMATOR_DURATION_SCALE == 0f` (or reduced-motion) to bypass flight arcs and roll up immediately. Guard initial mount with `isInitialLoad` to suppress spurious `+X` badges and bursts on app launch.
+
 
 
 

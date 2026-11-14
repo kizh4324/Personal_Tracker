@@ -129,6 +129,17 @@ fun AppShellScaffold(
 
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Story 4.3: Wire RewardMotionStage arrival events to CoinPill HUD
+    var coinArrivalEvent by remember { mutableStateOf<com.personaltracker.ui.components.atoms.CoinArrivalEvent?>(null) }
+    androidx.compose.runtime.DisposableEffect(rewardMotionStageState) {
+        rewardMotionStageState.onCoinArrival = { count ->
+            coinArrivalEvent = com.personaltracker.ui.components.atoms.CoinArrivalEvent(count = count)
+        }
+        onDispose {
+            rewardMotionStageState.onCoinArrival = null
+        }
+    }
+
     if (quickCaptureViewModel != null) {
         LaunchedEffect(quickCaptureViewModel) {
             quickCaptureViewModel.uiEffect.collect { effect ->
@@ -169,7 +180,8 @@ fun AppShellScaffold(
                         onDayTypeClick = onDayTypeClick,
                         streakCount = streakCount,
                         coinBalance = coinBalance,
-                        onCoinTargetMeasured = { rewardMotionStageState.updateDestinationTarget(it) }
+                        onCoinTargetMeasured = { rewardMotionStageState.updateDestinationTarget(it) },
+                        coinArrivalEvent = coinArrivalEvent
                     )
                 },
                 bottomBar = {
@@ -230,7 +242,7 @@ fun AppShellScaffold(
             // Viewport-hoisted RewardMotionStage (above navigation host to prevent clipping)
             RewardMotionStage(
                 state = rewardMotionStageState.state,
-                onCoinArcComplete = { rewardMotionStageState.onCoinArcCompleted() },
+                onCoinArcComplete = { eventId -> rewardMotionStageState.onCoinArcCompleted(eventId) },
                 onLottieComplete = { rewardMotionStageState.onLottieCompleted() },
                 modifier = Modifier.fillMaxSize()
             )
@@ -331,6 +343,7 @@ fun TopContextBar(
     coinBalance: Int,
     onCoinTargetMeasured: (androidx.compose.ui.geometry.Offset) -> Unit,
     modifier: Modifier = Modifier,
+    coinArrivalEvent: com.personaltracker.ui.components.atoms.CoinArrivalEvent? = null,
     onDayTypeClick: (() -> Unit)? = null
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -370,6 +383,7 @@ fun TopContextBar(
 
                 CoinPill(
                     balance = coinBalance,
+                    arrivalEvent = coinArrivalEvent,
                     onPositionMeasured = onCoinTargetMeasured
                 )
             }

@@ -35,6 +35,10 @@ object AnimationTokens {
     const val DurationReward = 800
     const val DurationRewardLong = 1000
 
+    // ─── Coin Arc Motion Tokens (Story 4.3) ───
+    const val coinFlightDurationMs = 600L
+    const val coinStaggerDelayMs = 80L
+
     // ─── Easings ───
     val StandardEasing = FastOutSlowInEasing
     val OvershootSpringEasing = CubicBezierEasing(0.34f, 1.56f, 0.64f, 1f)

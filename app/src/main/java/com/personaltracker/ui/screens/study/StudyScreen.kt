@@ -30,6 +30,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +40,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +63,7 @@ fun StudyRoute(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val rewardMotionStage = LocalRewardMotionStage.current
+    var dialCenterOffset by remember { mutableStateOf(Offset.Zero) }
 
     LaunchedEffect(viewModel) {
         viewModel.uiEffect.collect { effect ->
@@ -66,7 +72,10 @@ fun StudyRoute(
                     rewardMotionStage.dispatchLottieReward(effect.type)
                 }
                 is StudyUiEffect.ShowSessionCompleteCelebration -> {
-                    // Handled with milestone celebration
+                    rewardMotionStage.dispatchCoinReward(
+                        startOffset = dialCenterOffset,
+                        coinCount = effect.coinsEarned
+                    )
                 }
                 is StudyUiEffect.ShowSnackbar -> {
                     // Handled via toast or snackbar
@@ -78,6 +87,7 @@ fun StudyRoute(
     StudyScreenContent(
         state = state,
         onIntent = viewModel::onIntent,
+        onDialPositionMeasured = { dialCenterOffset = it },
         modifier = modifier
     )
 }
@@ -92,7 +102,8 @@ fun StudyRoute(
 fun StudyScreenContent(
     state: StudyUiState,
     onIntent: (StudyUiIntent) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onDialPositionMeasured: (Offset) -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
@@ -271,7 +282,18 @@ fun StudyScreenContent(
             ) {
                 // Focus Timer Ring with Canvas Progress Arc
                 Box(
-                    modifier = Modifier.size(dialSize),
+                    modifier = Modifier
+                        .size(dialSize)
+                        .onGloballyPositioned { coordinates ->
+                            if (coordinates.isAttached) {
+                                val windowPosition = coordinates.positionInWindow()
+                                val center = Offset(
+                                    x = windowPosition.x + coordinates.size.width / 2f,
+                                    y = windowPosition.y + coordinates.size.height / 2f
+                                )
+                                onDialPositionMeasured(center)
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     val trackColor = colors.surfaceSunken

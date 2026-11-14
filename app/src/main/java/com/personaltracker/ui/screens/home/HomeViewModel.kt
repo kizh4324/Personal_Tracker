@@ -623,7 +623,8 @@ class HomeViewModel @Inject constructor(
                 if (result.coinReward > 0) {
                     _uiEffect.send(HomeUiEffect.ShowCoinReward(intent.startOffset, result.coinReward))
                     _uiEffect.send(HomeUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
-                } else if (result.isCapReached) {
+                }
+                if (result.isCapReached) {
                     _uiEffect.send(HomeUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
             }.onFailure {
@@ -640,7 +641,8 @@ class HomeViewModel @Inject constructor(
                 if (result.coinsEarned > 0) {
                     _uiEffect.send(HomeUiEffect.ShowCoinReward(intent.startOffset, result.coinsEarned))
                     _uiEffect.send(HomeUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
-                } else if (result.isCapReached) {
+                }
+                if (result.isCapReached) {
                     _uiEffect.send(HomeUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
             }.onFailure {

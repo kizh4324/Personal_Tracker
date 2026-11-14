@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-14 14:18:00 +05:30
-*   **Current Git Commit:** Story 4.2 Complete — Idempotent Gamification Coin Ledger & Daily Earn Caps
+*   **Date/Time:** 2026-11-14 15:15:00 +05:30
+*   **Current Git Commit:** Story 4.3 Complete — VSYNC-Aligned Bézier Coin Earn Animation & Coin HUD
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -39,10 +39,11 @@ status: active
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
     *   **Epic 3 (Focus Mode, Distraction Interception & Resumption Engine):** 100% Complete (`done`).
-    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Stories 4.1 & 4.2 Complete).
+    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Stories 4.1, 4.2 & 4.3 Complete).
         *   **Story 4.1 (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`):** 100% Complete (`done`).
         *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** 100% Complete (`done`).
-        *   **Story 4.3 (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`):** Ready for Dev (`backlog` / next up).
+        *   **Story 4.3 (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`):** 100% Complete (`done`).
+        *   **Story 4.4 (`4-4-non-punishing-companion-widget-7-state-rive-machine`):** Ready for Dev (`backlog` / next up).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 

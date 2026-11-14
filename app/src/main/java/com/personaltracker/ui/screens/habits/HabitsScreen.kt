@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -85,7 +86,7 @@ fun HabitsScreenContent(
     val spacing = PersonalTrackerTheme.spacing
     val shapes = PersonalTrackerTheme.shapes
 
-    var habitOffset by remember { mutableStateOf(Offset.Zero) }
+    val habitOffsets = remember { mutableStateMapOf<String, Offset>() }
 
     Column(
         modifier = modifier
@@ -136,19 +137,24 @@ fun HabitsScreenContent(
                     isFreezeActive = false,
                     isCompleted = false,
                     onToggleCompletion = {
-                        onIntent(HabitsUiIntent.ToggleHabit("demo_habit", habitOffset))
+                        val offset = habitOffsets["demo_habit"] ?: Offset.Zero
+                        onIntent(HabitsUiIntent.ToggleHabit("demo_habit", offset))
                     },
                     onClick = {
-                        onIntent(HabitsUiIntent.ToggleHabit("demo_habit", habitOffset))
+                        val offset = habitOffsets["demo_habit"] ?: Offset.Zero
+                        onIntent(HabitsUiIntent.ToggleHabit("demo_habit", offset))
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .onGloballyPositioned { coordinates ->
-                            habitOffset = coordinates.positionInWindow()
+                            if (coordinates.isAttached) {
+                                habitOffsets["demo_habit"] = coordinates.positionInWindow()
+                            }
                         }
                 )
             } else {
                 state.habits.forEach { habitState ->
+                    val habitId = habitState.habit.id
                     HabitStreakCard(
                         name = habitState.habit.name,
                         currentStreak = habitState.habit.currentStreak,
@@ -157,16 +163,20 @@ fun HabitsScreenContent(
                         isCompleted = habitState.isCompletedToday,
                         flameState = habitState.flameState,
                         onToggleCompletion = {
-                            onIntent(HabitsUiIntent.ToggleHabit(habitState.habit.id, habitOffset))
+                            val offset = habitOffsets[habitId] ?: Offset.Zero
+                            onIntent(HabitsUiIntent.ToggleHabit(habitId, offset))
                         },
                         onClick = {
-                            onIntent(HabitsUiIntent.ToggleHabit(habitState.habit.id, habitOffset))
+                            val offset = habitOffsets[habitId] ?: Offset.Zero
+                            onIntent(HabitsUiIntent.ToggleHabit(habitId, offset))
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = spacing.spacing2)
                             .onGloballyPositioned { coordinates ->
-                                habitOffset = coordinates.positionInWindow()
+                                if (coordinates.isAttached) {
+                                    habitOffsets[habitId] = coordinates.positionInWindow()
+                                }
                             }
                     )
                 }
