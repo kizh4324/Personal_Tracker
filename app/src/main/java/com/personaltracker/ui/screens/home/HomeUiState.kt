@@ -1,5 +1,6 @@
 package com.personaltracker.ui.screens.home
 
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.FlameState
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
@@ -27,6 +28,8 @@ data class HomeUiState(
     val streakCount: Int = 0,
     val flameState: FlameState = FlameState.COLD,
     val coinBalance: Int = 0,
+    val companionMood: CompanionState = CompanionState.IDLE_COZY,
+    val activeAccessoryId: String? = null,
     val heroCardState: HeroCardState = HeroCardState.IntentionalIdle(),
     val focusTasks: List<Task> = emptyList(),
     val overdueTasks: List<Task> = emptyList(),

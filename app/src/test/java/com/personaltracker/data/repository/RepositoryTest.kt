@@ -284,13 +284,10 @@ class RepositoryTest {
         assertNotNull(purchased)
         assertTrue(purchased?.isUnlocked == true)
 
-        // Purchasing again must fail: item already unlocked
-        try {
-            repo.purchaseShopItem("hat_wizard", "SHOP_BUY_hat_wizard_1002")
-            fail("Already unlocked item purchase must fail")
-        } catch (e: IllegalStateException) {
-            assertTrue(e.message?.contains("already unlocked") == true)
-        }
+        // Purchasing again is idempotent: does not fail, does not deduct extra coins, auto-equips
+        repo.purchaseShopItem("hat_wizard", "SHOP_BUY_hat_wizard_1002")
+        assertEquals(20, repo.getLatestBalance())
+        assertEquals("hat_wizard", fakeCompanionDao.getProfile()?.activeAccessoryId)
 
         // Insufficient funds test
         val expensiveItem = ShopItem(
@@ -479,7 +476,9 @@ class RepositoryTest {
 
         // 1. Companion profile lifecycle
         ecoRepo.observeCompanionProfile().test {
-            assertNull(awaitItem())
+            val initial = awaitItem()
+            assertNotNull(initial)
+            assertEquals("Sproutling", initial?.speciesName)
 
             val profile = com.personaltracker.domain.model.CompanionProfile(
                 id = 1,

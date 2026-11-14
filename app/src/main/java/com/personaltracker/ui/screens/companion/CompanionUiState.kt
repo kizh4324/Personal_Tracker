@@ -1,7 +1,7 @@
 package com.personaltracker.ui.screens.companion
 
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.model.ShopItem
-import com.personaltracker.ui.components.companion.CompanionState
 
 /**
  * Single immutable UI state representing the Companion surface (AD-2, AD-4).
@@ -14,7 +14,7 @@ data class CompanionUiState(
     val maxEnergyUnits: Int = 100,
     val energyProgress: Float = 0f,
     val coinBalance: Int = 0,
-    val mood: CompanionState = CompanionState.Idle,
+    val mood: CompanionState = CompanionState.IDLE_COZY,
     val availableShopItems: List<ShopItem> = emptyList(),
     val activeAccessoryId: String? = null,
     val activeBackgroundId: String? = null,

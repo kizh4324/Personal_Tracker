@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-14 15:15:00 +05:30
-*   **Current Git Commit:** Story 4.3 Complete — VSYNC-Aligned Bézier Coin Earn Animation & Coin HUD
+*   **Date/Time:** 2026-11-14 17:20:00 +05:30
+*   **Current Git Commit:** Story 4.4 Complete — Non-Punishing Companion Widget, 7-State Machine & Cosmetics Shop
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -39,11 +39,12 @@ status: active
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
     *   **Epic 3 (Focus Mode, Distraction Interception & Resumption Engine):** 100% Complete (`done`).
-    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Stories 4.1, 4.2 & 4.3 Complete).
+    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Stories 4.1, 4.2, 4.3 & 4.4 Complete).
         *   **Story 4.1 (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`):** 100% Complete (`done`).
         *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** 100% Complete (`done`).
         *   **Story 4.3 (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`):** 100% Complete (`done`).
-        *   **Story 4.4 (`4-4-non-punishing-companion-widget-7-state-rive-machine`):** Ready for Dev (`backlog` / next up).
+        *   **Story 4.4 (`4-4-non-punishing-companion-widget-7-state-rive-machine`):** 100% Complete (`done`).
+        *   **Story 4.5 (`4-5-cosmetic-shop-ui-companion-customization`):** Ready for Dev (`backlog` / next up).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 
@@ -153,9 +154,9 @@ flowchart TD
 ### Active Epic: Epic 4 — Gamification Economy, Streak State Machine & Non-Punishing Companion (IN PROGRESS)
 *   [x] **Story 4.1:** Habit entity models, cadence tracking & streak grace engine (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`, pure Kotlin cadence hierarchy `Daily`, `SpecificDays`, `WeeklyFrequency`, 5-state flame model with `FlameState.GRACE_SHIELD`, `StreakStateMachine` off-cadence & `DayType` immunity, `EvaluateHabitStreaksUseCase`, Room v2->v3 migration `MIGRATION_2_3`, dynamic `VerticalCapsuleBars` MVI wiring). `[DONE]`
 *   [x] **Story 4.2:** Idempotent coin ledger engine & anti-farming model (`4-2-idempotent-coin-ledger-engine-anti-farming-model`, pure Kotlin `GamificationLedgerEngine`, anti-farming caps `DAILY_TASK_CAP = 50`, `DAILY_HABIT_CAP = 40`, `DAILY_FOCUS_CAP = 120`, `DAILY_GLOBAL_FARMABLE_CAP = 100`, gross spend defense `deltaAmount > 0`, non-negative clawbacks, compound idempotency keys, single-transaction atomicity in Room `@Transaction`, semantic `CoinPill`). `[DONE]`
-*   [ ] **Story 4.3:** VSync-aligned Bézier coin-earn animation & Coin HUD (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`). `[READY FOR DEV]`
-*   [ ] **Story 4.4:** Non-punishing companion widget & 7-state Rive machine (`4-4-non-punishing-companion-widget-7-state-rive-machine`).
-*   [ ] **Story 4.5:** Cosmetic shop UI & companion customization (`4-5-cosmetic-shop-ui-companion-customization`).
+*   [x] **Story 4.3:** VSync-aligned Bézier coin-earn animation & Coin HUD (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`, quadratic Bézier trajectory engine, RenderThread graphicsLayer transforms, arrival coordination, concurrent burst stages). `[DONE]`
+*   [x] **Story 4.4:** Non-punishing companion widget & 7-state Rive machine (`4-4-non-punishing-companion-widget-7-state-rive-machine`, canonical 7-state `CompanionState(0..6)` matching Rive inputs, DayType rest immunity, atomic cosmetics purchase & equip engine, catalog auto-seeding, 48dp minimum touch target floor, interactive home avatar badge). `[DONE]`
+*   [ ] **Story 4.5:** Cosmetic shop UI & companion customization (`4-5-cosmetic-shop-ui-companion-customization`). `[READY FOR DEV]`
 
 ---
 
@@ -170,9 +171,9 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 4.3 Implementation with EGM & BMAD Build
+### Step 2: Kick off Story 4.5 Implementation with EGM & BMAD Build
 ```
-/bmad-build 4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud
+/bmad-build 4-5-cosmetic-shop-ui-companion-customization
 ```
 1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-4-2-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
 2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.

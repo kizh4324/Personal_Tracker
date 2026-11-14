@@ -46,6 +46,11 @@ interface EconomyRepository {
         idempotencyKey: String
     )
 
+    suspend fun equipShopItem(
+        shopItemId: String,
+        equip: Boolean
+    ) = Unit
+
     suspend fun getCompanionProfile(): CompanionProfile?
     fun observeCompanionProfile(): Flow<CompanionProfile?>
     suspend fun updateCompanionProfile(profile: CompanionProfile)

@@ -10,4 +10,12 @@ data class ShopItem(
     val priceCoins: Int,
     val isUnlocked: Boolean = false,
     val unlockedTimestamp: Long? = null
-)
+) {
+    val iconEmoji: String get() = when (id) {
+        "item_scarf" -> "🧣"
+        "item_cap" -> "🧢"
+        "item_crown" -> "👑"
+        "item_coffee" -> "☕"
+        else -> "✨"
+    }
+}

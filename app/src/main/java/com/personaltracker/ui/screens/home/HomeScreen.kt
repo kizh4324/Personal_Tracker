@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -88,6 +89,7 @@ fun HomeRoute(
     HomeScreenContent(
         state = uiState,
         onIntent = viewModel::onIntent,
+        onNavigate = onNavigate,
         modifier = modifier
     )
 }
@@ -104,7 +106,8 @@ fun HomeRoute(
 fun HomeScreenContent(
     state: HomeUiState,
     onIntent: (HomeUiIntent) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onNavigate: ((PersonalTrackerDestination) -> Unit)? = null
 ) {
     val colors = PersonalTrackerTheme.colors
     val typography = PersonalTrackerTheme.typography
@@ -202,13 +205,32 @@ fun HomeScreenContent(
                 Surface(
                     shape = shapes.full,
                     color = colors.bannerPeach,
-                    modifier = Modifier.size(spacing.minTouchTarget)
+                    modifier = Modifier
+                        .size(spacing.minTouchTarget)
+                        .clip(shapes.full)
+                        .clickable(role = Role.Button) {
+                            onNavigate?.invoke(PersonalTrackerDestination.COMPANION)
+                        }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = "🦊",
-                            style = typography.title
-                        )
+                        val accessoryEmoji = when (state.activeAccessoryId) {
+                            "item_scarf" -> "🧣"
+                            "item_cap" -> "🧢"
+                            "item_crown" -> "👑"
+                            "item_coffee" -> "☕"
+                            else -> null
+                        }
+                        if (accessoryEmoji != null) {
+                            Text(
+                                text = "${state.companionMood.emoji}$accessoryEmoji",
+                                style = typography.label
+                            )
+                        } else {
+                            Text(
+                                text = state.companionMood.emoji,
+                                style = typography.title
+                            )
+                        }
                     }
                 }
             }

@@ -4,6 +4,7 @@ import com.personaltracker.data.local.db.daos.CoinLedgerDao
 import com.personaltracker.data.local.db.daos.CompanionProfileDao
 import com.personaltracker.data.local.db.daos.ShopItemDao
 import com.personaltracker.data.local.db.entities.CoinLedgerEntity
+import com.personaltracker.data.local.db.entities.CompanionProfileEntity
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.AwardCoinsResult
 import com.personaltracker.domain.model.CoinTransaction
@@ -16,6 +17,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
@@ -232,18 +234,38 @@ internal class EconomyRepositoryImpl @Inject constructor(
         IdempotencyValidator.validate(idempotencyKey)
         transactionRunner {
             val existing = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
-            if (existing != null) {
-                throw IllegalStateException("Duplicate transaction idempotency key: $idempotencyKey")
+            var item = shopItemDao.getShopItemById(shopItemId)
+            if (item == null) {
+                ensureDefaultCatalogAndProfile()
+                item = shopItemDao.getShopItemById(shopItemId)
+                    ?: throw IllegalArgumentException("Shop item not found with id: $shopItemId")
             }
 
-            val item = shopItemDao.getShopItemById(shopItemId)
-                ?: throw IllegalArgumentException("Shop item not found with id: $shopItemId")
+            // If already unlocked or idempotency key exists, treat as safe idempotent equip toggle/success
+            if (existing != null || item.isUnlocked) {
+                if (!item.isUnlocked) {
+                    shopItemDao.updateShopItem(
+                        item.copy(
+                            isUnlocked = true,
+                            unlockedTimestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+                val current = companionProfileDao.getProfile()
+                    ?: CompanionProfileEntity(
+                        id = 1,
+                        speciesName = "Sproutling",
+                        level = 1,
+                        currentEnergyUnits = 0,
+                        activeAccessoryId = null,
+                        activeBackgroundId = null,
+                        currentExpressionOrdinal = 0
+                    )
+                companionProfileDao.insertOrUpdateProfile(current.copy(activeAccessoryId = shopItemId))
+                return@transactionRunner
+            }
 
             require(item.priceCoins >= 0) { "Shop item price cannot be negative: ${item.priceCoins}" }
-
-            if (item.isUnlocked) {
-                throw IllegalStateException("Shop item already unlocked: $shopItemId")
-            }
 
             val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
             if (currentBalance < item.priceCoins) {
@@ -270,16 +292,75 @@ internal class EconomyRepositoryImpl @Inject constructor(
                     unlockedTimestamp = timestamp
                 )
             )
+
+            // Auto-equip on purchase
+            val current = companionProfileDao.getProfile()
+                ?: CompanionProfileEntity(
+                    id = 1,
+                    speciesName = "Sproutling",
+                    level = 1,
+                    currentEnergyUnits = 0,
+                    activeAccessoryId = null,
+                    activeBackgroundId = null,
+                    currentExpressionOrdinal = 0
+                )
+            companionProfileDao.insertOrUpdateProfile(current.copy(activeAccessoryId = shopItemId))
+        }
+    }
+
+    override suspend fun equipShopItem(shopItemId: String, equip: Boolean) =
+        withContext(ioDispatcher) {
+            transactionRunner {
+                val current = companionProfileDao.getProfile()
+                    ?: CompanionProfileEntity(
+                        id = 1,
+                        speciesName = "Sproutling",
+                        level = 1,
+                        currentEnergyUnits = 0,
+                        activeAccessoryId = null,
+                        activeBackgroundId = null,
+                        currentExpressionOrdinal = 0
+                    )
+                val newAccessoryId = if (equip) shopItemId else null
+                companionProfileDao.insertOrUpdateProfile(current.copy(activeAccessoryId = newAccessoryId))
+            }
+        }
+
+    private suspend fun ensureDefaultCatalogAndProfile() {
+        val existingProfile = companionProfileDao.getProfile()
+        if (existingProfile == null) {
+            companionProfileDao.insertOrUpdateProfile(
+                CompanionProfileEntity(
+                    id = 1,
+                    speciesName = "Sproutling",
+                    level = 1,
+                    currentEnergyUnits = 0,
+                    activeAccessoryId = null,
+                    activeBackgroundId = null,
+                    currentExpressionOrdinal = 0
+                )
+            )
+        }
+        val existingItem = shopItemDao.getShopItemById("item_scarf")
+        if (existingItem == null) {
+            shopItemDao.insertShopItems(DEFAULT_SHOP_ITEMS.map { it.toEntity() })
         }
     }
 
     override suspend fun getCompanionProfile(): CompanionProfile? =
         withContext(ioDispatcher) {
-            companionProfileDao.getProfile()?.toDomain()
+            val profile = companionProfileDao.getProfile()
+            if (profile == null) {
+                ensureDefaultCatalogAndProfile()
+                companionProfileDao.getProfile()?.toDomain()
+            } else {
+                profile.toDomain()
+            }
         }
 
     override fun observeCompanionProfile(): Flow<CompanionProfile?> =
         companionProfileDao.observeProfile()
+            .onStart { ensureDefaultCatalogAndProfile() }
             .map { it?.toDomain() }
             .flowOn(ioDispatcher)
 
@@ -290,12 +371,19 @@ internal class EconomyRepositoryImpl @Inject constructor(
 
     override fun getAllShopItems(): Flow<List<ShopItem>> =
         shopItemDao.getAllShopItems()
+            .onStart { ensureDefaultCatalogAndProfile() }
             .map { list -> list.map { it.toDomain() } }
             .flowOn(ioDispatcher)
 
     override suspend fun getShopItemById(id: String): ShopItem? =
         withContext(ioDispatcher) {
-            shopItemDao.getShopItemById(id)?.toDomain()
+            val item = shopItemDao.getShopItemById(id)
+            if (item == null) {
+                ensureDefaultCatalogAndProfile()
+                shopItemDao.getShopItemById(id)?.toDomain()
+            } else {
+                item.toDomain()
+            }
         }
 
     override suspend fun saveShopItems(items: List<ShopItem>) =
@@ -307,4 +395,13 @@ internal class EconomyRepositoryImpl @Inject constructor(
         withContext(ioDispatcher) {
             shopItemDao.updateShopItem(item.toEntity())
         }
+
+    companion object {
+        val DEFAULT_SHOP_ITEMS = listOf(
+            ShopItem(id = "item_scarf", category = "OUTFIT", name = "Cozy Scarf", priceCoins = 25, isUnlocked = true),
+            ShopItem(id = "item_cap", category = "ACCESSORY", name = "Study Cap", priceCoins = 40, isUnlocked = false),
+            ShopItem(id = "item_crown", category = "ACCESSORY", name = "Golden Crown", priceCoins = 100, isUnlocked = false),
+            ShopItem(id = "item_coffee", category = "ACCESSORY", name = "Warm Coffee", priceCoins = 15, isUnlocked = false)
+        )
+    }
 }

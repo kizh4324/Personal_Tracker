@@ -301,6 +301,24 @@ Authoritative repository of verified engineering heuristics, operational invaria
   5. **Concurrent Multi-Burst State:** `RewardMotionStageState` must store `activeCoinEvents: List<CoinRewardEvent>`, rendering concurrent bursts independently without mid-air particle cancellation.
   6. **Accessibility & Cold-Start Guards:** Check `Settings.Global.ANIMATOR_DURATION_SCALE == 0f` (or reduced-motion) to bypass flight arcs and roll up immediately. Guard initial mount with `isInitialLoad` to suppress spurious `+X` badges and bursts on app launch.
 
+---
+
+## 24. Non-Punishing Companion Engine & Atomic Cosmetics Shop
+
+### EXP-047: 7-State Rive Ordinal Alignment, DayType Rest Immunity & Atomic Idempotent Cosmetics Shop (AD-1, AD-3, AD-4, AD-6, AD-7, Story 4.4)
+* **Context:** Pure Kotlin companion pet behavioral engine, 7-state emotional register, cosmetics wardrobe shop, and home widget integration in `CompanionState.kt`, `CompanionStateEngine.kt`, `ResolveCompanionMoodUseCase.kt`, `PurchaseOrEquipShopItemUseCase.kt`, `EconomyRepositoryImpl.kt`, `CompanionView.kt`, `CompanionScreen.kt`, and `HomeScreen.kt`.
+* **Heuristic:**
+  1. Defining separate enum registers across domain and UI causes ordinal collisions and inversions (e.g. legacy `CompanionMood` swapping `CELEBRATING` and `ENCOURAGING` vs the Rive binary contract `1=Celebrating, 2=Encouraging`), leading to incorrect character animations.
+  2. Double-tapping purchase buttons or re-purchasing unlocked items throws unhandled `IllegalStateException("Duplicate transaction idempotency key")` in production if transactions are not designed with idempotent fallbacks.
+  3. Empty databases on cold start leave catalog and companion profile queries null, triggering uncaught exceptions or rendering empty wardrobe grids.
+  4. Using compact chip sizing (`spacing.chipHeight = 32dp`) on interactive shop buttons or rendering static unclickable greeting avatars violates touch target floors (AD-7) and fragments navigation pathways.
+* **Rule:**
+  1. **Canonical 7-State Domain Source of Truth (AD-1, AD-4):** Maintain a single pure Kotlin domain enum `CompanionState(0..6)` (`IDLE_COZY=0`, `CELEBRATING_REWARD=1`, `ENCOURAGING_WARM=2`, `CONCERNED_CHECKIN=3`, `FOCUSING_STUDY=4`, `RESTING_PEACEFUL=5`, `HAPPY_BOUNCE=6`) aligned 1:1 with Rive runtime state machine inputs. Legacy domain enums must alias ordinals and deprecate safely.
+  2. **DayType Rest Immunity (AD-4):** Rest days (`"dt_rest"`, `"dt_low_capacity"`, `LOW_CAPACITY`, `REST_RECOVERY`) must unconditionally resolve to `RESTING_PEACEFUL` with non-guilt supportive copy ("Rest day preserved. Taking it easy today."). Missing tasks or broken streaks never trigger sad, sick, or angry states.
+  3. **Atomic Purchase & Auto-Equip (AD-3, AD-6):** Purchases deduct coins (`deltaAmount = -priceCoins`), unlock items (`isUnlocked = true`), and equip items (`activeAccessoryId = itemId`) inside a single atomic Room `@Transaction` block on `Dispatchers.IO`. Double taps or unlocked re-taps must execute idempotently without throwing.
+  4. **Catalog Cold-Start Seeding:** Repositories must auto-seed baseline items (`DEFAULT_SHOP_ITEMS`: Cozy Scarf, Study Cap, Golden Crown, Warm Coffee) and default `CompanionProfile` (`Sproutling`, Level 1, Energy 0) when the database is empty.
+  5. **48dp Interactive Touch Target Floor (AD-7):** All wardrobe purchase and equip buttons must enforce `Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)` (48dp). The home greeting avatar must be an interactive 48dp clickable target navigating directly to the Companion destination.
+
 
 
 

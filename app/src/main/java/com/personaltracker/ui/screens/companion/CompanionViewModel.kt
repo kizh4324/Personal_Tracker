@@ -2,13 +2,14 @@ package com.personaltracker.ui.screens.companion
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.personaltracker.domain.engine.CompanionMood
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.repository.EconomyRepository
+import com.personaltracker.domain.usecase.PurchaseOrEquipResult
+import com.personaltracker.domain.usecase.PurchaseOrEquipShopItemUseCase
 import com.personaltracker.ui.components.animation.RewardAnimationType
-import com.personaltracker.ui.components.companion.CompanionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
@@ -28,12 +29,13 @@ import javax.inject.Inject
 /**
  * Production ViewModel driving the non-punishing companion pet screen (AD-1, AD-4).
  * Enforces zero health points, zero hunger decay, zero death mechanics,
- * and maintains atomic idempotent ledgering for shop item purchases.
+ * and maintains atomic idempotent ledgering for shop item purchases and equip toggles.
  */
 @HiltViewModel
 class CompanionViewModel @Inject constructor(
     private val economyRepository: EconomyRepository,
-    private val ledgerEngine: GamificationLedgerEngine
+    private val ledgerEngine: GamificationLedgerEngine,
+    private val purchaseOrEquipShopItemUseCase: PurchaseOrEquipShopItemUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CompanionUiState(isLoading = true))
@@ -63,10 +65,10 @@ class CompanionViewModel @Inject constructor(
                 speciesName = "Sproutling",
                 level = 1,
                 currentEnergyUnits = 0,
-                currentExpressionOrdinal = CompanionMood.IDLE_CONTENT.ordinalValue
+                currentExpressionOrdinal = CompanionState.IDLE_COZY.ordinalValue
             )
 
-            val resolvedMood = mapOrdinalToCompanionState(safeProfile.currentExpressionOrdinal)
+            val resolvedMood = CompanionState.fromOrdinal(safeProfile.currentExpressionOrdinal)
             val energyProgress = (safeProfile.currentEnergyUnits.toFloat() / GamificationLedgerEngine.ENERGY_PER_LEVEL)
                 .coerceIn(0f, 1f)
 
@@ -93,7 +95,9 @@ class CompanionViewModel @Inject constructor(
     fun onIntent(intent: CompanionUiIntent) {
         when (intent) {
             is CompanionUiIntent.SelectMood -> handleSelectMood(intent.mood)
-            is CompanionUiIntent.PurchaseItem -> handlePurchaseItem(intent.item)
+            is CompanionUiIntent.PurchaseOrEquipItem -> handlePurchaseOrEquipItem(intent.item)
+            is CompanionUiIntent.PurchaseItem -> handlePurchaseOrEquipItem(intent.item)
+            is CompanionUiIntent.EquipItem -> handleEquipItem(intent.item, intent.equip)
             is CompanionUiIntent.TriggerMilestoneCelebration -> handleTriggerMilestone()
             is CompanionUiIntent.TriggerCoinMicroBurst -> handleTriggerCoinMicroBurst()
             is CompanionUiIntent.Refresh -> observeCompanionData()
@@ -104,41 +108,47 @@ class CompanionViewModel @Inject constructor(
         viewModelScope.launch {
             val currentProfile = economyRepository.getCompanionProfile()
             if (currentProfile != null) {
-                val ordinal = mapCompanionStateToOrdinal(mood)
-                val updated = currentProfile.copy(currentExpressionOrdinal = ordinal)
+                val updated = currentProfile.copy(currentExpressionOrdinal = mood.ordinalValue)
                 economyRepository.updateCompanionProfile(updated)
             }
             _uiState.update { it.copy(mood = mood) }
         }
     }
 
-    private fun handlePurchaseItem(item: ShopItem) {
+    private fun handlePurchaseOrEquipItem(item: ShopItem) {
         viewModelScope.launch {
-            if (item.isUnlocked) {
-                _uiEffect.send(CompanionUiEffect.ShowSnackbar("Item already unlocked"))
-                return@launch
+            when (val result = purchaseOrEquipShopItemUseCase(item)) {
+                is PurchaseOrEquipResult.PurchasedAndEquipped -> {
+                    _uiEffect.send(CompanionUiEffect.PlayLottieReward(RewardAnimationType.CoinEarnMicro))
+                    _uiEffect.send(CompanionUiEffect.ShowSnackbar("Purchased and equipped ${result.item.name}!"))
+                }
+                is PurchaseOrEquipResult.Equipped -> {
+                    _uiEffect.send(CompanionUiEffect.ShowSnackbar("Equipped ${result.item.name}!"))
+                }
+                is PurchaseOrEquipResult.Unequipped -> {
+                    _uiEffect.send(CompanionUiEffect.ShowSnackbar("Unequipped ${result.item.name}."))
+                }
+                is PurchaseOrEquipResult.InsufficientCoins -> {
+                    _uiEffect.send(CompanionUiEffect.ShowSnackbar("Not enough coins yet. Keep going!"))
+                }
+                is PurchaseOrEquipResult.Error -> {
+                    _uiEffect.send(CompanionUiEffect.ShowSnackbar(result.message))
+                }
             }
+        }
+    }
 
-            val currentBalance = _uiState.value.coinBalance
-            if (currentBalance < item.priceCoins) {
-                _uiEffect.send(CompanionUiEffect.ShowSnackbar("Not enough coins yet. Keep going!"))
-                return@launch
-            }
-
-            val idempotencyKey = "SHOP_BUY_${item.id}"
-            runCatching {
-                economyRepository.purchaseShopItem(item.id, idempotencyKey)
-                _uiEffect.send(CompanionUiEffect.PlayLottieReward(RewardAnimationType.CoinEarnMicro))
-                _uiEffect.send(CompanionUiEffect.ShowSnackbar("Purchased ${item.name}!"))
-            }.onFailure {
-                _uiEffect.send(CompanionUiEffect.ShowSnackbar("Could not complete purchase. Please try again."))
-            }
+    private fun handleEquipItem(item: ShopItem, equip: Boolean) {
+        viewModelScope.launch {
+            economyRepository.equipShopItem(item.id, equip)
+            val action = if (equip) "Equipped" else "Unequipped"
+            _uiEffect.send(CompanionUiEffect.ShowSnackbar("$action ${item.name}!"))
         }
     }
 
     private fun handleTriggerMilestone() {
         viewModelScope.launch {
-            _uiState.update { it.copy(mood = CompanionState.Celebrating) }
+            _uiState.update { it.copy(mood = CompanionState.CELEBRATING_REWARD) }
             _uiEffect.send(CompanionUiEffect.PlayLottieReward(RewardAnimationType.MilestoneFullReveal))
         }
     }
@@ -150,32 +160,10 @@ class CompanionViewModel @Inject constructor(
     }
 
     companion object {
-        /**
-         * Maps CompanionMood ordinal (0-6) safely to UI [CompanionState] with non-punishing fallback to Idle.
-         */
-        fun mapOrdinalToCompanionState(ordinal: Int): CompanionState {
-            return when (ordinal) {
-                CompanionMood.IDLE_CONTENT.ordinalValue -> CompanionState.Idle
-                CompanionMood.ENCOURAGING.ordinalValue -> CompanionState.Encouraging
-                CompanionMood.CELEBRATING.ordinalValue -> CompanionState.Celebrating
-                CompanionMood.CONCERNED.ordinalValue -> CompanionState.Concerned
-                CompanionMood.FOCUSED.ordinalValue -> CompanionState.Focused
-                CompanionMood.SLEEPING.ordinalValue -> CompanionState.Sleeping
-                CompanionMood.EXCITED.ordinalValue -> CompanionState.Excited
-                else -> CompanionState.Idle
-            }
-        }
+        fun mapOrdinalToCompanionState(ordinal: Int): CompanionState =
+            CompanionState.fromOrdinal(ordinal)
 
-        fun mapCompanionStateToOrdinal(state: CompanionState): Int {
-            return when (state) {
-                CompanionState.Idle -> CompanionMood.IDLE_CONTENT.ordinalValue
-                CompanionState.Encouraging -> CompanionMood.ENCOURAGING.ordinalValue
-                CompanionState.Celebrating -> CompanionMood.CELEBRATING.ordinalValue
-                CompanionState.Concerned -> CompanionMood.CONCERNED.ordinalValue
-                CompanionState.Focused -> CompanionMood.FOCUSED.ordinalValue
-                CompanionState.Sleeping -> CompanionMood.SLEEPING.ordinalValue
-                CompanionState.Excited -> CompanionMood.EXCITED.ordinalValue
-            }
-        }
+        fun mapCompanionStateToOrdinal(state: CompanionState): Int =
+            state.ordinalValue
     }
 }

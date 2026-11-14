@@ -315,7 +315,18 @@ class TestEconomyRepository : EconomyRepository {
 
     override suspend fun purchaseShopItem(shopItemId: String, idempotencyKey: String) {
         val item = getShopItemById(shopItemId) ?: return
-        balanceFlow.value -= item.priceCoins
+        if (!item.isUnlocked) {
+            balanceFlow.value -= item.priceCoins
+            updateShopItem(item.copy(isUnlocked = true, unlockedTimestamp = System.currentTimeMillis()))
+            equipShopItem(shopItemId, true)
+        }
+    }
+
+    override suspend fun equipShopItem(shopItemId: String, equip: Boolean) {
+        val current = profileFlow.value ?: CompanionProfile(speciesName = "Sproutling")
+        profileFlow.value = current.copy(
+            activeAccessoryId = if (equip) shopItemId else null
+        )
     }
 
     override suspend fun getCompanionProfile(): CompanionProfile? = profileFlow.value

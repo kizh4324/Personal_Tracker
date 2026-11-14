@@ -4,8 +4,10 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.StreakStateMachine
+import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.FocusIntervalType
@@ -73,7 +75,8 @@ private data class BaseHomeData(
     val dayTypes: List<DayType>,
     val override: DayOverride?,
     val routines: List<Routine>,
-    val studySessions: List<StudySession>
+    val studySessions: List<StudySession>,
+    val companionProfile: CompanionProfile?
 )
 
 private data class TaskEditorControl(
@@ -163,6 +166,7 @@ class HomeViewModel @Inject constructor(
         val routinesFlow = routineRepository.getAllRoutines()
             .onStart { routineRepository.ensureDefaultRoutines() }
         val studySessionsFlow = studySessionRepository.getAllSessions()
+        val profileFlow = economyRepository.observeCompanionProfile()
 
         val baseDataFlow = combine(
             tasksFlow,
@@ -171,7 +175,8 @@ class HomeViewModel @Inject constructor(
             dayTypesFlow,
             overrideFlow,
             routinesFlow,
-            studySessionsFlow
+            studySessionsFlow,
+            profileFlow
         ) { args: Array<Any?> ->
             @Suppress("UNCHECKED_CAST")
             BaseHomeData(
@@ -181,7 +186,8 @@ class HomeViewModel @Inject constructor(
                 dayTypes = args[3] as List<DayType>,
                 override = args[4] as DayOverride?,
                 routines = args[5] as List<Routine>,
-                studySessions = args[6] as List<StudySession>
+                studySessions = args[6] as List<StudySession>,
+                companionProfile = args[7] as CompanionProfile?
             )
         }
 
@@ -438,6 +444,10 @@ class HomeViewModel @Inject constructor(
                 excludingTaskId = taskEditor.task?.id
             )
 
+            val companionProfile = baseData.companionProfile
+            val companionMood = CompanionState.fromOrdinal(companionProfile?.currentExpressionOrdinal ?: 0)
+            val activeAccessoryId = companionProfile?.activeAccessoryId
+
             HomeUiState(
                 activeDayTypeName = dayTypeName,
                 activeDayTypeId = dayTypeId,
@@ -453,6 +463,8 @@ class HomeViewModel @Inject constructor(
                 streakCount = maxStreak,
                 flameState = overallFlameState,
                 coinBalance = balance,
+                companionMood = companionMood,
+                activeAccessoryId = activeAccessoryId,
                 heroCardState = resolvedHeroCardState,
                 focusTasks = tasks,
                 overdueTasks = overdueTasks,

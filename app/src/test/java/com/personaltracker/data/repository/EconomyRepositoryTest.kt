@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
@@ -300,6 +301,44 @@ class EconomyRepositoryTest {
         )
         assertEquals(0, retryResult.coinsAwarded)
         assertTrue(retryResult.isCapReached)
+    }
+
+    @Test
+    fun testPurchaseShopItemDeductsBalanceAndAutoEquips() = runTest(testDispatcher) {
+        // Pre-earn 50 coins
+        repository.recordTransaction(
+            CoinTransaction(
+                id = "tx_seed_50",
+                idempotencyKey = "TASK_COMP_seed_50",
+                deltaAmount = 50,
+                eventType = EconomyEventTypes.TASK_COMPLETION,
+                timestamp = startOfDayTimestamp
+            )
+        )
+        val cap = ShopItemEntity("item_cap", "ACCESSORY", "Study Cap", 40, false, null)
+        shopItemDao.insertShopItems(listOf(cap))
+
+        repository.purchaseShopItem("item_cap", "SHOP_BUY_item_cap_1")
+
+        assertEquals(10, repository.getLatestBalance())
+        val updatedItem = shopItemDao.getShopItemById("item_cap")
+        assertTrue(updatedItem?.isUnlocked == true)
+        val profile = companionProfileDao.getProfile()
+        assertEquals("item_cap", profile?.activeAccessoryId)
+
+        // Rapid duplicate purchase is idempotent (does not deduct extra coins, preserves equip)
+        repository.purchaseShopItem("item_cap", "SHOP_BUY_item_cap_2")
+        assertEquals(10, repository.getLatestBalance())
+        assertEquals("item_cap", companionProfileDao.getProfile()?.activeAccessoryId)
+    }
+
+    @Test
+    fun testEquipShopItemUpdatesActiveAccessory() = runTest(testDispatcher) {
+        repository.equipShopItem("item_scarf", true)
+        assertEquals("item_scarf", companionProfileDao.getProfile()?.activeAccessoryId)
+
+        repository.equipShopItem("item_scarf", false)
+        assertNull(companionProfileDao.getProfile()?.activeAccessoryId)
     }
 
     // =========================================================================

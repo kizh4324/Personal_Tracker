@@ -32,8 +32,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.model.ShopItem
-import com.personaltracker.ui.components.companion.CompanionState
 import com.personaltracker.ui.components.companion.CompanionView
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
@@ -140,7 +140,7 @@ fun CompanionScreenContent(
                     modifier = Modifier.padding(horizontal = spacing.spacing3, vertical = spacing.spacing1)
                 ) {
                     Text(
-                        text = "🪙 ${if (state.coinBalance > 0) state.coinBalance else 145} Coins",
+                        text = "🪙 ${state.coinBalance} Coins",
                         style = typography.label,
                         color = colors.barWarmRust
                     )
@@ -175,12 +175,39 @@ fun CompanionScreenContent(
                     ) {
                         CompanionView(
                             state = state.mood,
+                            activeAccessoryId = state.activeAccessoryId,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(spacing.spacing4))
+                Spacer(modifier = Modifier.height(spacing.spacing3))
+
+                // Supportive Non-Punishing Speech Bubble (AD-4)
+                val speechCopy = when (state.mood) {
+                    CompanionState.IDLE_COZY -> "I'm right here with you! Cozy and ready."
+                    CompanionState.CELEBRATING_REWARD -> "Woohoo! Great job completing that!"
+                    CompanionState.ENCOURAGING_WARM -> "Welcome back! Take things at your own pace."
+                    CompanionState.CONCERNED_CHECKIN -> "Checking in on you! No pressure, just take a breath."
+                    CompanionState.FOCUSING_STUDY -> "In the zone... peaceful concentration."
+                    CompanionState.RESTING_PEACEFUL -> "Rest day preserved. Taking it easy today."
+                    CompanionState.HAPPY_BOUNCE -> "Incredible momentum! You're glowing today!"
+                }
+                Surface(
+                    shape = shapes.full,
+                    color = colors.surfaceRaised,
+                    border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                    modifier = Modifier.padding(horizontal = spacing.spacing2)
+                ) {
+                    Text(
+                        text = "💬 \"$speechCopy\"",
+                        style = typography.caption,
+                        color = colors.inkPrimary,
+                        modifier = Modifier.padding(horizontal = spacing.spacing3, vertical = spacing.spacing1)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing3))
 
                 Text(
                     text = "${state.speciesName} • Level ${state.level}",
@@ -263,7 +290,7 @@ fun CompanionScreenContent(
                                 "item_cap" -> colors.iconSoftMatcha
                                 else -> colors.iconSoftPeach
                             }
-                            val isEquipped = item.isUnlocked && item.id == "item_scarf"
+                            val isEquipped = item.isUnlocked && item.id == state.activeAccessoryId
 
                             Surface(
                                 shape = shapes.xl,
@@ -289,12 +316,7 @@ fun CompanionScreenContent(
                                             modifier = Modifier.fillMaxSize()
                                         ) {
                                             Text(
-                                                text = when (item.id) {
-                                                    "item_scarf" -> "🧣"
-                                                    "item_cap" -> "🧢"
-                                                    "item_crown" -> "👑"
-                                                    else -> "☕"
-                                                },
+                                                text = item.iconEmoji,
                                                 style = typography.title
                                             )
                                         }
@@ -318,25 +340,50 @@ fun CompanionScreenContent(
 
                                     Spacer(modifier = Modifier.height(spacing.spacing2))
 
+                                    val buttonColor = if (isEquipped) {
+                                        colors.inkPrimary
+                                    } else if (item.isUnlocked) {
+                                        colors.surfaceRaised
+                                    } else {
+                                        colors.primary
+                                    }
+
+                                    val buttonTextColor = if (isEquipped) {
+                                        colors.surfaceRaised
+                                    } else if (item.isUnlocked) {
+                                        colors.inkPrimary
+                                    } else {
+                                        colors.surfaceRaised
+                                    }
+
+                                    val buttonBorder = if (isEquipped || !item.isUnlocked) {
+                                        null
+                                    } else {
+                                        BorderStroke(spacing.spacing0_5, colors.borderSubtle)
+                                    }
+
                                     Surface(
                                         shape = shapes.full,
-                                        color = if (isEquipped) colors.inkPrimary else colors.primary,
+                                        color = buttonColor,
+                                        border = buttonBorder,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .defaultMinSize(minHeight = spacing.chipHeight)
+                                            .defaultMinSize(minHeight = spacing.minTouchTarget)
                                             .clip(shapes.full)
                                             .clickable(role = Role.Button) {
-                                                onIntent(CompanionUiIntent.PurchaseItem(item))
+                                                onIntent(CompanionUiIntent.PurchaseOrEquipItem(item))
                                             }
                                     ) {
                                         Box(
                                             contentAlignment = Alignment.Center,
-                                            modifier = Modifier.fillMaxSize().padding(vertical = spacing.spacing0_5)
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .padding(vertical = spacing.spacing1)
                                         ) {
                                             Text(
-                                                text = if (isEquipped) "Equipped" else "Get",
+                                                text = if (isEquipped) "Equipped" else if (item.isUnlocked) "Equip" else "Get",
                                                 style = typography.caption,
-                                                color = colors.surfaceRaised
+                                                color = buttonTextColor
                                             )
                                         }
                                     }

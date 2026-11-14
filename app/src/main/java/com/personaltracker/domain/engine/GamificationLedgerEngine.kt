@@ -14,10 +14,11 @@ import javax.inject.Inject
  * Valid companion pet mood states (AD-4, EXPERIENCE.md §4.9).
  * Strictly non-punishing: zero negative, sad, or punitive states.
  */
+@Deprecated("Use com.personaltracker.domain.engine.CompanionState instead")
 enum class CompanionMood(val ordinalValue: Int) {
     IDLE_CONTENT(0),
-    ENCOURAGING(1),
-    CELEBRATING(2),
+    CELEBRATING(1),
+    ENCOURAGING(2),
     CONCERNED(3),
     FOCUSED(4),
     SLEEPING(5),

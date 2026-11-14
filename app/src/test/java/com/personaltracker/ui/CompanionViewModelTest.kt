@@ -2,11 +2,12 @@ package com.personaltracker.ui
 
 import app.cash.turbine.test
 import com.personaltracker.domain.engine.CompanionMood
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.ShopItem
+import com.personaltracker.domain.usecase.PurchaseOrEquipShopItemUseCase
 import com.personaltracker.ui.components.animation.RewardAnimationType
-import com.personaltracker.ui.components.companion.CompanionState
 import com.personaltracker.ui.screens.companion.CompanionUiEffect
 import com.personaltracker.ui.screens.companion.CompanionUiIntent
 import com.personaltracker.ui.screens.companion.CompanionViewModel
@@ -27,17 +28,20 @@ class CompanionViewModelTest {
 
     private lateinit var economyRepository: TestEconomyRepository
     private lateinit var ledgerEngine: GamificationLedgerEngine
+    private lateinit var purchaseOrEquipShopItemUseCase: PurchaseOrEquipShopItemUseCase
 
     @Before
     fun setUp() {
         economyRepository = TestEconomyRepository()
         ledgerEngine = GamificationLedgerEngine()
+        purchaseOrEquipShopItemUseCase = PurchaseOrEquipShopItemUseCase(economyRepository)
     }
 
     private fun createViewModel(): CompanionViewModel {
         return CompanionViewModel(
             economyRepository = economyRepository,
-            ledgerEngine = ledgerEngine
+            ledgerEngine = ledgerEngine,
+            purchaseOrEquipShopItemUseCase = purchaseOrEquipShopItemUseCase
         )
     }
 
@@ -50,7 +54,7 @@ class CompanionViewModelTest {
             assertEquals("Sproutling", state.speciesName)
             assertEquals(1, state.level)
             assertEquals(0, state.currentEnergyUnits)
-            assertEquals(CompanionState.Idle, state.mood)
+            assertEquals(CompanionState.IDLE_COZY, state.mood)
             assertEquals(0, state.coinBalance)
             assertFalse(state.isLoading)
         }
@@ -62,7 +66,7 @@ class CompanionViewModelTest {
             speciesName = "Sproutling",
             level = 2,
             currentEnergyUnits = 40,
-            currentExpressionOrdinal = CompanionMood.CELEBRATING.ordinalValue
+            currentExpressionOrdinal = CompanionState.CELEBRATING_REWARD.ordinalValue
         )
         economyRepository.profileFlow.value = profile
 
@@ -70,7 +74,7 @@ class CompanionViewModelTest {
 
         viewModel.uiState.test {
             val state = awaitItem()
-            assertEquals(CompanionState.Celebrating, state.mood)
+            assertEquals(CompanionState.CELEBRATING_REWARD, state.mood)
             assertEquals(2, state.level)
             assertEquals(40, state.currentEnergyUnits)
             assertEquals(0.40f, state.energyProgress, 0.001f)
@@ -81,7 +85,7 @@ class CompanionViewModelTest {
     fun testNonPunishingFallbackToIdleOnUnknownMood() = runTest {
         val unknownOrdinal = 999
         val mappedState = CompanionViewModel.mapOrdinalToCompanionState(unknownOrdinal)
-        assertEquals(CompanionState.Idle, mappedState)
+        assertEquals(CompanionState.IDLE_COZY, mappedState)
     }
 
     @Test
@@ -98,7 +102,7 @@ class CompanionViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.uiEffect.test {
-            viewModel.onIntent(CompanionUiIntent.PurchaseItem(accessory))
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(accessory))
 
             val effect1 = awaitItem()
             assertTrue(effect1 is CompanionUiEffect.PlayLottieReward)
@@ -106,10 +110,12 @@ class CompanionViewModelTest {
 
             val effect2 = awaitItem()
             assertTrue(effect2 is CompanionUiEffect.ShowSnackbar)
-            assertTrue((effect2 as CompanionUiEffect.ShowSnackbar).message.contains("Purchased Cozy Beanie"))
+            assertTrue((effect2 as CompanionUiEffect.ShowSnackbar).message.contains("Purchased and equipped Cozy Beanie"))
 
             // Coin balance deducted safely
             assertEquals(20, economyRepository.balanceFlow.value)
+            // Auto-equipped
+            assertEquals("item_hat_1", economyRepository.profileFlow.value?.activeAccessoryId)
         }
     }
 
@@ -126,7 +132,7 @@ class CompanionViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.uiEffect.test {
-            viewModel.onIntent(CompanionUiIntent.PurchaseItem(item))
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(item))
 
             val effect = awaitItem()
             assertTrue(effect is CompanionUiEffect.ShowSnackbar)
@@ -140,7 +146,7 @@ class CompanionViewModelTest {
     }
 
     @Test
-    fun testShopItemPurchaseAlreadyUnlockedEmitsSnackbarWithoutCoinDeduction() = runTest {
+    fun testShopItemPurchaseAlreadyUnlockedTogglesEquipWithoutCoinDeduction() = runTest {
         economyRepository.balanceFlow.value = 50
         val unlockedItem = ShopItem(
             id = "item_hat_unlocked",
@@ -153,14 +159,22 @@ class CompanionViewModelTest {
         val viewModel = createViewModel()
 
         viewModel.uiEffect.test {
-            viewModel.onIntent(CompanionUiIntent.PurchaseItem(unlockedItem))
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(unlockedItem))
 
             val effect = awaitItem()
             assertTrue(effect is CompanionUiEffect.ShowSnackbar)
-            assertEquals("Item already unlocked", (effect as CompanionUiEffect.ShowSnackbar).message)
+            assertEquals("Equipped Cozy Beanie!", (effect as CompanionUiEffect.ShowSnackbar).message)
 
             // Balance unchanged
             assertEquals(50, economyRepository.balanceFlow.value)
+            assertEquals("item_hat_unlocked", economyRepository.profileFlow.value?.activeAccessoryId)
+
+            // Tapping again un-equips
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(unlockedItem))
+            val effect2 = awaitItem()
+            assertTrue(effect2 is CompanionUiEffect.ShowSnackbar)
+            assertEquals("Unequipped Cozy Beanie.", (effect2 as CompanionUiEffect.ShowSnackbar).message)
+            assertEquals(null, economyRepository.profileFlow.value?.activeAccessoryId)
         }
     }
 
@@ -175,7 +189,7 @@ class CompanionViewModelTest {
             assertTrue(effect is CompanionUiEffect.PlayLottieReward)
             assertEquals(RewardAnimationType.MilestoneFullReveal, (effect as CompanionUiEffect.PlayLottieReward).type)
 
-            assertEquals(CompanionState.Celebrating, viewModel.uiState.value.mood)
+            assertEquals(CompanionState.CELEBRATING_REWARD, viewModel.uiState.value.mood)
         }
     }
 }
