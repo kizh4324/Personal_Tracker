@@ -719,6 +719,34 @@ private class FakeCoinLedgerDao : CoinLedgerDao {
         }
         transactions.value = transactions.value + entry
     }
+
+    override suspend fun getDailyEarnedTotal(startOfDayTimestamp: Long): Int =
+        transactions.value
+            .filter { it.timestamp >= startOfDayTimestamp && it.deltaAmount > 0 }
+            .sumOf { it.deltaAmount }
+
+    override fun observeDailyEarnedTotal(startOfDayTimestamp: Long): Flow<Int> =
+        transactions.map { list ->
+            list.filter { it.timestamp >= startOfDayTimestamp && it.deltaAmount > 0 }
+                .sumOf { it.deltaAmount }
+        }
+
+    override suspend fun getDailyEarnedForCategory(startOfDayTimestamp: Long, eventType: String): Int =
+        transactions.value
+            .filter { it.timestamp >= startOfDayTimestamp && it.eventType == eventType && it.deltaAmount > 0 }
+            .sumOf { it.deltaAmount }
+
+    override fun observeDailyEarnedForCategory(startOfDayTimestamp: Long, eventType: String): Flow<Int> =
+        transactions.map { list ->
+            list.filter { it.timestamp >= startOfDayTimestamp && it.eventType == eventType && it.deltaAmount > 0 }
+                .sumOf { it.deltaAmount }
+        }
+
+    override fun getTransactionsSince(timestamp: Long): Flow<List<CoinLedgerEntity>> =
+        transactions.map { list ->
+            list.filter { it.timestamp >= timestamp }
+                .sortedWith(compareByDescending<CoinLedgerEntity> { it.timestamp }.thenByDescending { it.id })
+        }
 }
 
 private class FakeDayTypeDao : DayTypeDao {

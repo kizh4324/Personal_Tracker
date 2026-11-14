@@ -267,6 +267,21 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Using `ALTER TABLE habits ADD COLUMN cadenceType TEXT NOT NULL DEFAULT 'DAILY'` silently overrides pre-existing habits configured with custom days (e.g. `targetDaysOfWeek = "1,3,5"`), converting them into daily habits and causing immediate false miss penalties upon midnight rollover post-migration.
 * **Rule:** Always follow `ALTER TABLE` additions with conditional SQL updates (e.g. `UPDATE habits SET cadenceType = 'SPECIFIC_DAYS' WHERE targetDaysOfWeek != '1,2,3,4,5,6,7' AND targetDaysOfWeek != ''`) and implement defensive fallback inference in `DataMappers.toDomain()`, guaranteeing 100% backward compatibility and data preservation across database schema migrations.
 
+---
+
+## 22. Gamification Coin Ledger & Daily Earn Caps
+
+### EXP-045: Idempotent Gamification Ledger, Gross Spend Defense & Two-Tier Daily Caps (AD-1, AD-3, AD-4, AD-6, FR-8.1, FR-8.2)
+* **Context:** Pure Kotlin gamification ledger engine, anti-farming earn caps, gross spend defense, and duplicate idempotency handling in `GamificationLedgerEngine.kt`, `CoinLedgerDao.kt`, `EconomyRepositoryImpl.kt`, `AwardCoinsUseCase.kt`, `CompleteTaskUseCase.kt`, and `LogHabitUseCase.kt`.
+* **Heuristic:** Naive sum queries (`SELECT SUM(deltaAmount) ...`) return SQL `NULL` when the ledger is empty and allow negative transactions (shop purchases, undo clawbacks) to deflate daily earned totals, enabling infinite coin re-farming. Furthermore, uncoordinated cross-repository transactions split atomic database operations, and unhandled duplicate idempotency collisions throw uncaught `IllegalStateException` or `SQLiteConstraintException` on rapid UI taps.
+* **Rule:**
+  1. **Gross Spend Defense & Null Safety:** All daily sum queries in Room DAOs must execute `SELECT COALESCE(SUM(deltaAmount), 0) ... WHERE timestamp >= :startOfDayTimestamp AND deltaAmount > 0` (with optional `eventType` filter) to prevent spend/clawback deflation and runtime null crashes.
+  2. **Two-Tier Clamping & Focus Exemption:** Daily caps (`DAILY_TASK_CAP = 50`, `DAILY_HABIT_CAP = 40`, `DAILY_FOCUS_CAP = 120`, `DAILY_GLOBAL_FARMABLE_CAP = 100`) must evaluate category caps first, then global farmable caps for farmable items (`TASK_COMPLETION`, `HABIT_COMPLETION`, `ROUTINE_COMPLETION`). Deep work (`STUDY_SESSION`) is exempt from the 100 farmable cap and governed exclusively by the 120 focus cap.
+  3. **Graceful Duplicate Handling (AD-6):** Rapid double taps must never throw unhandled exceptions or crash. `EconomyRepositoryImpl` must catch duplicate key collisions inside `TransactionRunner` and return `AwardCoinsResult(coinsAwarded = 0, isDuplicate = true)` cleanly.
+  4. **Single-Transaction Atomicity (AD-3, AD-6):** Use cases (`CompleteTaskUseCase`, `LogHabitUseCase`) compute the capped coin award first, then pass it into atomic repository methods (`completeTaskWithReward`, `logHabitWithReward`) inside Room `@Transaction` blocks on `Dispatchers.IO`.
+  5. **Non-Negative Clawback Floor & Non-Punitive Copy (AD-4):** 5-second quick-capture undo reversals (`CAPTURE_REVERSAL`) clamp deductions to `minOf(amount, currentBalance)`, guaranteeing `balanceAfter >= 0`. When earn caps are saturated, emit affirmative celebratory copy ("Daily coin goal reached! Awesome work today.") without blocking task/habit completion.
+
+
 
 
 

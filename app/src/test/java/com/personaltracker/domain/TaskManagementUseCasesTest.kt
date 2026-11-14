@@ -102,6 +102,7 @@ private class FakeTaskRepository : TaskRepository {
 
 private class FakeEconomyRepository : EconomyRepository {
     val transactions = mutableListOf<CoinTransaction>()
+    var dailyTaskEarned = 0
     private var profile: CompanionProfile? = CompanionProfile(
         id = 1,
         speciesName = "Fox",
@@ -116,6 +117,8 @@ private class FakeEconomyRepository : EconomyRepository {
 
     override suspend fun getLatestBalance(): Int = 100
     override fun observeLatestBalance(): Flow<Int> = MutableStateFlow(100)
+    override suspend fun getDailyEarnedForCategory(startOfDay: Long, eventType: String): Int =
+        if (eventType == com.personaltracker.domain.model.EconomyEventTypes.TASK_COMPLETION) dailyTaskEarned else 0
     override suspend fun recordTransaction(transaction: CoinTransaction) {
         transactions.add(transaction)
     }
@@ -404,6 +407,25 @@ class TaskManagementUseCasesTest {
         val result = completeTaskUseCase("t_done_already")
         assertEquals(0, result.coinReward)
         assertTrue(fakeAlarmScheduler.cancelledAlarms.contains("t_done_already"))
+    }
+
+    @Test
+    fun testCompleteTaskDailyCapEnforcement() = runTest {
+        // Pre-earn 48 task coins today in repository (DAILY_TASK_CAP = 50)
+        fakeEconomyRepo.dailyTaskEarned = 48
+        val task = Task(
+            id = "t_cap_test",
+            title = "Important Task",
+            scheduledDate = today,
+            deliveryIntensity = "IMPORTANT" // requests 7 coins
+        )
+        fakeTaskRepo.saveTask(task)
+
+        val result = completeTaskUseCase("t_cap_test")
+
+        // Clamped to +2 coins (48 + 2 = 50 cap)
+        assertEquals(2, result.coinReward)
+        assertTrue(result.isCapReached)
     }
 
     // =========================================================================

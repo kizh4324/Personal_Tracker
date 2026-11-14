@@ -4,8 +4,11 @@ import com.personaltracker.data.local.db.daos.CoinLedgerDao
 import com.personaltracker.data.local.db.daos.CompanionProfileDao
 import com.personaltracker.data.local.db.daos.ShopItemDao
 import com.personaltracker.data.local.db.entities.CoinLedgerEntity
+import com.personaltracker.domain.engine.GamificationLedgerEngine
+import com.personaltracker.domain.model.AwardCoinsResult
 import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
+import com.personaltracker.domain.model.EconomyEventTypes
 import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.repository.EconomyRepository
 import kotlinx.coroutines.CoroutineDispatcher
@@ -47,6 +50,33 @@ internal class EconomyRepositoryImpl @Inject constructor(
             .map { it ?: 0 }
             .flowOn(ioDispatcher)
 
+    override fun observeBalance(): Flow<Int> = observeLatestBalance()
+
+    override suspend fun getBalance(): Int = getLatestBalance()
+
+    override suspend fun getDailyEarnedTotal(startOfDay: Long): Int =
+        withContext(ioDispatcher) {
+            coinLedgerDao.getDailyEarnedTotal(startOfDay)
+        }
+
+    override fun observeDailyEarnedTotal(startOfDay: Long): Flow<Int> =
+        coinLedgerDao.observeDailyEarnedTotal(startOfDay)
+            .flowOn(ioDispatcher)
+
+    override suspend fun getDailyEarnedForCategory(startOfDay: Long, eventType: String): Int =
+        withContext(ioDispatcher) {
+            coinLedgerDao.getDailyEarnedForCategory(startOfDay, eventType)
+        }
+
+    override fun observeDailyEarnedForCategory(startOfDay: Long, eventType: String): Flow<Int> =
+        coinLedgerDao.observeDailyEarnedForCategory(startOfDay, eventType)
+            .flowOn(ioDispatcher)
+
+    override fun observeTransactionsSince(timestamp: Long): Flow<List<CoinTransaction>> =
+        coinLedgerDao.getTransactionsSince(timestamp)
+            .map { list -> list.map { it.toDomain() } }
+            .flowOn(ioDispatcher)
+
     override suspend fun recordTransaction(transaction: CoinTransaction) =
         withContext(ioDispatcher) {
             IdempotencyValidator.validate(transaction.idempotencyKey)
@@ -68,6 +98,132 @@ internal class EconomyRepositoryImpl @Inject constructor(
                 coinLedgerDao.insertTransaction(entity)
             }
         }
+
+    override suspend fun recordReversal(
+        inboxId: String,
+        amount: Int,
+        idempotencyKey: String
+    ): Result<CoinTransaction> = withContext(ioDispatcher) {
+        runCatching {
+            IdempotencyValidator.validate(idempotencyKey)
+            transactionRunner {
+                val existing = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
+                if (existing != null) {
+                    return@transactionRunner existing.toDomain()
+                }
+
+                val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
+                val deduction = minOf(amount.coerceAtLeast(0), currentBalance)
+                val newBalance = currentBalance - deduction
+
+                val entity = CoinLedgerEntity(
+                    id = UUID.randomUUID().toString(),
+                    idempotencyKey = idempotencyKey,
+                    deltaAmount = -deduction,
+                    eventType = EconomyEventTypes.CAPTURE_REVERSAL,
+                    sourceEntityId = inboxId,
+                    balanceAfter = newBalance,
+                    timestamp = System.currentTimeMillis()
+                )
+                coinLedgerDao.insertTransaction(entity)
+                entity.toDomain()
+            }
+        }
+    }
+
+    override suspend fun awardCoins(
+        eventType: String,
+        sourceEntityId: String,
+        requestedAmount: Int,
+        idempotencyKey: String,
+        startOfDayTimestamp: Long
+    ): AwardCoinsResult = withContext(ioDispatcher) {
+        IdempotencyValidator.validate(idempotencyKey)
+        require(requestedAmount >= 0) { "Requested amount cannot be negative: $requestedAmount" }
+
+        transactionRunner {
+            val existing = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
+            if (existing != null) {
+                return@transactionRunner AwardCoinsResult(
+                    coinsAwarded = 0,
+                    requestedCoins = requestedAmount,
+                    isCapReached = false,
+                    isDuplicate = true,
+                    transaction = existing.toDomain()
+                )
+            }
+
+            val isFarmableCategory = eventType in GamificationLedgerEngine.FARMABLE_EVENT_TYPES
+            val categoryCap = when (eventType) {
+                EconomyEventTypes.TASK_COMPLETION -> GamificationLedgerEngine.DAILY_TASK_CAP
+                EconomyEventTypes.HABIT_COMPLETION -> GamificationLedgerEngine.DAILY_HABIT_CAP
+                EconomyEventTypes.STUDY_SESSION -> GamificationLedgerEngine.DAILY_FOCUS_CAP
+                else -> Int.MAX_VALUE
+            }
+
+            val categoryEarned = coinLedgerDao.getDailyEarnedForCategory(startOfDayTimestamp, eventType)
+            val globalFarmableEarned = if (isFarmableCategory) {
+                val taskEarned = coinLedgerDao.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.TASK_COMPLETION)
+                val habitEarned = coinLedgerDao.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.HABIT_COMPLETION)
+                val routineEarned = coinLedgerDao.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.ROUTINE_COMPLETION)
+                taskEarned + habitEarned + routineEarned
+            } else 0
+
+            val coinsAwarded = GamificationLedgerEngine.calculateCappedReward(
+                requestedAmount = requestedAmount,
+                categoryEarned = categoryEarned,
+                categoryCap = categoryCap,
+                globalFarmableEarned = globalFarmableEarned,
+                globalFarmableCap = GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP,
+                isFarmableCategory = isFarmableCategory
+            )
+
+            val isCapReached = (categoryEarned + coinsAwarded >= categoryCap) ||
+                (isFarmableCategory && globalFarmableEarned + coinsAwarded >= GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP) ||
+                (requestedAmount > 0 && coinsAwarded < requestedAmount)
+
+            val currentBalance = coinLedgerDao.getLatestBalance() ?: 0
+            val newBalance = try {
+                Math.addExact(currentBalance, coinsAwarded)
+            } catch (_: ArithmeticException) {
+                throw IllegalStateException("Coin balance arithmetic overflow")
+            }
+
+            val entity = CoinLedgerEntity(
+                id = UUID.randomUUID().toString(),
+                idempotencyKey = idempotencyKey,
+                deltaAmount = coinsAwarded,
+                eventType = eventType,
+                sourceEntityId = sourceEntityId,
+                balanceAfter = newBalance,
+                timestamp = System.currentTimeMillis()
+            )
+
+            try {
+                coinLedgerDao.insertTransaction(entity)
+            } catch (e: Exception) {
+                val existingAfterRace = coinLedgerDao.getTransactionByIdempotencyKey(idempotencyKey)
+                if (existingAfterRace != null) {
+                    return@transactionRunner AwardCoinsResult(
+                        coinsAwarded = 0,
+                        requestedCoins = requestedAmount,
+                        isCapReached = false,
+                        isDuplicate = true,
+                        transaction = existingAfterRace.toDomain()
+                    )
+                }
+                throw e
+            }
+
+            AwardCoinsResult(
+                coinsAwarded = coinsAwarded,
+                requestedCoins = requestedAmount,
+                isCapReached = isCapReached,
+                isDuplicate = false,
+                transaction = entity.toDomain()
+            )
+        }
+    }
 
     override suspend fun purchaseShopItem(
         shopItemId: String,
@@ -101,7 +257,7 @@ internal class EconomyRepositoryImpl @Inject constructor(
                 id = UUID.randomUUID().toString(),
                 idempotencyKey = idempotencyKey,
                 deltaAmount = -item.priceCoins,
-                eventType = "SHOP_PURCHASE",
+                eventType = EconomyEventTypes.SHOP_PURCHASE,
                 sourceEntityId = shopItemId,
                 balanceAfter = newBalance,
                 timestamp = timestamp

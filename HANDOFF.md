@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-14 13:10:00 +05:30
-*   **Current Git Commit:** Story 4.1 Complete — Habit Entity Models, Cadence Tracking & Streak Grace Engine
+*   **Date/Time:** 2026-11-14 14:18:00 +05:30
+*   **Current Git Commit:** Story 4.2 Complete — Idempotent Gamification Coin Ledger & Daily Earn Caps
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -27,7 +27,7 @@ status: active
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
     *   **Multi-Agent Plugins:** Elephant-Goldfish Model (EGM) Global Plugin (`C:\Users\User\.gemini\config\plugins\egm`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (442+ tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (459+ tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -39,9 +39,10 @@ status: active
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
     *   **Epic 3 (Focus Mode, Distraction Interception & Resumption Engine):** 100% Complete (`done`).
-    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Story 4.1 Complete).
+    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Stories 4.1 & 4.2 Complete).
         *   **Story 4.1 (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`):** 100% Complete (`done`).
-        *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** Ready for Dev (`backlog` / next up).
+        *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** 100% Complete (`done`).
+        *   **Story 4.3 (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`):** Ready for Dev (`backlog` / next up).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 
@@ -150,8 +151,8 @@ flowchart TD
 
 ### Active Epic: Epic 4 — Gamification Economy, Streak State Machine & Non-Punishing Companion (IN PROGRESS)
 *   [x] **Story 4.1:** Habit entity models, cadence tracking & streak grace engine (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`, pure Kotlin cadence hierarchy `Daily`, `SpecificDays`, `WeeklyFrequency`, 5-state flame model with `FlameState.GRACE_SHIELD`, `StreakStateMachine` off-cadence & `DayType` immunity, `EvaluateHabitStreaksUseCase`, Room v2->v3 migration `MIGRATION_2_3`, dynamic `VerticalCapsuleBars` MVI wiring). `[DONE]`
-*   [ ] **Story 4.2:** Idempotent coin ledger engine & anti-farming model (`4-2-idempotent-coin-ledger-engine-anti-farming-model`). `[READY FOR DEV]`
-*   [ ] **Story 4.3:** VSync-aligned Bézier coin-earn animation & Coin HUD (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`).
+*   [x] **Story 4.2:** Idempotent coin ledger engine & anti-farming model (`4-2-idempotent-coin-ledger-engine-anti-farming-model`, pure Kotlin `GamificationLedgerEngine`, anti-farming caps `DAILY_TASK_CAP = 50`, `DAILY_HABIT_CAP = 40`, `DAILY_FOCUS_CAP = 120`, `DAILY_GLOBAL_FARMABLE_CAP = 100`, gross spend defense `deltaAmount > 0`, non-negative clawbacks, compound idempotency keys, single-transaction atomicity in Room `@Transaction`, semantic `CoinPill`). `[DONE]`
+*   [ ] **Story 4.3:** VSync-aligned Bézier coin-earn animation & Coin HUD (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`). `[READY FOR DEV]`
 *   [ ] **Story 4.4:** Non-punishing companion widget & 7-state Rive machine (`4-4-non-punishing-companion-widget-7-state-rive-machine`).
 *   [ ] **Story 4.5:** Cosmetic shop UI & companion customization (`4-5-cosmetic-shop-ui-companion-customization`).
 
@@ -168,9 +169,9 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 4.2 Implementation with EGM & BMAD Build
+### Step 2: Kick off Story 4.3 Implementation with EGM & BMAD Build
 ```
-/bmad-build 4-2-idempotent-coin-ledger-engine-anti-farming-model
+/bmad-build 4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud
 ```
 1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-4-2-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
 2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.

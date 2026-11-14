@@ -122,6 +122,8 @@ class HabitsViewModel @Inject constructor(
                 if (result.coinsEarned > 0) {
                     _uiEffect.send(HabitsUiEffect.ShowCoinReward(intent.startOffset, result.coinsEarned))
                     _uiEffect.send(HabitsUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
+                } else if (result.isCapReached) {
+                    _uiEffect.send(HabitsUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
             }.onFailure {
                 _uiEffect.send(HabitsUiEffect.ShowSnackbar("Could not log habit. Please try again."))

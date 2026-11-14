@@ -225,7 +225,7 @@ class DomainUseCasesTest {
         assertEquals(7, result.updatedHabit.currentStreak)
         assertEquals(1, result.updatedHabit.slackBankDays) // 7 days milestone awards slack bank
         assertEquals("COMPLETED", result.resultingStatus)
-        assertEquals(5, result.coinsEarned)
+        assertEquals(18, result.coinsEarned)
         assertEquals("HABIT_LOG_h_run_$testDate", result.idempotencyKey)
 
         // Verify changes were actually persisted to repository

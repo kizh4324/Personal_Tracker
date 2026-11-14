@@ -1,10 +1,13 @@
 package com.personaltracker.ui
 
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
+import com.personaltracker.domain.engine.GamificationLedgerEngine
+import com.personaltracker.domain.model.AwardCoinsResult
 import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.EconomyEventTypes
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLog
 import com.personaltracker.domain.model.InterventionRule
@@ -26,7 +29,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 
-class TestTaskRepository : TaskRepository {
+class TestTaskRepository(var economyRepository: EconomyRepository? = null) : TaskRepository {
     val tasksFlow = MutableStateFlow<List<Task>>(emptyList())
     val overdueTasks = mutableListOf<Task>()
     var interruptedTask: Task? = null
@@ -82,10 +85,20 @@ class TestTaskRepository : TaskRepository {
         val task = getTaskById(taskId) ?: return
         val updated = task.copy(state = "COMPLETED", completionTimestamp = completionTimestamp)
         saveTask(updated)
+        economyRepository?.recordTransaction(
+            CoinTransaction(
+                id = java.util.UUID.randomUUID().toString(),
+                idempotencyKey = idempotencyKey,
+                deltaAmount = coinReward,
+                eventType = EconomyEventTypes.TASK_COMPLETION,
+                sourceEntityId = taskId,
+                timestamp = completionTimestamp
+            )
+        )
     }
 }
 
-class TestHabitRepository : HabitRepository {
+class TestHabitRepository(var economyRepository: EconomyRepository? = null) : HabitRepository {
     val habitsFlow = MutableStateFlow<List<Habit>>(emptyList())
     val logs = mutableListOf<HabitLog>()
 
@@ -115,6 +128,16 @@ class TestHabitRepository : HabitRepository {
 
     override suspend fun logHabitWithReward(log: HabitLog, coinReward: Int, idempotencyKey: String) {
         logHabit(log)
+        economyRepository?.recordTransaction(
+            CoinTransaction(
+                id = java.util.UUID.randomUUID().toString(),
+                idempotencyKey = idempotencyKey,
+                deltaAmount = coinReward,
+                eventType = EconomyEventTypes.HABIT_COMPLETION,
+                sourceEntityId = log.habitId,
+                timestamp = log.loggedTimestamp
+            )
+        )
     }
 }
 
@@ -185,9 +208,109 @@ class TestEconomyRepository : EconomyRepository {
 
     override fun observeLatestBalance(): Flow<Int> = balanceFlow
 
+    override suspend fun getDailyEarnedTotal(startOfDay: Long): Int =
+        transactionsFlow.value.filter { it.timestamp >= startOfDay && it.deltaAmount > 0 }.sumOf { it.deltaAmount }
+
+    override fun observeDailyEarnedTotal(startOfDay: Long): Flow<Int> =
+        transactionsFlow.map { list -> list.filter { it.timestamp >= startOfDay && it.deltaAmount > 0 }.sumOf { it.deltaAmount } }
+
+    override suspend fun getDailyEarnedForCategory(startOfDay: Long, eventType: String): Int =
+        transactionsFlow.value.filter { it.timestamp >= startOfDay && it.eventType == eventType && it.deltaAmount > 0 }.sumOf { it.deltaAmount }
+
+    override fun observeDailyEarnedForCategory(startOfDay: Long, eventType: String): Flow<Int> =
+        transactionsFlow.map { list -> list.filter { it.timestamp >= startOfDay && it.eventType == eventType && it.deltaAmount > 0 }.sumOf { it.deltaAmount } }
+
+    override fun observeTransactionsSince(timestamp: Long): Flow<List<CoinTransaction>> =
+        transactionsFlow.map { list -> list.filter { it.timestamp >= timestamp }.sortedByDescending { it.timestamp } }
+
+    override suspend fun recordReversal(inboxId: String, amount: Int, idempotencyKey: String): Result<CoinTransaction> {
+        val existing = transactionsFlow.value.find { it.idempotencyKey == idempotencyKey }
+        if (existing != null) return Result.success(existing)
+        val deduction = minOf(amount.coerceAtLeast(0), balanceFlow.value)
+        val newBalance = balanceFlow.value - deduction
+        balanceFlow.value = newBalance
+        val tx = CoinTransaction(
+            id = java.util.UUID.randomUUID().toString(),
+            idempotencyKey = idempotencyKey,
+            deltaAmount = -deduction,
+            eventType = EconomyEventTypes.CAPTURE_REVERSAL,
+            sourceEntityId = inboxId,
+            balanceAfter = newBalance
+        )
+        transactionsFlow.value = transactionsFlow.value + tx
+        return Result.success(tx)
+    }
+
+    override suspend fun awardCoins(
+        eventType: String,
+        sourceEntityId: String,
+        requestedAmount: Int,
+        idempotencyKey: String,
+        startOfDayTimestamp: Long
+    ): AwardCoinsResult {
+        val existing = transactionsFlow.value.find { it.idempotencyKey == idempotencyKey }
+        if (existing != null) {
+            return AwardCoinsResult(
+                coinsAwarded = 0,
+                requestedCoins = requestedAmount,
+                isCapReached = false,
+                isDuplicate = true,
+                transaction = existing
+            )
+        }
+        val isFarmable = eventType in GamificationLedgerEngine.FARMABLE_EVENT_TYPES
+        val categoryCap = when (eventType) {
+            EconomyEventTypes.TASK_COMPLETION -> GamificationLedgerEngine.DAILY_TASK_CAP
+            EconomyEventTypes.HABIT_COMPLETION -> GamificationLedgerEngine.DAILY_HABIT_CAP
+            EconomyEventTypes.STUDY_SESSION -> GamificationLedgerEngine.DAILY_FOCUS_CAP
+            else -> Int.MAX_VALUE
+        }
+        val categoryEarned = getDailyEarnedForCategory(startOfDayTimestamp, eventType)
+        val globalEarned = if (isFarmable) {
+            getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.TASK_COMPLETION) +
+                getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.HABIT_COMPLETION) +
+                getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.ROUTINE_COMPLETION)
+        } else 0
+        val awarded = GamificationLedgerEngine.calculateCappedReward(
+            requestedAmount = requestedAmount,
+            categoryEarned = categoryEarned,
+            categoryCap = categoryCap,
+            globalFarmableEarned = globalEarned,
+            globalFarmableCap = GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP,
+            isFarmableCategory = isFarmable
+        )
+        val isCapReached = (categoryEarned + awarded >= categoryCap) ||
+            (isFarmable && globalEarned + awarded >= GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP) ||
+            (requestedAmount > 0 && awarded < requestedAmount)
+        val newBalance = balanceFlow.value + awarded
+        balanceFlow.value = newBalance
+        val tx = CoinTransaction(
+            id = java.util.UUID.randomUUID().toString(),
+            idempotencyKey = idempotencyKey,
+            deltaAmount = awarded,
+            eventType = eventType,
+            sourceEntityId = sourceEntityId,
+            balanceAfter = newBalance
+        )
+        transactionsFlow.value = transactionsFlow.value + tx
+        return AwardCoinsResult(
+            coinsAwarded = awarded,
+            requestedCoins = requestedAmount,
+            isCapReached = isCapReached,
+            isDuplicate = false,
+            transaction = tx
+        )
+    }
+
     override suspend fun recordTransaction(transaction: CoinTransaction) {
-        transactionsFlow.value = transactionsFlow.value + transaction
-        balanceFlow.value += transaction.deltaAmount
+        val newBalance = balanceFlow.value + transaction.deltaAmount
+        val tx = if (transaction.balanceAfter == 0 && newBalance != 0) {
+            transaction.copy(balanceAfter = newBalance)
+        } else {
+            transaction
+        }
+        transactionsFlow.value = transactionsFlow.value + tx
+        balanceFlow.value = newBalance
     }
 
     override suspend fun purchaseShopItem(shopItemId: String, idempotencyKey: String) {

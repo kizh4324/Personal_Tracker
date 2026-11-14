@@ -572,7 +572,7 @@ class HomeViewModelTest {
             val effect1 = awaitItem()
             assertTrue(effect1 is HomeUiEffect.ShowCoinReward)
             val coinReward = effect1 as HomeUiEffect.ShowCoinReward
-            assertEquals(5, coinReward.coinCount)
+            assertEquals(7, coinReward.coinCount)
 
             val effect2 = awaitItem()
             assertTrue(effect2 is HomeUiEffect.ShowLottieReward)

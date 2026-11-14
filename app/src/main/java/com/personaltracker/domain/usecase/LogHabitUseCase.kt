@@ -5,17 +5,19 @@ import com.personaltracker.domain.engine.FlameState
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.CompanionProfile
+import com.personaltracker.domain.model.EconomyEventTypes
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLog
 import com.personaltracker.domain.model.HabitLogStatus
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Result data class for habit logging.
+ * Result data class for habit logging (AD-4, AD-6).
  */
 data class LogHabitResult(
     val updatedHabit: Habit,
@@ -23,13 +25,14 @@ data class LogHabitResult(
     val flameState: FlameState,
     val coinsEarned: Int,
     val idempotencyKey: String?,
-    val updatedCompanionProfile: CompanionProfile?
+    val updatedCompanionProfile: CompanionProfile?,
+    val isCapReached: Boolean = false
 )
 
 /**
  * Pure Kotlin use case executing habit logging, evaluating non-punitive streaks,
- * upgrading prior rest/missed logs to completed, awarding coins idempotently,
- * and updating companion mood (FR-2.4, FR-8.1, FR-8.2, FR-8.5, ARCH-6, AD-1, AD-4).
+ * upgrading prior rest/missed logs to completed, awarding daily capped coins idempotently,
+ * and updating companion mood (FR-2.4, FR-8.1, FR-8.2, FR-8.5, ARCH-6, AD-1, AD-3, AD-4, AD-6).
  */
 class LogHabitUseCase @Inject constructor(
     private val habitRepository: HabitRepository,
@@ -60,7 +63,8 @@ class LogHabitUseCase @Inject constructor(
                 flameState = streakStateMachine.getFlameState(habit.currentStreak, habit.isFreezeActive),
                 coinsEarned = 0,
                 idempotencyKey = null,
-                updatedCompanionProfile = economyRepository.getCompanionProfile()
+                updatedCompanionProfile = economyRepository.getCompanionProfile(),
+                isCapReached = false
             )
         }
 
@@ -72,7 +76,8 @@ class LogHabitUseCase @Inject constructor(
                 flameState = streakStateMachine.getFlameState(habit.currentStreak, habit.isFreezeActive),
                 coinsEarned = 0,
                 idempotencyKey = null,
-                updatedCompanionProfile = economyRepository.getCompanionProfile()
+                updatedCompanionProfile = economyRepository.getCompanionProfile(),
+                isCapReached = false
             )
         }
 
@@ -87,8 +92,31 @@ class LogHabitUseCase @Inject constructor(
             }
 
             val evaluation = streakStateMachine.evaluateCompletion(habitToEvaluate)
-            val coinReward = ledgerEngine.calculateHabitReward(habit)
+
+            // Pass updated habit state for streak tier bonus and 7-day milestone calculation
+            val requestedReward = ledgerEngine.calculateHabitReward(evaluation.updatedHabit)
             val idempotencyKey = ledgerEngine.generateHabitIdempotencyKey(habitId, logDate)
+
+            // Compute daily category and global farmable caps
+            val parsedDate = LocalDate.parse(logDate)
+            val startOfDayTimestamp = parsedDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            val taskEarned = economyRepository.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.TASK_COMPLETION)
+            val habitEarned = economyRepository.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.HABIT_COMPLETION)
+            val routineEarned = economyRepository.getDailyEarnedForCategory(startOfDayTimestamp, EconomyEventTypes.ROUTINE_COMPLETION)
+            val globalFarmableEarned = taskEarned + habitEarned + routineEarned
+
+            val cappedCoins = ledgerEngine.calculateCappedReward(
+                requestedAmount = requestedReward,
+                categoryEarned = habitEarned,
+                categoryCap = GamificationLedgerEngine.DAILY_HABIT_CAP,
+                globalFarmableEarned = globalFarmableEarned,
+                globalFarmableCap = GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP,
+                isFarmableCategory = true
+            )
+
+            val isCapReached = (habitEarned + cappedCoins >= GamificationLedgerEngine.DAILY_HABIT_CAP) ||
+                (globalFarmableEarned + cappedCoins >= GamificationLedgerEngine.DAILY_GLOBAL_FARMABLE_CAP) ||
+                (requestedReward > 0 && cappedCoins < requestedReward)
 
             // Commit log with reward transaction and handle duplicate tap conflicts
             val log = HabitLog(
@@ -104,7 +132,7 @@ class LogHabitUseCase @Inject constructor(
 
                 habitRepository.logHabitWithReward(
                     log = log,
-                    coinReward = coinReward,
+                    coinReward = cappedCoins,
                     idempotencyKey = idempotencyKey
                 )
             } catch (_: Exception) {
@@ -117,14 +145,15 @@ class LogHabitUseCase @Inject constructor(
                     flameState = streakStateMachine.getFlameState(currentHabit.currentStreak, currentHabit.isFreezeActive),
                     coinsEarned = 0,
                     idempotencyKey = null,
-                    updatedCompanionProfile = economyRepository.getCompanionProfile()
+                    updatedCompanionProfile = economyRepository.getCompanionProfile(),
+                    isCapReached = isCapReached
                 )
             }
 
             // Update companion
             val currentProfile = economyRepository.getCompanionProfile()
-            val updatedProfile = if (currentProfile != null) {
-                val withEnergy = ledgerEngine.addEnergy(currentProfile, coinReward)
+            val updatedProfile = if (currentProfile != null && cappedCoins > 0) {
+                val withEnergy = ledgerEngine.addEnergy(currentProfile, cappedCoins)
                 val mood = when {
                     withEnergy.level > currentProfile.level -> CompanionMood.EXCITED
                     evaluation.updatedHabit.currentStreak >= 7 && evaluation.updatedHabit.currentStreak % 7 == 0 -> CompanionMood.EXCITED
@@ -133,15 +162,16 @@ class LogHabitUseCase @Inject constructor(
                 val withMood = ledgerEngine.applyMood(withEnergy, mood)
                 economyRepository.updateCompanionProfile(withMood)
                 withMood
-            } else null
+            } else currentProfile
 
             LogHabitResult(
                 updatedHabit = evaluation.updatedHabit,
                 resultingStatus = HabitLogStatus.COMPLETED,
                 flameState = evaluation.flameState,
-                coinsEarned = coinReward,
+                coinsEarned = cappedCoins,
                 idempotencyKey = idempotencyKey,
-                updatedCompanionProfile = updatedProfile
+                updatedCompanionProfile = updatedProfile,
+                isCapReached = isCapReached
             )
         } else {
             val evaluation = streakStateMachine.evaluateDay(habit, isCompleted = false, logDate = logDate)
@@ -172,7 +202,8 @@ class LogHabitUseCase @Inject constructor(
                 flameState = evaluation.flameState,
                 coinsEarned = 0,
                 idempotencyKey = null,
-                updatedCompanionProfile = updatedProfile
+                updatedCompanionProfile = updatedProfile,
+                isCapReached = false
             )
         }
     }

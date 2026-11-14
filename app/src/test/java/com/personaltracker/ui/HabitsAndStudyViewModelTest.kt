@@ -121,7 +121,7 @@ class HabitsAndStudyViewModelTest {
             assertTrue(effect1 is HabitsUiEffect.ShowCoinReward)
             val coinReward = effect1 as HabitsUiEffect.ShowCoinReward
             assertEquals(Offset(200f, 300f), coinReward.startOffset)
-            assertEquals(5, coinReward.coinCount)
+            assertEquals(7, coinReward.coinCount)
 
             val effect2 = awaitItem()
             assertTrue(effect2 is HabitsUiEffect.ShowLottieReward)

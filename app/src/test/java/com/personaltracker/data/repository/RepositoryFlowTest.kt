@@ -58,6 +58,11 @@ class RepositoryFlowTest {
             override suspend fun getLatestBalance() = 0
             override fun observeLatestBalance() = transactions.map { 0 }
             override suspend fun insertTransaction(entry: com.personaltracker.data.local.db.entities.CoinLedgerEntity) {}
+            override suspend fun getDailyEarnedTotal(startOfDayTimestamp: Long) = 0
+            override fun observeDailyEarnedTotal(startOfDayTimestamp: Long) = kotlinx.coroutines.flow.flowOf(0)
+            override suspend fun getDailyEarnedForCategory(startOfDayTimestamp: Long, eventType: String) = 0
+            override fun observeDailyEarnedForCategory(startOfDayTimestamp: Long, eventType: String) = kotlinx.coroutines.flow.flowOf(0)
+            override fun getTransactionsSince(timestamp: Long) = kotlinx.coroutines.flow.flowOf(emptyList<com.personaltracker.data.local.db.entities.CoinLedgerEntity>())
         }
 
         val repo = TaskRepositoryImpl(taskDao, coinLedgerDao, fakeTransactionRunner, testDispatcher)

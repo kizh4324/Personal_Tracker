@@ -23,9 +23,10 @@ import com.personaltracker.R
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
 /**
- * Atomic Coin HUD Pill component.
+ * Atomic Coin HUD Pill component (AD-7, EXP-016).
  *
- * Displays the current coin balance using Inter data typography and `ic_coin`.
+ * Displays the current coin balance and optional daily earn cap progress
+ * using Inter data typography and `ic_coin`.
  * Measures its window-level coordinates via [onGloballyPositioned] to serve as the
  * destination target for [com.personaltracker.ui.components.animation.CoinArcAnimation].
  *
@@ -35,6 +36,8 @@ import com.personaltracker.ui.theme.PersonalTrackerTheme
 fun CoinPill(
     balance: Int,
     modifier: Modifier = Modifier,
+    dailyEarned: Int? = null,
+    dailyCap: Int? = null,
     onPositionMeasured: (Offset) -> Unit = {},
     onClick: (() -> Unit)? = null
 ) {
@@ -54,6 +57,12 @@ fun CoinPill(
         Modifier
     }
 
+    val accessibilityDescription = if (dailyEarned != null && dailyCap != null) {
+        "$balance coins • Today: $dailyEarned/$dailyCap"
+    } else {
+        "$balance coins"
+    }
+
     Surface(
         shape = shapes.full,
         color = colors.coinGlow,
@@ -70,7 +79,7 @@ fun CoinPill(
             }
             .then(touchTargetModifier)
             .semantics {
-                contentDescription = "Coin balance: $balance coins"
+                contentDescription = accessibilityDescription
             }
     ) {
         Row(
@@ -88,8 +97,14 @@ fun CoinPill(
                 modifier = Modifier.size(spacing.coinIconSize)
             )
 
+            val displayText = if (dailyEarned != null && dailyCap != null) {
+                "$balance ($dailyEarned/$dailyCap)"
+            } else {
+                "$balance"
+            }
+
             Text(
-                text = "$balance",
+                text = displayText,
                 style = typography.data,
                 color = colors.coinGold
             )

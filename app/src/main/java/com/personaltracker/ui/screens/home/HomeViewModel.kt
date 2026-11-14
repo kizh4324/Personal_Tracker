@@ -623,6 +623,8 @@ class HomeViewModel @Inject constructor(
                 if (result.coinReward > 0) {
                     _uiEffect.send(HomeUiEffect.ShowCoinReward(intent.startOffset, result.coinReward))
                     _uiEffect.send(HomeUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
+                } else if (result.isCapReached) {
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
             }.onFailure {
                 _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not update task. Please try again."))
@@ -638,6 +640,8 @@ class HomeViewModel @Inject constructor(
                 if (result.coinsEarned > 0) {
                     _uiEffect.send(HomeUiEffect.ShowCoinReward(intent.startOffset, result.coinsEarned))
                     _uiEffect.send(HomeUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
+                } else if (result.isCapReached) {
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
             }.onFailure {
                 _uiEffect.send(HomeUiEffect.ShowSnackbar("Could not update habit. Please try again."))

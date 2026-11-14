@@ -1,9 +1,14 @@
 package com.personaltracker.domain.engine
 
 import com.personaltracker.domain.model.CompanionProfile
+import com.personaltracker.domain.model.DeliveryIntensity
+import com.personaltracker.domain.model.EconomyEventTypes
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.Routine
+import com.personaltracker.domain.model.StreakTier
 import com.personaltracker.domain.model.Task
+import java.time.LocalDate
+import javax.inject.Inject
 
 /**
  * Valid companion pet mood states (AD-4, EXPERIENCE.md §4.9).
@@ -37,11 +42,12 @@ sealed interface CompanionTriggerEvent {
 
 /**
  * Pure Kotlin behavioral engine managing coin reward math, deterministic idempotency keys,
- * companion XP progression, and positive mood state transitions (FR-8.1, FR-8.2, AD-1, AD-4, AD-6).
+ * daily earn caps, companion XP progression, and positive mood state transitions
+ * (FR-8.1, FR-8.2, AD-1, AD-4, AD-6).
  *
  * Contains zero Android framework dependencies.
  */
-class GamificationLedgerEngine {
+class GamificationLedgerEngine @Inject constructor() {
 
     companion object {
         const val ENERGY_PER_LEVEL = 100
@@ -53,95 +59,190 @@ class GamificationLedgerEngine {
 
         const val REWARD_HABIT_BASE = 5
         const val REWARD_ROUTINE_BASE = 15
-    }
+        const val REWARD_ROUTINE_STEP = 2
 
-    /**
-     * Calculates the coin payout for completing a task based on delivery intensity.
-     */
-    fun calculateTaskReward(task: Task): Int {
-        return when (task.deliveryIntensity.uppercase()) {
-            "URGENT" -> REWARD_TASK_URGENT
-            "IMPORTANT" -> REWARD_TASK_IMPORTANT
-            else -> REWARD_TASK_ROUTINE
+        const val DAILY_TASK_CAP = 50
+        const val DAILY_HABIT_CAP = 40
+        const val DAILY_FOCUS_CAP = 120
+        const val DAILY_GLOBAL_FARMABLE_CAP = 100
+
+        val FARMABLE_EVENT_TYPES: Set<String> = setOf(
+            EconomyEventTypes.TASK_COMPLETION,
+            EconomyEventTypes.HABIT_COMPLETION,
+            EconomyEventTypes.ROUTINE_COMPLETION
+        )
+
+        /**
+         * Calculates coin payout for task completion based on delivery intensity.
+         */
+        fun calculateTaskReward(intensity: DeliveryIntensity): Int = when (intensity) {
+            DeliveryIntensity.ROUTINE -> REWARD_TASK_ROUTINE
+            DeliveryIntensity.IMPORTANT -> REWARD_TASK_IMPORTANT
+            DeliveryIntensity.URGENT -> REWARD_TASK_URGENT
+        }
+
+        fun calculateTaskReward(task: Task): Int =
+            calculateTaskReward(DeliveryIntensity.fromString(task.deliveryIntensity))
+
+        fun calculateTaskReward(intensity: String): Int =
+            calculateTaskReward(DeliveryIntensity.fromString(intensity))
+
+        /**
+         * Calculates coin payout for completing a habit based on streak tier and 7-day milestones.
+         */
+        fun calculateHabitReward(habit: Habit): Int {
+            val base = REWARD_HABIT_BASE
+            val streakBonus = when (habit.streakTier) {
+                StreakTier.COLD -> 0
+                StreakTier.WARMING -> 1
+                StreakTier.BURNING -> 2
+                StreakTier.BLAZING -> 3
+            }
+            val milestoneBonus = if (habit.currentStreak > 0 && habit.currentStreak % 7 == 0) 10 else 0
+            return base + streakBonus + milestoneBonus
+        }
+
+        /**
+         * Calculates coin payout for a study session.
+         * Sessions < 10 mins: 0 coins.
+         * Sessions >= 10 mins: (durationMinutes / 6).coerceIn(5, 15).
+         */
+        fun calculateStudyReward(durationMinutes: Long): Int {
+            if (durationMinutes < MIN_STUDY_MINUTES_FOR_COINS) return 0
+            return (durationMinutes / 6).toInt().coerceIn(5, 15)
+        }
+
+        fun calculateStudySessionReward(durationMinutes: Int): Int =
+            calculateStudyReward(durationMinutes.toLong())
+
+        /**
+         * Calculates coin payout for advancing an individual routine step.
+         */
+        fun calculateRoutineStepReward(): Int = REWARD_ROUTINE_STEP
+
+        /**
+         * Calculates coin payout for completing an entire sequential routine.
+         */
+        fun calculateRoutineReward(routine: Routine): Int = REWARD_ROUTINE_BASE
+
+        /**
+         * Two-tier cap clamping logic (AD-4, AD-6).
+         * Clamps requested reward against category cap and optional global farmable cap.
+         */
+        fun calculateCappedReward(
+            requestedAmount: Int,
+            categoryEarned: Int,
+            categoryCap: Int,
+            globalFarmableEarned: Int = 0,
+            globalFarmableCap: Int = Int.MAX_VALUE,
+            isFarmableCategory: Boolean = false
+        ): Int {
+            if (requestedAmount <= 0) return 0
+            val categoryRemaining = maxOf(0, categoryCap - categoryEarned)
+            val afterCategory = minOf(requestedAmount, categoryRemaining)
+            return if (isFarmableCategory) {
+                val globalRemaining = maxOf(0, globalFarmableCap - globalFarmableEarned)
+                minOf(afterCategory, globalRemaining)
+            } else {
+                afterCategory
+            }
+        }
+
+        // Idempotency Key Generators
+        fun generateTaskCompletionKey(taskId: String): String {
+            require(taskId.isNotBlank() && !taskId.any(Char::isWhitespace)) {
+                "taskId must be non-blank without whitespace: $taskId"
+            }
+            return "TASK_COMP_$taskId"
+        }
+
+        fun generateTaskIdempotencyKey(taskId: String): String =
+            generateTaskCompletionKey(taskId)
+
+        fun generateHabitLogKey(habitId: String, date: LocalDate): String =
+            generateHabitLogKey(habitId, date.toString())
+
+        fun generateHabitLogKey(habitId: String, date: String): String {
+            require(habitId.isNotBlank() && !habitId.any(Char::isWhitespace)) {
+                "habitId must be non-blank without whitespace: $habitId"
+            }
+            require(date.isNotBlank() && !date.any(Char::isWhitespace)) {
+                "date must be non-blank without whitespace: $date"
+            }
+            return "HABIT_LOG_${habitId}_$date"
+        }
+
+        fun generateHabitIdempotencyKey(habitId: String, logDate: String): String =
+            generateHabitLogKey(habitId, logDate)
+
+        fun generateStudySessionKey(sessionId: String): String {
+            require(sessionId.isNotBlank() && !sessionId.any(Char::isWhitespace)) {
+                "sessionId must be non-blank without whitespace: $sessionId"
+            }
+            return "STUDY_SESSION_$sessionId"
+        }
+
+        fun generateStudyIdempotencyKey(sessionId: String): String =
+            generateStudySessionKey(sessionId)
+
+        fun generateRoutineStepKey(routineId: String, date: LocalDate): String =
+            generateRoutineStepKey(routineId, date.toString())
+
+        fun generateRoutineStepKey(routineId: String, date: String): String {
+            require(routineId.isNotBlank() && !routineId.any(Char::isWhitespace)) {
+                "routineId must be non-blank without whitespace: $routineId"
+            }
+            require(date.isNotBlank() && !date.any(Char::isWhitespace)) {
+                "date must be non-blank without whitespace: $date"
+            }
+            return "ROUTINE_COMP_${routineId}_$date"
+        }
+
+        fun generateRoutineIdempotencyKey(routineId: String, date: String): String =
+            generateRoutineStepKey(routineId, date)
+
+        fun generateCaptureUndoKey(inboxId: String): String {
+            require(inboxId.isNotBlank() && !inboxId.any(Char::isWhitespace)) {
+                "inboxId must be non-blank without whitespace: $inboxId"
+            }
+            return "CAPTURE_UNDO_$inboxId"
         }
     }
 
-    /**
-     * Calculates the coin payout for completing a habit.
-     */
-    fun calculateHabitReward(habit: Habit): Int {
-        return REWARD_HABIT_BASE
-    }
+    // Instance delegation for backward compatibility
+    fun calculateTaskReward(intensity: DeliveryIntensity): Int = Companion.calculateTaskReward(intensity)
+    fun calculateTaskReward(task: Task): Int = Companion.calculateTaskReward(task)
+    fun calculateTaskReward(intensity: String): Int = Companion.calculateTaskReward(intensity)
+    fun calculateHabitReward(habit: Habit): Int = Companion.calculateHabitReward(habit)
+    fun calculateStudyReward(durationMinutes: Long): Int = Companion.calculateStudyReward(durationMinutes)
+    fun calculateStudySessionReward(durationMinutes: Int): Int = Companion.calculateStudySessionReward(durationMinutes)
+    fun calculateRoutineStepReward(): Int = Companion.calculateRoutineStepReward()
+    fun calculateRoutineReward(routine: Routine): Int = Companion.calculateRoutineReward(routine)
+    fun calculateCappedReward(
+        requestedAmount: Int,
+        categoryEarned: Int,
+        categoryCap: Int,
+        globalFarmableEarned: Int = 0,
+        globalFarmableCap: Int = Int.MAX_VALUE,
+        isFarmableCategory: Boolean = false
+    ): Int = Companion.calculateCappedReward(
+        requestedAmount, categoryEarned, categoryCap, globalFarmableEarned, globalFarmableCap, isFarmableCategory
+    )
 
-    /**
-     * Calculates the coin payout for a study session.
-     * Sessions shorter than 10 minutes receive 0 coins (EXPERIENCE.md §4.5).
-     * Sessions >= 10 minutes earn 10 coins per 60 minutes (minimum 5 coins).
-     */
-    fun calculateStudySessionReward(durationMinutes: Int): Int {
-        if (durationMinutes < MIN_STUDY_MINUTES_FOR_COINS) return 0
-        return (durationMinutes / 6).coerceAtLeast(5)
-    }
-
-    /**
-     * Calculates the coin payout for completing a sequential routine.
-     */
-    fun calculateRoutineReward(routine: Routine): Int {
-        return REWARD_ROUTINE_BASE
-    }
-
-    /**
-     * Generates a deterministic compound idempotency key for task completion: TASK_COMP_{id}.
-     */
-    fun generateTaskIdempotencyKey(taskId: String): String {
-        require(taskId.isNotBlank() && !taskId.any(Char::isWhitespace)) {
-            "taskId must be non-blank without whitespace: $taskId"
-        }
-        return "TASK_COMP_$taskId"
-    }
-
-    /**
-     * Generates a deterministic compound idempotency key for habit logging: HABIT_LOG_{id}_{date}.
-     */
-    fun generateHabitIdempotencyKey(habitId: String, logDate: String): String {
-        require(habitId.isNotBlank() && !habitId.any(Char::isWhitespace)) {
-            "habitId must be non-blank without whitespace: $habitId"
-        }
-        require(logDate.isNotBlank() && !logDate.any(Char::isWhitespace)) {
-            "logDate must be non-blank without whitespace: $logDate"
-        }
-        return "HABIT_LOG_${habitId}_$logDate"
-    }
-
-    /**
-     * Generates a deterministic compound idempotency key for study sessions: STUDY_SESSION_{id}.
-     */
-    fun generateStudyIdempotencyKey(sessionId: String): String {
-        require(sessionId.isNotBlank() && !sessionId.any(Char::isWhitespace)) {
-            "sessionId must be non-blank without whitespace: $sessionId"
-        }
-        return "STUDY_SESSION_$sessionId"
-    }
-
-    /**
-     * Generates a deterministic compound idempotency key for routine completion: ROUTINE_COMP_{id}_{date}.
-     */
-    fun generateRoutineIdempotencyKey(routineId: String, date: String): String {
-        require(routineId.isNotBlank() && !routineId.any(Char::isWhitespace)) {
-            "routineId must be non-blank without whitespace: $routineId"
-        }
-        require(date.isNotBlank() && !date.any(Char::isWhitespace)) {
-            "date must be non-blank without whitespace: $date"
-        }
-        return "ROUTINE_COMP_${routineId}_$date"
-    }
+    fun generateTaskCompletionKey(taskId: String): String = Companion.generateTaskCompletionKey(taskId)
+    fun generateTaskIdempotencyKey(taskId: String): String = Companion.generateTaskIdempotencyKey(taskId)
+    fun generateHabitLogKey(habitId: String, date: LocalDate): String = Companion.generateHabitLogKey(habitId, date)
+    fun generateHabitLogKey(habitId: String, date: String): String = Companion.generateHabitLogKey(habitId, date)
+    fun generateHabitIdempotencyKey(habitId: String, logDate: String): String = Companion.generateHabitIdempotencyKey(habitId, logDate)
+    fun generateStudySessionKey(sessionId: String): String = Companion.generateStudySessionKey(sessionId)
+    fun generateStudyIdempotencyKey(sessionId: String): String = Companion.generateStudyIdempotencyKey(sessionId)
+    fun generateRoutineStepKey(routineId: String, date: LocalDate): String = Companion.generateRoutineStepKey(routineId, date)
+    fun generateRoutineStepKey(routineId: String, date: String): String = Companion.generateRoutineStepKey(routineId, date)
+    fun generateRoutineIdempotencyKey(routineId: String, date: String): String = Companion.generateRoutineIdempotencyKey(routineId, date)
+    fun generateCaptureUndoKey(inboxId: String): String = Companion.generateCaptureUndoKey(inboxId)
 
     /**
      * Advances companion XP and level without negative energy or HP degradation (AD-4).
-     *
-     * @param profile Existing companion profile
-     * @param energyDelta Positive energy units earned
-     * @return Updated companion profile
      */
     fun addEnergy(profile: CompanionProfile, energyDelta: Int): CompanionProfile {
         require(energyDelta >= 0) { "Energy earned cannot be negative: $energyDelta" }

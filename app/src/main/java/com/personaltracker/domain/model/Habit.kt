@@ -21,6 +21,12 @@ data class Habit(
     val category: String? = null
 ) {
     /**
+     * Resolves the 4-tier streak state for reward bonus calculations.
+     */
+    val streakTier: StreakTier
+        get() = StreakTier.fromStreak(currentStreak)
+
+    /**
      * Resolves the polymorphic [HabitCadence] representation from the habit's configuration.
      */
     val cadence: HabitCadence
