@@ -68,3 +68,32 @@ All delegated subagents must strictly obey `ARCHITECTURE-SPINE.md`:
 - **AD-2 (Persistence):** Room `@Transaction` for multi-boundary mutations; `@Upsert` or `@Insert(onConflict = ABORT)` (never `OnConflictStrategy.REPLACE` with cascade keys).
 - **AD-7 (Design Tokens):** Zero hardcoded hex colors or `dp`/`sp` literals in `ui/components/` and `ui/screens/`.
 - **AD-8 (Zero-Disk Audio):** Audio recorded in RAM only; purge raw buffers immediately post-transcription.
+
+---
+
+## 6. Elephant-Goldfish Model (EGM) Multi-Agent Architecture & Swarm Protocols
+
+All stories and major architectural changes in `Personal-Tracker` follow the Elephant-Goldfish Model (EGM) global plugin (`C:\Users\User\.gemini\config\plugins\egm`):
+
+### A. Role 1: The Elephant (Context-Rich Spec Designer)
+- **Context Breadth:** The Elephant holds comprehensive, persistent project context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md` AD-1 through AD-8, `.harness2/EXPERIENCE.md`, and `HANDOFF.md`).
+- **No Code During Design Rule:** The Elephant designs specifications under a strict constraint: **zero code modification during the design phase**. Use `/egm:egm-brainstorm` and `/egm:egm-draft` to author concept briefs and specifications in `docs/designs/` and `_bmad-output/implementation-artifacts/` without editing production or test Kotlin code.
+
+### B. Role 2: The Goldfish Swarm (Stateless Zero-Context Reviewers)
+Before implementation begins (and during post-implementation review loops), the Elephant dispatches the specification to a swarm of fresh, zero-history subagents (`/egm:egm-review` / `/egm:egm-review-loop`) using `invoke_subagent`. Reviewers receive **ONLY** the target spec file and explicitly referenced Kotlin source files—zero parent conversation tokens—to execute the mandatory 3-stage EGM gate:
+1. **Comprehension Check (`egm-comprehension`):**
+   - The stateless Goldfish reads the spec cold and summarizes its architecture, domain entity contracts, and unidirectional MVI (`UiState` / `UiIntent` / `UiEffect`) data flow back to the Elephant.
+   - Any hallucination or miscomprehension reveals spec ambiguity that must be resolved prior to implementation.
+2. **Antagonistic Review (`egm-design`, `egm-codebase-details`, `egm-inventive-catalyst`, `egm-zoom-out`):**
+   - Skeptical reviewers interrogate the spec against project invariants:
+     - `AD-1` Domain Purity: Zero Android framework imports in `domain/`.
+     - `AD-4` Non-Punitive Copy: Zero guilt, nag, or shaming language; 0 companion penalty.
+     - `AD-7` Token Conformance: Zero raw hex colors, zero raw `dp`/`sp` literals, 48dp minimum touch target floor.
+     - Concurrency & Transactions: Room `@Transaction` blocks on `Dispatchers.IO` for cross-domain operations.
+3. **Implementation Readiness Go/No-Go Check (`egm-implementation-readiness`):**
+   - The Goldfish acts as Pragmatic Tech Lead, verifying that exact target file paths, Kotlin data structures, function signatures, MVI models, and unit test suites are 100% unambiguous before code execution begins.
+
+### C. Role 3: Drift Detection (`/egm:egm-drift-report`)
+- Post-implementation verification includes running `/egm:egm-drift-report` to compare checked-in specifications against live `app/src/main/` Kotlin code.
+- Verifies zero architectural drift, contract divergence, or phantom APIs before code review signs off. Drift reports are archived in `docs/designs/drift/`.
+

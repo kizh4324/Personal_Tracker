@@ -5,6 +5,9 @@
 - **Language** — Speak in `{{.communication_language}}`. Write any file output in `{{.document_output_language}}`.
 - All review subagents must run at the same model capability as the current session.
 - Run subagents synchronously: launch them together, then wait for all results before continuing.
+- **Elephant-Goldfish Model (EGM) Review Invariants:**
+  - **Role 2: The Goldfish Swarm (Stateless Zero-Context Reviewers):** All code review subagents (`/egm:egm-review` / `/egm:egm-review-loop`) must run fresh with **zero parent conversation context**, receiving only `{diff_output}`, `{spec_file}`, and referenced Kotlin sources.
+  - **Role 3: Drift Detection (`/egm:egm-drift-report`):** Compare the approved specification against live `app/src/main/` Kotlin code to detect contract, entity, or state drift. Output reports to `docs/designs/drift/`.
 
 ## INSTRUCTIONS
 
@@ -21,6 +24,17 @@ Do NOT `git add` anything — this is read-only inspection.
 Execute these review layers in parallel wherever their execution methods allow: substitute the runtime placeholders (e.g. `{diff_output}`) into each layer's instruction. When an instruction launches a reviewer subagent, launch that child with the prompt text after placeholder substitution; do not load the reviewer instruction file yourself. For any other customized instruction, execute it as written. Parallel means several blocking calls awaited together in this turn — never backgrounded or detached, never ending the turn to await results. When running layers as subagents, spawn every reviewer before reading or reacting to any of their output; begin collection and triage only once all are launched.
 
 {workflow.review_layers}
+
+#### EGM 3-Stage Goldfish Swarm Review Gate (`egm-review`)
+
+Launch stateless zero-context subagents (`/egm:egm-review` / `/egm:egm-review-loop`) evaluating `{diff_output}` against `{spec_file}`:
+1. **Comprehension Check (`egm-comprehension`):** Stateless Goldfish confirms the implemented code and unidirectional MVI flow strictly mirror the spec's intent without hallucinated behavior.
+2. **Antagonistic Review (`egm-design`, `egm-codebase-details`, `egm-inventive-catalyst`):** Skeptical Goldfish reviewers probe for:
+   - `AD-1` Domain Purity: Zero `android.*` or `androidx.*` imports in `domain/`.
+   - `AD-4` Non-Punitive Copy: Zero guilt, nag, or shaming language in UI strings or notifications.
+   - `AD-7` Token Conformance: Zero raw hex colors, zero raw `dp`/`sp` literals in `ui/`, 48dp minimum touch target floor.
+   - Concurrency & Threading: Multi-entity mutations inside Room `@Transaction` blocks on `Dispatchers.IO`.
+3. **Implementation Readiness & Drift Verification (`egm-drift-report`):** Verify zero architectural or signature drift between the spec and live Kotlin code in `app/src/main/`.
 
 If a layer's instruction requires subagents and none are available, for each such layer write under `{{.implementation_artifacts}}` the exact child prompt from that layer's instruction after placeholder substitution (not a path-only pointer), then HALT. Ask the human to run each in a separate session (ideally a different LLM) and paste back the findings.
 
@@ -52,10 +66,10 @@ If a layer's instruction requires subagents and none are available, for each suc
 
 ### Gate 6: Artemis Real-Device E2E Verification
 
-Whenever a physical Android device or active emulator is connected (db devices / mobile_get_device_state):
-1. **Build & Install Debug APK**: Run .\gradlew installDebug to deploy the latest artifacts to the target device.
-2. **Autonomous Exploration & Interaction**: Use mobile_get_device_state and mobile_run_task (with --profile flash for fast verification or pro for multi-branch verification) to autonomously exercise the newly built story's UI flow on com.personaltracker.
-3. **Diagnostics & Zero Crash Invariant**: Run mobile_diagnose / mobile_inspect_trace to confirm 0 runtime crashes or unhandled exceptions in Logcat, and visually verify Warm Organic Tactile UI token rendering.
+Whenever a physical Android device or active emulator is connected (`adb devices` / `mobile_get_device_state`):
+1. **Build & Install Debug APK**: Run `.\gradlew installDebug` to deploy the latest artifacts to the target device.
+2. **Autonomous Exploration & Interaction**: Use `mobile_get_device_state` and `mobile_run_task` (with `--profile flash` for fast verification or `pro` for multi-branch verification) to autonomously exercise the newly built story's UI flow on `com.personaltracker`.
+3. **Diagnostics & Zero Crash Invariant**: Run `mobile_diagnose` / `mobile_inspect_trace` to confirm 0 runtime crashes or unhandled exceptions in Logcat, and visually verify Warm Organic Tactile UI token rendering.
 
 ## NEXT
 

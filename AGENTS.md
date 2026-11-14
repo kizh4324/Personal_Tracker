@@ -65,3 +65,13 @@ Local-first, network-optional native Android personal productivity application w
 - **Subagent Delegation Policy:** Strictly follow `.agents/rules/harness-subagents.md`. Use `invoke_subagent` in `Workspace: "inherit"` mode when building multi-component features (such as Story 1.6's 5 platform services) or running heavy test suites. Use `Workspace: "branch"` mode for exploratory spikes, UI theme swaps, or database schema migrations to protect the primary context budget.
 - **Harness² H0 Baseline & Experience Integration:** Validate harness components with `python .agents/scripts/harness2_bridge.py --check` and consult `.harness2/EXPERIENCE.md` for operational heuristics and anti-patterns before executing new stories.
 
+## Elephant-Goldfish Model (EGM) Integration Rules
+
+- **Role 1: The Elephant (Context-Rich Spec Designer):** Holds full project context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md` AD-1 to AD-8, `.harness2/EXPERIENCE.md`, and `HANDOFF.md`) to draft story specifications under a strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`). Concept briefs and designs belong in `docs/designs/`.
+- **Role 2: The Goldfish Swarm (Stateless Zero-Context Reviewers):** Before implementation begins (and during post-implementation review), spawn fresh, zero-history subagents (`/egm:egm-review` / `/egm:egm-review-loop`) that receive ONLY the spec file and referenced Kotlin files (zero parent conversation history) to execute the 3-stage EGM gate:
+  - *a) Comprehension Check:* Stateless Goldfish summarizes the spec's architecture and MVI data flow back to the Elephant to prove zero ambiguity.
+  - *b) Antagonistic Review:* Skeptical Goldfish reviewers probe for AD-1 domain purity leaks, AD-4 punitive copy, AD-7 raw hex/dp token violations, concurrency races, and edge cases.
+  - *c) Implementation Readiness Go/No-Go Check:* Verifies exact file paths, Kotlin data structures, MVI `UiState`/`UiIntent` signatures, and test targets are 100% unambiguous.
+- **Role 3: Drift Detection (`/egm:egm-drift-report`):** Compares checked-in specs against live `app/src/main/` Kotlin code after implementation to guarantee zero architectural or contract drift (reports archived in `docs/designs/drift/`).
+
+

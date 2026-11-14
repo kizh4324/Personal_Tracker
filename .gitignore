@@ -49,3 +49,10 @@ cursor-talk-to-figma-mcp/
 .cursor/
 
 .kotlin/
+
+# Elephant-Goldfish Model (EGM) Local Artifacts & Cache
+.egm*
+.egm/
+.egm-cache/
+.egm-scratch/
+

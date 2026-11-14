@@ -233,10 +233,26 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Unit tests and headless JVM simulations pass even when UI layouts clip on specific screen resolutions, system alert overlays fail to attach, or JNI libraries fail to link at runtime. Manual exploratory testing after every build is slow and prone to missed regression paths.
 * **Rule:** Enforce Gate 6 via the Artemis MCP toolchain (`mobile_get_device_state`, `mobile_run_task --profile flash`, `mobile_diagnose`) whenever a physical device (`adb devices`) or emulator is attached. Adhere strictly to the "Dynamic-First, Coordinate-Fallback" locating philosophy, verify 0 Logcat runtime crashes, and confirm Warm Organic Tactile visual rendering before marking stories complete.
 
-### EXP-038: Soft Keyboard & Input Method Immunity in Accessibility Interception (AD-1, FR-4.6, FR-10.1)
+---
+
+## 19. Multi-Agent Design Architecture (Elephant-Goldfish Model)
+
+### EXP-038: Elephant-Goldfish Model (EGM) Zero-Context Spec & Review Gate
+* **Context:** Story design, spec drafting, and pre-/post-implementation code review across BMAD, Google Agent Harness, and Artemis Gate 6 cycles.
+* **Heuristic:** Accumulating long multi-turn context (the "Elephant") causes cognitive bias and sycophancy, where the authoring agent rationalizes ambiguities in its own specifications and overlooks subtle violations of architectural invariants (`AD-1` to `AD-8`, design tokens, Room transactions). Conversely, designing without repository context leads to hallucinated dependencies and duplicate implementations.
+* **Rule:** Decouple specification authoring from verification using the Elephant-Goldfish Model (EGM):
+  1. **The Elephant (Spec Designer):** Retains full project context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to synthesize story requirements under a strict **"No Code During Design"** invariant (`/egm:egm-brainstorm` & `/egm:egm-draft`).
+  2. **The Goldfish Swarm (Stateless Zero-Context Reviewers):** Before implementation begins (and during post-implementation review), spawn fresh, zero-history subagents (`/egm:egm-review` / `/egm:egm-review-loop`) receiving ONLY the spec file and referenced Kotlin source files (zero parent conversation tokens) to execute the 3-stage gate:
+     - *a) Comprehension Check (`egm-comprehension`):* Stateless Goldfish summarizes architecture, domain boundaries, and MVI data flow back to the Elephant to prove zero ambiguity.
+     - *b) Antagonistic Review (`egm-design`, `egm-codebase-details`, `egm-inventive-catalyst`):* Probes for `AD-1` domain purity leaks, `AD-4` punitive copy, `AD-7` raw hex/dp token violations, concurrency races, and edge cases.
+     - *c) Implementation Readiness Go/No-Go Check (`egm-implementation-readiness`):* Confirms exact file paths, Kotlin data structures, MVI signatures, and JVM test targets are 100% unambiguous before code execution.
+  3. **Drift Detection (`/egm:egm-drift-report`):** Compares checked-in specs against live `app/src/main/` Kotlin code after implementation to guarantee zero architectural or contract drift.
+
+### EXP-039: Soft Keyboard & Input Method Immunity in Accessibility Interception (AD-1, FR-4.6, FR-10.1)
 * **Context:** Preventing accessibility services from triggering distraction interception or obstructing text entry during IME (keyboard) transitions (`InterceptDistractionUseCase.kt`, `DistractionInterceptionService.kt`).
 * **Heuristic:** Virtual keyboards (such as Gboard, Samsung Keyboard, SwiftKey) transition between window states during text input. If soft keyboard package transitions (`com.google.android.inputmethod.latin`, `com.touchtype.swiftkey`, `com.samsung.android.honeyboard`) are evaluated as potential distractions or treated as target foreground apps, text input during legitimate note-taking, quick-capture, or whitelisted apps gets obstructed or causes spurious overlay re-evaluations.
 * **Rule:** Unconditionally exempt all input method editors and soft keyboard packages via explicit package matching and segment filtering (`.inputmethod.`, `.keyboard.`, `swiftkey`, `honeyboard`, `ime`) in `InterceptDistractionUseCase`. Treat IME window transitions as non-distracting interactions that neither trigger an intervention card nor dismiss active overlays.
+
 
 
 

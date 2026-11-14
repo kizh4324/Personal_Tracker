@@ -17,14 +17,15 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-13 16:45:00 +05:30
-*   **Current Git Commit:** Tracking Story 3.3 completion & WhitelistManagerSheet integration
+*   **Date/Time:** 2026-11-14 10:50:00 +05:30
+*   **Current Git Commit:** Tracking Elephant-Goldfish Model (EGM) Lifecycle Integration
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
     *   **Dependency Injection:** Hilt 2.58 (`ksp` only; zero KAPT)
     *   **Persistence & Security:** Room 2.7.0 over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
+    *   **Multi-Agent Plugins:** Elephant-Goldfish Model (EGM) Global Plugin (`C:\Users\User\.gemini\config\plugins\egm`)
 *   **Commands to Build & Test:**
     *   Unit Tests (JVM): `.\gradlew test` (411+ tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
@@ -33,6 +34,7 @@ status: active
     *   Harness² Baseline Check: `python .agents/scripts/harness2_bridge.py --check` (`All 8 H0 components valid`)
     *   Artemis Real-Device E2E Verification (Gate 6): Deploy with `.\gradlew installDebug`, then run autonomous exploration and diagnostics via Artemis MCP (`mobile_get_device_state`, `mobile_run_task --profile flash`, `mobile_diagnose`) on `com.personaltracker`.
     *   Assemble Debug APK: `.\gradlew assembleDebug`
+    *   EGM Design & Drift Verification: Concept briefs and drift reports in `docs/designs/` (`/egm:egm-drift-report`)
 *   **Overall Status:**
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
@@ -164,7 +166,10 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 3.4 Implementation
+### Step 2: Kick off Story 3.4 Implementation with EGM & BMAD Build
 ```
 /bmad-build 3-4-adaptive-intervention-ladder-jitai-restraint-override-fricti
 ```
+1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-3-4-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
+2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.
+3. **Implementation & Verification:** Implement via `invoke_subagent` (`Workspace: "inherit"`), verify JVM tests and Artemis Gate 6, and run `/egm:egm-drift-report` to confirm 0 drift.

@@ -20,6 +20,7 @@ sources:
   - uri: ".agent/skills/ui-taste-duolingo/SKILL.md"
   - uri: ".agents/mcp_config.json"
   - uri: "docs/design/references/README.md"
+  - uri: "docs/designs/README.md"
 ---
 
 # Personal-Tracker Knowledge Base Index (OKF v0.2)
@@ -43,6 +44,7 @@ This index serves as the machine-readable and human-navigable entrypoint for aut
 | [**`.agent/skills/ui-taste-duolingo/SKILL.md`**](../../.agent/skills/ui-taste-duolingo/SKILL.md) | `design-skill` | Duolingo Minimal Tactile design language rules, 3D lip geometry, Framer-to-Compose motion mapping, and UI guardrails. | Active |
 | [**`.agents/mcp_config.json`**](../../.agents/mcp_config.json) | `mcp-config` | Design & Animation MCP pipeline (Figma Developer, Figma Write Bridge, Framer, Stitch). | Active |
 | [**`docs/design/references/README.md`**](../design/references/README.md) | `design-references` | Golden visual reference targets and Gemini multimodal ingestion guide. | Active |
+| [**`docs/designs/README.md`**](../designs/README.md) | `egm-designs` | Elephant-Goldfish Model (EGM) concept briefs, design drafts, and architectural drift reports. | Active |
 
 ---
 
