@@ -18,6 +18,9 @@ internal interface HabitDao {
     @Query("SELECT * FROM habits")
     fun getAllHabits(): Flow<List<HabitEntity>>
 
+    @Query("SELECT * FROM habits")
+    suspend fun getAllHabitsList(): List<HabitEntity>
+
     @Query("SELECT * FROM habits WHERE id = :id LIMIT 1")
     suspend fun getHabitById(id: String): HabitEntity?
 
@@ -27,12 +30,24 @@ internal interface HabitDao {
     @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY logDate DESC")
     fun getLogsForHabit(habitId: String): Flow<List<HabitLogEntity>>
 
+    @Query("SELECT * FROM habit_logs WHERE habitId = :habitId ORDER BY logDate DESC")
+    suspend fun getLogsForHabitList(habitId: String): List<HabitLogEntity>
+
     @Upsert
     suspend fun insertHabit(habit: HabitEntity)
+
+    @Upsert
+    suspend fun insertHabits(habits: List<HabitEntity>)
 
     @Update
     suspend fun updateHabit(habit: HabitEntity)
 
+    @Update
+    suspend fun updateHabits(habits: List<HabitEntity>)
+
     @Upsert
     suspend fun insertLog(log: HabitLogEntity)
+
+    @Upsert
+    suspend fun insertLogs(logs: List<HabitLogEntity>)
 }

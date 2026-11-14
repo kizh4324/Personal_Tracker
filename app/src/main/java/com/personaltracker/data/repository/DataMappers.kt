@@ -13,6 +13,7 @@ import com.personaltracker.data.local.db.entities.ShopItemEntity
 import com.personaltracker.data.local.db.entities.StudySessionEntity
 import com.personaltracker.data.local.db.entities.TaskEntity
 import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
+import com.personaltracker.domain.model.CadenceType
 import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayOverride
@@ -123,17 +124,31 @@ internal fun RoutineStep.toEntity(): RoutineStepEntity = RoutineStepEntity(
     durationMinutes = durationMinutes
 )
 
-internal fun HabitEntity.toDomain(): Habit = Habit(
-    id = id,
-    name = name,
-    description = description,
-    targetDaysOfWeek = targetDaysOfWeek,
-    currentStreak = currentStreak,
-    bestStreak = bestStreak,
-    slackBankDays = slackBankDays,
-    isFreezeActive = isFreezeActive,
-    createdTimestamp = createdTimestamp
-)
+internal fun HabitEntity.toDomain(): Habit {
+    val parsedCadenceType = when {
+        cadenceType.equals("SPECIFIC_DAYS", ignoreCase = true) -> CadenceType.SPECIFIC_DAYS
+        cadenceType.equals("WEEKLY_FREQUENCY", ignoreCase = true) -> CadenceType.WEEKLY_FREQUENCY
+        cadenceType.equals("DAILY", ignoreCase = true) && targetDaysOfWeek.isNotBlank() && targetDaysOfWeek != "1,2,3,4,5,6,7" -> CadenceType.SPECIFIC_DAYS
+        else -> runCatching { CadenceType.valueOf(cadenceType) }.getOrDefault(CadenceType.DAILY)
+    }
+    return Habit(
+        id = id,
+        name = name,
+        description = description,
+        targetDaysOfWeek = targetDaysOfWeek,
+        currentStreak = currentStreak,
+        bestStreak = bestStreak,
+        slackBankDays = slackBankDays,
+        isFreezeActive = isFreezeActive,
+        createdTimestamp = createdTimestamp,
+        cadenceType = parsedCadenceType,
+        weeklyTargetFrequency = weeklyTargetFrequency,
+        reminderTime = reminderTime,
+        isReminderEnabled = isReminderEnabled,
+        goalTargetCount = goalTargetCount,
+        category = category
+    )
+}
 
 internal fun Habit.toEntity(): HabitEntity = HabitEntity(
     id = id,
@@ -144,7 +159,13 @@ internal fun Habit.toEntity(): HabitEntity = HabitEntity(
     bestStreak = bestStreak,
     slackBankDays = slackBankDays,
     isFreezeActive = isFreezeActive,
-    createdTimestamp = createdTimestamp
+    createdTimestamp = createdTimestamp,
+    cadenceType = cadenceType.name,
+    weeklyTargetFrequency = weeklyTargetFrequency,
+    reminderTime = reminderTime,
+    isReminderEnabled = isReminderEnabled,
+    goalTargetCount = goalTargetCount,
+    category = category
 )
 
 internal fun HabitLogEntity.toDomain(): HabitLog = HabitLog(

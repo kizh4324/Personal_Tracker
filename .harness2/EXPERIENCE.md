@@ -255,24 +255,18 @@ Authoritative repository of verified engineering heuristics, operational invaria
 
 ---
 
-## 20. Resumption Engine & Service Concurrency Invariants
+## 21. Habits, Streak State Machine & Cadence Immunity
 
-### EXP-040: NonCancellable Coroutine Scope in Service Teardown Persistence (AD-3, AD-4)
-* **Context:** Banking elapsed focus session progress during Android `Service.stopSelf()` teardown (`StudySessionForegroundService.kt`).
-* **Heuristic:** Calling `serviceScope.launch(Dispatchers.IO) { repo.saveSession(session) }` followed immediately by `stopSelf()` triggers `onDestroy()` on the main thread, executing `serviceScope.cancel()`. Because SQLCipher Room transactions over encrypted SQLite take multiple milliseconds, cancelling `serviceScope` aborts the in-flight database write before disk commit, silently discarding the user's banked focus minutes.
-* **Rule:** Always wrap critical database persistence operations in `serviceScope.launch(Dispatchers.IO + NonCancellable)` inside `stopSession()` or service teardown hooks, ensuring the database transaction completes fully even as the Service lifecycle terminates.
+### EXP-043: Non-Punitive Habit Streaks, Cadence Isolation & Grace Shield State Machine (AD-1, AD-4, AD-7, FR-2.4, FR-8.5)
+* **Context:** Flexible habit cadences (`Daily`, `SpecificDays`, `WeeklyFrequency`), DayType immunity (`LOW_CAPACITY`, `DayType.REST`), and 5-state flame progression (`COLD`, `WARMING`, `BURNING`, `BLAZING`, `GRACE_SHIELD`) in `StreakStateMachine.kt`, `EvaluateHabitStreaksUseCase.kt`, and `LogHabitUseCase.kt`.
+* **Heuristic:** Rigid daily habit tracking triggers false miss penalties when users schedule flexible cadences (e.g. Mon/Wed/Fri evaluated on Tuesday) or encounter low-capacity/rest days. Furthermore, calculating flame visual states purely from an integer streak count causes `GRACE_SHIELD` indicators to remain unreachable in the UI. In addition, blocking completion because a day was previously logged as a rest or missed day prevents users from completing habits later in the day.
+* **Rule:** (1) Pure Kotlin cadence domain models must isolate scheduled vs. unscheduled days; unscheduled days receive `REST_DAY` without consuming freeze or slack days. (2) `LOW_CAPACITY` and `REST` DayTypes grant automatic immunity (`DAY_TYPE_IMMUNITY`) without streak loss. (3) Overload `getFlameState(streak: Int, isGraceShieldActive: Boolean)` and pass `flameState` through ViewModel, Screen, and Card to `StreakFlameBadge`. (4) `LogHabitUseCase` must allow upgrading non-completed logs (`REST_DAY`, `MISSED`, `SLACK_USED`, `GRACE_SHIELD_ABSORBED`) to `COMPLETED` and awarding coins, while enforcing compound idempotency `HABIT_LOG_{habitId}_{date}`.
 
-### EXP-041: Atomic Multi-Intent Transitions in Android Foreground Services (AD-1, AD-4)
-* **Context:** Transitioning directly from an active focus session to a short break timer via system overlay actions (`InterventionOverlay.kt`, `StudySessionForegroundService.kt`).
-* **Heuristic:** Attempting to transition between service states by calling `stopService(context)` followed immediately by `startService(context, ...)` introduces an asynchronous lifecycle race condition where `stopSelf()` can tear down the newly requested foreground session, or spawn concurrent ticker coroutines racing into `_timerState`.
-* **Rule:** Expose dedicated intent actions (`ACTION_START_BREAK`) handled directly in `onStartCommand` of the running service. The service instance must atomically: (1) cancel the active countdown timer, (2) bank the current focus session via `PauseOrInterruptSessionUseCase` in `NonCancellable`, and (3) launch the new break timer without destroying the foreground service process.
+### EXP-044: Non-Destructive Room Migration with Pre-Existing Constraint Alignment (AD-3, AD-6)
+* **Context:** Adding cadence scheduling and goal configuration columns to `habits` table in Room `MIGRATION_2_3`.
+* **Heuristic:** Using `ALTER TABLE habits ADD COLUMN cadenceType TEXT NOT NULL DEFAULT 'DAILY'` silently overrides pre-existing habits configured with custom days (e.g. `targetDaysOfWeek = "1,3,5"`), converting them into daily habits and causing immediate false miss penalties upon midnight rollover post-migration.
+* **Rule:** Always follow `ALTER TABLE` additions with conditional SQL updates (e.g. `UPDATE habits SET cadenceType = 'SPECIFIC_DAYS' WHERE targetDaysOfWeek != '1,2,3,4,5,6,7' AND targetDaysOfWeek != ''`) and implement defensive fallback inference in `DataMappers.toDomain()`, guaranteeing 100% backward compatibility and data preservation across database schema migrations.
 
-### EXP-042: State A vs. State B Focus Session Resumption Contract (AD-2, AD-4)
-* **Context:** Handling user resumption intents from `HeroActionCard` and `StudyScreen` (`HomeViewModel.kt`, `StudyViewModel.kt`).
-* **Heuristic:** Conflating live-paused timers (service active in foreground) with cold-resumed sessions (service stopped, session record stored in Room) causes silent failure: sending `ACTION_RESUME` when the service is stopped is a no-op because no timer instance exists in memory.
-* **Rule:** Decouple resumption into a 2-tier contract:
-  - **State A (Live In-Memory Pause):** `timerState.isRunning && timerState.isPaused` -> dispatch `StudySessionForegroundService.resumeService(context)`.
-  - **State B (Cold Resumption from Room DB):** `!timerState.isRunning && latestInterruptedSession != null` -> execute `ResumeInterruptedSessionUseCase` to calculate remaining duration (`targetDurationMinutes - actualElapsedMinutes`), then start the service via `StudySessionForegroundService.startService(context, plan.sessionId, plan.subjectTag, plan.remainingDurationMinutes * 60L, plan.intervalType)`.
 
 
 

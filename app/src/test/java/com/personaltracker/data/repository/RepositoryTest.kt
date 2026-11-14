@@ -767,6 +767,8 @@ private class FakeHabitDao : HabitDao {
 
     override fun getAllHabits(): Flow<List<HabitEntity>> = habits
 
+    override suspend fun getAllHabitsList(): List<HabitEntity> = habits.value
+
     override suspend fun getHabitById(id: String): HabitEntity? =
         habits.value.find { it.id == id }
 
@@ -776,16 +778,33 @@ private class FakeHabitDao : HabitDao {
     override fun getLogsForHabit(habitId: String): Flow<List<HabitLogEntity>> =
         logs.map { list -> list.filter { it.habitId == habitId } }
 
+    override suspend fun getLogsForHabitList(habitId: String): List<HabitLogEntity> =
+        logs.value.filter { it.habitId == habitId }
+
     override suspend fun insertHabit(habit: HabitEntity) {
         habits.value = habits.value.filter { it.id != habit.id } + habit
+    }
+
+    override suspend fun insertHabits(habits: List<HabitEntity>) {
+        val ids = habits.map { it.id }.toSet()
+        this.habits.value = this.habits.value.filter { it.id !in ids } + habits
     }
 
     override suspend fun updateHabit(habit: HabitEntity) {
         insertHabit(habit)
     }
 
+    override suspend fun updateHabits(habits: List<HabitEntity>) {
+        insertHabits(habits)
+    }
+
     override suspend fun insertLog(log: HabitLogEntity) {
         logs.value = logs.value.filterNot { it.habitId == log.habitId && it.logDate == log.logDate } + log
+    }
+
+    override suspend fun insertLogs(logs: List<HabitLogEntity>) {
+        val pairs = logs.map { it.habitId to it.logDate }.toSet()
+        this.logs.value = this.logs.value.filterNot { (it.habitId to it.logDate) in pairs } + logs
     }
 }
 

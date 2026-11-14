@@ -155,6 +155,7 @@ fun HabitsScreenContent(
                         cadence = habitState.habit.targetDaysOfWeek,
                         isFreezeActive = habitState.habit.isFreezeActive,
                         isCompleted = habitState.isCompletedToday,
+                        flameState = habitState.flameState,
                         onToggleCompletion = {
                             onIntent(HabitsUiIntent.ToggleHabit(habitState.habit.id, habitOffset))
                         },
@@ -184,6 +185,10 @@ fun HabitsScreenContent(
             )
             VerticalCapsuleBars(
                 modifier = Modifier.fillMaxWidth(),
+                metrics = state.capsuleMetrics,
+                activeHabitsCount = state.totalActiveStreaks,
+                consistencyPercentage = state.consistencyPercentage,
+                bestStreakDays = state.bestStreak,
                 onShareProgress = {
                     // Handled gracefully with haptic feedback or share intent
                 }

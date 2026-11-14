@@ -17,21 +17,23 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import com.personaltracker.R
+import com.personaltracker.domain.engine.FlameState
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.ui.components.atoms.StreakFlameBadge
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -47,14 +49,31 @@ fun formatCadence(targetDaysOfWeek: String): String {
         days == setOf("1", "2", "3", "4", "5") -> "WEEKDAYS"
         targetDaysOfWeek.equals("DAILY", ignoreCase = true) -> "DAILY"
         targetDaysOfWeek.equals("WEEKDAYS", ignoreCase = true) -> "WEEKDAYS"
+        targetDaysOfWeek.equals("WEEKLY_FREQUENCY", ignoreCase = true) -> "WEEKLY"
         else -> "CUSTOM"
+    }
+}
+
+/**
+ * Parses cadence string into active ISO-8601 day-of-week numbers (1..7).
+ */
+fun parseCadenceDays(cadence: String): Set<Int> {
+    val trimmed = cadence.replace(" ", "")
+    return when {
+        trimmed.equals("DAILY", ignoreCase = true) -> (1..7).toSet()
+        trimmed.equals("WEEKDAYS", ignoreCase = true) -> (1..5).toSet()
+        else -> {
+            val parsed = trimmed.split(",").mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..7 }.toSet()
+            if (parsed.isNotEmpty()) parsed else (1..7).toSet()
+        }
     }
 }
 
 /**
  * Stateless Habit Streak Card component.
  *
- * Displays habit metadata, streak flame progression, freeze status, and a 48dp completion toggle.
+ * Displays habit metadata, streak flame progression, 7-day mini cadence strip,
+ * freeze status, and a 48dp completion toggle.
  * Sourced 1:1 from `DESIGN.md` habit-card and `EXPERIENCE.md` §4.3 specifications.
  */
 @Composable
@@ -67,6 +86,7 @@ fun HabitStreakCard(
     description: String? = null,
     isFreezeActive: Boolean = false,
     cadence: String = "DAILY",
+    flameState: FlameState? = null,
     onClick: () -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -78,6 +98,7 @@ fun HabitStreakCard(
 
     // Standard 3dp accent stripe width token math: spacing0_5 (2dp) + spacing0_5 / 2 (1dp) = 3dp
     val accentStripeWidth = spacing.spacing0_5 + (spacing.spacing0_5 / 2)
+    val activeDays = remember(cadence) { parseCadenceDays(cadence) }
 
     Surface(
         shape = shapes.lg,
@@ -132,7 +153,10 @@ fun HabitStreakCard(
                             modifier = Modifier.weight(1f, fill = false)
                         )
 
-                        StreakFlameBadge(streakCount = currentStreak)
+                        StreakFlameBadge(
+                            streakCount = currentStreak,
+                            flameState = flameState
+                        )
                     }
 
                     if (!description.isNullOrBlank()) {
@@ -143,6 +167,35 @@ fun HabitStreakCard(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
+                    }
+
+                    // 7-Day Mini Cadence Strip
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.spacing0_5),
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = spacing.spacing0_5)
+                    ) {
+                        listOf("M", "T", "W", "T", "F", "S", "S").forEachIndexed { index, dayLetter ->
+                            val dayNumber = index + 1
+                            val isActive = activeDays.contains(dayNumber)
+                            Surface(
+                                shape = shapes.full,
+                                color = if (isActive) colors.surfaceRaised else colors.surfaceSunken,
+                                border = BorderStroke(
+                                    width = spacing.spacing0_5 / 2,
+                                    color = if (isActive) colors.borderDefault else colors.borderSubtle
+                                ),
+                                modifier = Modifier.size(spacing.spacing4)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = dayLetter,
+                                        style = typography.caption,
+                                        color = if (isActive) colors.inkPrimary else colors.inkTertiary
+                                    )
+                                }
+                            }
+                        }
                     }
 
                     Row(
@@ -156,19 +209,19 @@ fun HabitStreakCard(
                             color = colors.inkTertiary
                         )
 
-                        if (isFreezeActive) {
+                        if (isFreezeActive || flameState == FlameState.GRACE_SHIELD) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(spacing.spacing0_5)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Info,
+                                    painter = painterResource(id = R.drawable.ic_flame_shield),
                                     contentDescription = null,
                                     tint = colors.info,
                                     modifier = Modifier.size(spacing.spacing3)
                                 )
                                 Text(
-                                    text = "Freeze active today",
+                                    text = if (isFreezeActive) "Freeze active today" else "Streak protected by Grace Shield",
                                     style = typography.caption,
                                     color = colors.info
                                 )
@@ -227,6 +280,7 @@ fun HabitStreakCard(
     isCompleted: Boolean,
     onToggleCompletion: () -> Unit,
     modifier: Modifier = Modifier,
+    flameState: FlameState? = null,
     onClick: () -> Unit = {}
 ) {
     HabitStreakCard(
@@ -238,6 +292,7 @@ fun HabitStreakCard(
         description = habit.description,
         isFreezeActive = habit.isFreezeActive,
         cadence = habit.targetDaysOfWeek,
+        flameState = flameState,
         onClick = onClick
     )
 }

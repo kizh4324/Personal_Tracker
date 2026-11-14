@@ -43,6 +43,7 @@ fun getFlameDrawableRes(flameState: FlameState): Int {
         FlameState.WARMING -> R.drawable.ic_flame_warming
         FlameState.BURNING -> R.drawable.ic_flame_burning
         FlameState.BLAZING -> R.drawable.ic_flame_blazing
+        FlameState.GRACE_SHIELD -> R.drawable.ic_flame_shield
     }
 }
 
@@ -55,6 +56,7 @@ fun getFlameColor(flameState: FlameState, colors: PersonalTrackerColors): Color 
         FlameState.WARMING -> colors.streakFlameTip
         FlameState.BURNING -> colors.streakFlameCore
         FlameState.BLAZING -> colors.streakFlameCore
+        FlameState.GRACE_SHIELD -> colors.info
     }
 }
 

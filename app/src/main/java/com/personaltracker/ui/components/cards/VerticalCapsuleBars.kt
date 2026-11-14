@@ -29,19 +29,27 @@ import androidx.compose.ui.graphics.Color
 import com.personaltracker.ui.theme.AnimationTokens
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 
+/**
+ * Metric representation for a vertical capsule progress bar.
+ */
 data class VerticalBarMetric(
     val title: String,
     val percentage: Float,
-    val color: Color
+    val color: Color = Color.Unspecified
 )
 
 /**
- * 4 Vertical Capsule Progress Bars + Summary Insights Card conforming to
- * Figma Frame 3 (03_Progress_And_Insights) and Framer project QaEW7GnAiltJMNVpWjTs-dKIrE.
+ * Dynamic 4 Vertical Capsule Progress Bars + Habit Productivity Insights Card
+ * conforming to Figma Frame 3 (03_Progress_And_Insights) and Framer project QaEW7GnAiltJMNVpWjTs-dKIrE.
  */
 @Composable
 fun VerticalCapsuleBars(
     modifier: Modifier = Modifier,
+    metrics: List<VerticalBarMetric> = emptyList(),
+    weeklyPoints: Int = 842,
+    activeHabitsCount: Int = 4,
+    consistencyPercentage: Int = 85,
+    bestStreakDays: Int = 14,
     onShareProgress: () -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -50,12 +58,29 @@ fun VerticalCapsuleBars(
     val shapes = PersonalTrackerTheme.shapes
     val elevation = PersonalTrackerTheme.elevation
 
-    val metrics = listOf(
-        VerticalBarMetric("Walking", 0.48f, colors.barDeepCocoa),
-        VerticalBarMetric("Running", 0.33f, colors.barWarmRust),
-        VerticalBarMetric("Meditation", 0.27f, colors.barMatchaOlive),
-        VerticalBarMetric("Drink", 0.40f, colors.barSoftOrchid)
+    val defaultPalette = listOf(
+        colors.barDeepCocoa,
+        colors.barWarmRust,
+        colors.barMatchaOlive,
+        colors.barSoftOrchid
     )
+
+    val effectiveMetrics = if (metrics.isNotEmpty()) {
+        metrics.take(4).mapIndexed { index, m ->
+            if (m.color == Color.Unspecified) {
+                m.copy(color = defaultPalette[index % defaultPalette.size])
+            } else {
+                m
+            }
+        }
+    } else {
+        listOf(
+            VerticalBarMetric("Focus", 0.85f, colors.barDeepCocoa),
+            VerticalBarMetric("Reading", 0.70f, colors.barWarmRust),
+            VerticalBarMetric("Movement", 0.60f, colors.barMatchaOlive),
+            VerticalBarMetric("Routine", 0.90f, colors.barSoftOrchid)
+        )
+    }
 
     var isLoaded by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -74,9 +99,9 @@ fun VerticalCapsuleBars(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            metrics.forEachIndexed { _, metric ->
+            effectiveMetrics.forEach { metric ->
                 val animatedProgress by animateFloatAsState(
-                    targetValue = if (isLoaded) metric.percentage else 0f,
+                    targetValue = if (isLoaded) metric.percentage.coerceIn(0f, 1f) else 0f,
                     animationSpec = AnimationTokens.staggeredBarSpringSpec(),
                     label = "VerticalBarFill_${metric.title}"
                 )
@@ -91,7 +116,7 @@ fun VerticalCapsuleBars(
                 ) {
                     // Top Percentage Label
                     Text(
-                        text = "${(metric.percentage * 100).toInt()}%",
+                        text = "${(metric.percentage.coerceIn(0f, 1f) * 100).toInt()}%",
                         style = typography.title,
                         color = colors.inkPrimary,
                         modifier = Modifier
@@ -122,7 +147,7 @@ fun VerticalCapsuleBars(
             }
         }
 
-        // Bottom Summary Card
+        // Bottom Habit Productivity Summary Card
         Surface(
             shape = shapes.xxxl,
             color = colors.surfaceRaised,
@@ -141,28 +166,28 @@ fun VerticalCapsuleBars(
                 )
                 Spacer(modifier = Modifier.height(spacing.spacing1))
                 Text(
-                    text = "842 Points",
+                    text = "$weeklyPoints Points",
                     style = typography.heroScore,
                     color = colors.barWarmRust
                 )
                 Spacer(modifier = Modifier.height(spacing.spacing5))
 
-                // 3 Metrics Columns
+                // 3 Habit Productivity Metrics Columns
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Column {
-                        Text(text = "440 lb", style = typography.title, color = colors.inkPrimary)
-                        Text(text = "Weight", style = typography.caption, color = colors.inkSecondary)
+                        Text(text = "$activeHabitsCount", style = typography.title, color = colors.inkPrimary)
+                        Text(text = "Active Habits", style = typography.caption, color = colors.inkSecondary)
                     }
                     Column {
-                        Text(text = "200 ft", style = typography.title, color = colors.inkPrimary)
-                        Text(text = "Elevation", style = typography.caption, color = colors.inkSecondary)
+                        Text(text = "$consistencyPercentage%", style = typography.title, color = colors.inkPrimary)
+                        Text(text = "Consistency", style = typography.caption, color = colors.inkSecondary)
                     }
                     Column {
-                        Text(text = "7h 30m", style = typography.title, color = colors.inkPrimary)
-                        Text(text = "Total time", style = typography.caption, color = colors.inkSecondary)
+                        Text(text = "${bestStreakDays}d", style = typography.title, color = colors.inkPrimary)
+                        Text(text = "Best Streak", style = typography.caption, color = colors.inkSecondary)
                     }
                 }
                 Spacer(modifier = Modifier.height(spacing.spacing5))

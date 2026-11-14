@@ -33,10 +33,10 @@ import com.personaltracker.data.local.db.entities.TaskEntity
 import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
 
 /**
- * Main Room Database for Personal-Tracker v2.
+ * Main Room Database for Personal-Tracker v3.
  * Encrypted at rest over SQLCipher with Android Keystore hardware-backed key protection.
  *
- * Implements ARCH-2, NFR-4, and Story 1.2 / Story 3.4 specifications.
+ * Implements ARCH-2, NFR-4, and Story 1.2, Story 3.4, and Story 4.1 specifications.
  */
 @Database(
     entities = [
@@ -54,7 +54,7 @@ import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
         UnfiledCaptureInboxEntity::class,
         InterventionRuleEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(EncryptedPayloadConverter::class, DateConverters::class)
@@ -80,6 +80,18 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE study_sessions ADD COLUMN targetDurationMinutes INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE study_sessions ADD COLUMN actualElapsedMinutes INTEGER NOT NULL DEFAULT 0")
                 db.execSQL("ALTER TABLE study_sessions ADD COLUMN intervalType TEXT NOT NULL DEFAULT 'DEEP_WORK'")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE habits ADD COLUMN cadenceType TEXT NOT NULL DEFAULT 'DAILY'")
+                db.execSQL("ALTER TABLE habits ADD COLUMN weeklyTargetFrequency INTEGER NOT NULL DEFAULT 7")
+                db.execSQL("ALTER TABLE habits ADD COLUMN reminderTime TEXT")
+                db.execSQL("ALTER TABLE habits ADD COLUMN isReminderEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE habits ADD COLUMN goalTargetCount INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE habits ADD COLUMN category TEXT")
+                db.execSQL("UPDATE habits SET cadenceType = 'SPECIFIC_DAYS' WHERE targetDaysOfWeek != '1,2,3,4,5,6,7' AND targetDaysOfWeek != ''")
             }
         }
     }

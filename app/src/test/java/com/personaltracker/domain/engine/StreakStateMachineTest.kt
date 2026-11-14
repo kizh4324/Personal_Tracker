@@ -1,6 +1,9 @@
 package com.personaltracker.domain.engine
 
+import com.personaltracker.domain.model.CadenceType
+import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
+import com.personaltracker.domain.model.HabitLogStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -18,7 +21,7 @@ class StreakStateMachineTest {
     }
 
     // ==========================================
-    // 1. 4-State Flame Transition Tests
+    // 1. 5-State Flame Transition Tests
     // ==========================================
 
     @Test
@@ -39,6 +42,11 @@ class StreakStateMachineTest {
         assertEquals(FlameState.BLAZING, stateMachine.getFlameState(7))
         assertEquals(FlameState.BLAZING, stateMachine.getFlameState(14))
         assertEquals(FlameState.BLAZING, stateMachine.getFlameState(100))
+
+        // GRACE_SHIELD: Active freeze or grace shield protection
+        assertEquals(FlameState.GRACE_SHIELD, stateMachine.getFlameState(0, isGraceShieldActive = true))
+        assertEquals(FlameState.GRACE_SHIELD, stateMachine.getFlameState(5, isGraceShieldActive = true))
+        assertEquals(FlameState.GRACE_SHIELD, stateMachine.getFlameState(10, isGraceShieldActive = true))
     }
 
     @Test
@@ -69,12 +77,12 @@ class StreakStateMachineTest {
 
         val result = stateMachine.evaluateMissedDay(habit)
 
-        // Streak is preserved at 10, slack decremented to 1
+        // Streak is preserved at 10, slack decremented to 1, flame is GRACE_SHIELD
         assertEquals(10, result.updatedHabit.currentStreak)
         assertEquals(1, result.updatedHabit.slackBankDays)
         assertEquals(10, result.updatedHabit.bestStreak)
-        assertEquals("SLACK_USED", result.resultingStatus)
-        assertEquals(FlameState.BLAZING, result.flameState)
+        assertEquals(HabitLogStatus.SLACK_USED, result.resultingStatus)
+        assertEquals(FlameState.GRACE_SHIELD, result.flameState)
     }
 
     // ==========================================
@@ -95,12 +103,12 @@ class StreakStateMachineTest {
 
         val result = stateMachine.evaluateMissedDay(habit)
 
-        // Streak is preserved at 10, freeze consumed
+        // Streak is preserved at 10, freeze consumed, status GRACE_SHIELD_ABSORBED, flame GRACE_SHIELD
         assertEquals(10, result.updatedHabit.currentStreak)
         assertFalse(result.updatedHabit.isFreezeActive)
         assertEquals(12, result.updatedHabit.bestStreak)
-        assertEquals("FROZEN", result.resultingStatus)
-        assertEquals(FlameState.BLAZING, result.flameState)
+        assertEquals(HabitLogStatus.GRACE_SHIELD_ABSORBED, result.resultingStatus)
+        assertEquals(FlameState.GRACE_SHIELD, result.flameState)
     }
 
     @Test
@@ -121,7 +129,8 @@ class StreakStateMachineTest {
         assertEquals(5, result.updatedHabit.currentStreak)
         assertFalse(result.updatedHabit.isFreezeActive)
         assertEquals(2, result.updatedHabit.slackBankDays)
-        assertEquals("FROZEN", result.resultingStatus)
+        assertEquals(HabitLogStatus.GRACE_SHIELD_ABSORBED, result.resultingStatus)
+        assertEquals(FlameState.GRACE_SHIELD, result.flameState)
     }
 
     // ==========================================
@@ -145,7 +154,7 @@ class StreakStateMachineTest {
         // Streak resets to 0, bestStreak preserved at 20
         assertEquals(0, result.updatedHabit.currentStreak)
         assertEquals(20, result.updatedHabit.bestStreak)
-        assertEquals("MISSED", result.resultingStatus)
+        assertEquals(HabitLogStatus.MISSED, result.resultingStatus)
         assertEquals(FlameState.COLD, result.flameState)
     }
 
@@ -172,7 +181,7 @@ class StreakStateMachineTest {
         assertEquals(7, result.updatedHabit.currentStreak)
         assertEquals(7, result.updatedHabit.bestStreak)
         assertEquals(1, result.updatedHabit.slackBankDays)
-        assertEquals("COMPLETED", result.resultingStatus)
+        assertEquals(HabitLogStatus.COMPLETED, result.resultingStatus)
         assertEquals(FlameState.BLAZING, result.flameState)
     }
 
@@ -194,9 +203,13 @@ class StreakStateMachineTest {
         assertEquals(2, result.updatedHabit.currentStreak)
         assertEquals(2, result.updatedHabit.bestStreak)
         assertEquals(0, result.updatedHabit.slackBankDays)
-        assertEquals("COMPLETED", result.resultingStatus)
+        assertEquals(HabitLogStatus.COMPLETED, result.resultingStatus)
         assertEquals(FlameState.WARMING, result.flameState)
     }
+
+    // ==========================================
+    // 6. Cadence & DayType Immunity Tests
+    // ==========================================
 
     @Test
     fun testEvaluateDayOnNonTargetRestDayPreservesStreakWithoutConsumingSlack() {
@@ -208,7 +221,8 @@ class StreakStateMachineTest {
             currentStreak = 5,
             bestStreak = 5,
             slackBankDays = 2,
-            isFreezeActive = false
+            isFreezeActive = false,
+            cadenceType = CadenceType.SPECIFIC_DAYS
         )
 
         // 2026-10-17 is Saturday (day 6, not a target day)
@@ -216,12 +230,113 @@ class StreakStateMachineTest {
 
         assertEquals(5, result.updatedHabit.currentStreak)
         assertEquals(2, result.updatedHabit.slackBankDays)
-        assertEquals("REST_DAY", result.resultingStatus)
+        assertEquals(HabitLogStatus.REST_DAY, result.resultingStatus)
         assertEquals(FlameState.BURNING, result.flameState)
     }
 
+    @Test
+    fun testEvaluateDayWithActiveDayTypeImmunityPreservesStreak() {
+        val habit = Habit(
+            id = "h_rest_daytype",
+            name = "Daily Exercise",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 8,
+            bestStreak = 10,
+            slackBankDays = 1,
+            isFreezeActive = false
+        )
+
+        // Active day type is REST
+        val resultRest = stateMachine.evaluateDay(
+            habit = habit,
+            isCompleted = false,
+            logDate = "2026-11-14",
+            activeDayType = DayType.REST
+        )
+
+        assertEquals(8, resultRest.updatedHabit.currentStreak)
+        assertEquals(1, resultRest.updatedHabit.slackBankDays)
+        assertEquals(HabitLogStatus.DAY_TYPE_IMMUNITY, resultRest.resultingStatus)
+        assertEquals(FlameState.BLAZING, resultRest.flameState)
+
+        // Active day type is LOW_CAPACITY
+        val resultLowCap = stateMachine.evaluateDay(
+            habit = habit,
+            isCompleted = false,
+            logDate = "2026-11-14",
+            activeDayType = DayType.LOW_CAPACITY
+        )
+
+        assertEquals(8, resultLowCap.updatedHabit.currentStreak)
+        assertEquals(1, resultLowCap.updatedHabit.slackBankDays)
+        assertEquals(HabitLogStatus.DAY_TYPE_IMMUNITY, resultLowCap.resultingStatus)
+    }
+
+    @Test
+    fun testWeeklyFrequencyMidWeekIsFlexibleRestDay() {
+        val habit = Habit(
+            id = "h_weekly",
+            name = "Gym 3x/week",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 3,
+            bestStreak = 5,
+            slackBankDays = 2,
+            cadenceType = CadenceType.WEEKLY_FREQUENCY,
+            weeklyTargetFrequency = 3
+        )
+
+        // Wednesday (2026-11-11, day 3) uncompleted
+        val resultMidWeek = stateMachine.evaluateDay(
+            habit = habit,
+            isCompleted = false,
+            logDate = "2026-11-11"
+        )
+
+        assertEquals(3, resultMidWeek.updatedHabit.currentStreak)
+        assertEquals(2, resultMidWeek.updatedHabit.slackBankDays)
+        assertEquals(HabitLogStatus.REST_DAY, resultMidWeek.resultingStatus)
+    }
+
+    @Test
+    fun testWeeklyFrequencySundayBoundaryCheck() {
+        val habit = Habit(
+            id = "h_weekly_sun",
+            name = "Gym 3x/week",
+            targetDaysOfWeek = "1,2,3,4,5,6,7",
+            currentStreak = 3,
+            bestStreak = 5,
+            slackBankDays = 2,
+            cadenceType = CadenceType.WEEKLY_FREQUENCY,
+            weeklyTargetFrequency = 3
+        )
+
+        // Sunday (2026-11-15, day 7) with 3 completions met
+        val resultMet = stateMachine.evaluateDay(
+            habit = habit,
+            isCompleted = false,
+            logDate = "2026-11-15",
+            weeklyCompletionsCount = 3
+        )
+
+        assertEquals(3, resultMet.updatedHabit.currentStreak)
+        assertEquals(HabitLogStatus.COMPLETED, resultMet.resultingStatus)
+
+        // Sunday (2026-11-15, day 7) with only 2 completions (missed weekly target, slack absorbed)
+        val resultMissed = stateMachine.evaluateDay(
+            habit = habit,
+            isCompleted = false,
+            logDate = "2026-11-15",
+            weeklyCompletionsCount = 2
+        )
+
+        assertEquals(3, resultMissed.updatedHabit.currentStreak)
+        assertEquals(1, resultMissed.updatedHabit.slackBankDays)
+        assertEquals(HabitLogStatus.SLACK_USED, resultMissed.resultingStatus)
+        assertEquals(FlameState.GRACE_SHIELD, resultMissed.flameState)
+    }
+
     // ==========================================
-    // 6. Zero Streak & Multi-Day Gap Tests
+    // 7. Zero Streak & Multi-Day Gap Tests
     // ==========================================
 
     @Test
@@ -243,7 +358,7 @@ class StreakStateMachineTest {
         assertTrue(result.updatedHabit.isFreezeActive)
         assertEquals(2, result.updatedHabit.slackBankDays)
         assertEquals(10, result.updatedHabit.bestStreak)
-        assertEquals("MISSED", result.resultingStatus)
+        assertEquals(HabitLogStatus.MISSED, result.resultingStatus)
         assertEquals(FlameState.COLD, result.flameState)
     }
 
@@ -266,8 +381,8 @@ class StreakStateMachineTest {
         assertFalse(result.updatedHabit.isFreezeActive)
         assertEquals(0, result.updatedHabit.slackBankDays)
         assertEquals(10, result.updatedHabit.bestStreak)
-        assertEquals("SLACK_USED", result.resultingStatus)
-        assertEquals(FlameState.BLAZING, result.flameState)
+        assertEquals(HabitLogStatus.SLACK_USED, result.resultingStatus)
+        assertEquals(FlameState.GRACE_SHIELD, result.flameState)
     }
 
     @Test
@@ -289,7 +404,7 @@ class StreakStateMachineTest {
         assertFalse(result.updatedHabit.isFreezeActive)
         assertEquals(0, result.updatedHabit.slackBankDays)
         assertEquals(15, result.updatedHabit.bestStreak)
-        assertEquals("MISSED", result.resultingStatus)
+        assertEquals(HabitLogStatus.MISSED, result.resultingStatus)
         assertEquals(FlameState.COLD, result.flameState)
     }
 

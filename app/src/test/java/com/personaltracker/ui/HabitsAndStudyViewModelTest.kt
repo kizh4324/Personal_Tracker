@@ -75,8 +75,10 @@ class HabitsAndStudyViewModelTest {
     fun testHabitsViewModelEmitsHabitsWithCalculatedFlames() = runTest {
         val h1 = Habit(id = "h1", name = "Drink Water", targetDaysOfWeek = "1,2,3,4,5,6,7", currentStreak = 0)
         val h2 = Habit(id = "h2", name = "Morning Walk", targetDaysOfWeek = "1,2,3,4,5,6,7", currentStreak = 7)
+        val h3 = Habit(id = "h3", name = "Gym", targetDaysOfWeek = "1,2,3,4,5,6,7", currentStreak = 5, isFreezeActive = true)
         habitRepository.saveHabit(h1)
         habitRepository.saveHabit(h2)
+        habitRepository.saveHabit(h3)
 
         val viewModel = HabitsViewModel(
             habitRepository = habitRepository,
@@ -86,14 +88,18 @@ class HabitsAndStudyViewModelTest {
 
         viewModel.uiState.test {
             val state = awaitItem()
-            assertEquals(2, state.habits.size)
-            assertEquals(1, state.totalActiveStreaks)
+            assertEquals(3, state.habits.size)
+            assertEquals(2, state.totalActiveStreaks)
+            assertEquals(3, state.capsuleMetrics.size)
 
             val item1 = state.habits.find { it.habit.id == "h1" }!!
             assertEquals(FlameState.COLD, item1.flameState)
 
             val item2 = state.habits.find { it.habit.id == "h2" }!!
             assertEquals(FlameState.BLAZING, item2.flameState)
+
+            val item3 = state.habits.find { it.habit.id == "h3" }!!
+            assertEquals(FlameState.GRACE_SHIELD, item3.flameState)
         }
     }
 
@@ -137,6 +143,7 @@ class HabitsAndStudyViewModelTest {
         assertEquals(1, allHabits.size)
         assertEquals("Read 10 pages", allHabits.first().name)
         assertEquals(0, allHabits.first().currentStreak)
+        assertEquals(0, allHabits.first().slackBankDays)
     }
 
     // ==========================================

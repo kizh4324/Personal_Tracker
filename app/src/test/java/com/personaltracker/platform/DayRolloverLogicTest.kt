@@ -7,6 +7,7 @@ import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLog
+import com.personaltracker.domain.model.HabitLogStatus
 import com.personaltracker.domain.repository.DayTypeRepository
 import com.personaltracker.domain.repository.HabitRepository
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
@@ -68,7 +69,7 @@ class DayRolloverLogicTest {
             todayDate = "2026-10-18"
         )
 
-        assertEquals("FROZEN", result.habitResults["habit-freeze"])
+        assertEquals(HabitLogStatus.GRACE_SHIELD_ABSORBED, result.habitResults["habit-freeze"])
         val updatedHabit = fakeHabitRepository.getHabitById("habit-freeze")!!
         assertEquals(5, updatedHabit.currentStreak) // Preserved
         assertFalse(updatedHabit.isFreezeActive) // Consumed

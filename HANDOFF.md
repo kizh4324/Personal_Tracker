@@ -17,17 +17,17 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-14 12:10:00 +05:30
-*   **Current Git Commit:** Story 3.4 Complete — Frictionless Interruption Handling & Resumption (Epic 3 Complete)
+*   **Date/Time:** 2026-11-14 13:10:00 +05:30
+*   **Current Git Commit:** Story 4.1 Complete — Habit Entity Models, Cadence Tracking & Streak Grace Engine
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
     *   **Dependency Injection:** Hilt 2.58 (`ksp` only; zero KAPT)
-    *   **Persistence & Security:** Room 2.7.0 (v2 with `MIGRATION_1_2`) over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
+    *   **Persistence & Security:** Room 2.7.0 (v3 with `MIGRATION_1_2` and `MIGRATION_2_3`) over SQLCipher 4.6.1 + SQLite 3.44.0, AndroidX Security Crypto 1.1.0-alpha06
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
     *   **Multi-Agent Plugins:** Elephant-Goldfish Model (EGM) Global Plugin (`C:\Users\User\.gemini\config\plugins\egm`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (415+ tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (442+ tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -39,13 +39,11 @@ status: active
     *   **Epic 1 (Core Architecture & Persistence):** 100% Complete (`done`).
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
     *   **Epic 3 (Focus Mode, Distraction Interception & Resumption Engine):** 100% Complete (`done`).
-        *   **Story 3.1 (`3-1-focus-study-session-models-timer-heatmap-tracking`):** 100% Complete (`done`).
-        *   **Story 3.2 (`3-2-event-driven-accessibility-distraction-interception-privacy`):** 100% Complete (`done`).
-        *   **Story 3.3 (`3-3-emergency-telecom-dynamic-whitelist-bypass`):** 100% Complete (`done`).
-        *   **Story 3.4 (`3-4-frictionless-interruption-handling-zero-guilt-resumption`):** 100% Complete (`done`).
-    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** Ready for Dev (`backlog` / next sprint).
-    *   **Warm Organic Tactile Design System:** 100% Synchronized across all 5 Figma frames, Framer prototypes, and Jetpack Compose screens.
-    *   **Device Verification:** Live and operational on physical mobile device (`10BD9D24YF000BE`, Model `I2223`) with zero crashes.
+    *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** In Progress (Story 4.1 Complete).
+        *   **Story 4.1 (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`):** 100% Complete (`done`).
+        *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** Ready for Dev (`backlog` / next up).
+    *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
+    *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 
 ---
 
@@ -150,9 +148,9 @@ flowchart TD
 *   [x] **Story 3.3:** Emergency telecom dynamic whitelist bypass (`3-3-emergency-telecom-dynamic-whitelist-bypass`, unconditional emergency/dialer exemption, dynamic TelecomManager default dialer bypass, telephony call listener overlay dismissal, pure Kotlin whitelist CRUD interactors, Settings MVI whitelist manager & call progression policy). `[DONE]`
 *   [x] **Story 3.4:** Frictionless Interruption Handling & Zero-Guilt Resumption (`3-4-frictionless-interruption-handling-zero-guilt-resumption`, Ovsiankina resumption engine, Room v1->v2 migration `MIGRATION_1_2`, `NonCancellable` persistence in `StudySessionForegroundService`, 3-action `InterventionOverlay` wiring, Priority 2 dual-mode `HeroActionCard`, and Warm Organic Tactile Resumption Card). `[DONE]`
 
-### Next Epic: Epic 4 — Gamification Economy, Streak State Machine & Non-Punishing Companion (READY FOR DEV)
-*   [ ] **Story 4.1:** Habit entity models, cadence tracking & streak grace engine (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`). `[READY FOR DEV]`
-*   [ ] **Story 4.2:** Idempotent coin ledger engine & anti-farming model (`4-2-idempotent-coin-ledger-engine-anti-farming-model`).
+### Active Epic: Epic 4 — Gamification Economy, Streak State Machine & Non-Punishing Companion (IN PROGRESS)
+*   [x] **Story 4.1:** Habit entity models, cadence tracking & streak grace engine (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`, pure Kotlin cadence hierarchy `Daily`, `SpecificDays`, `WeeklyFrequency`, 5-state flame model with `FlameState.GRACE_SHIELD`, `StreakStateMachine` off-cadence & `DayType` immunity, `EvaluateHabitStreaksUseCase`, Room v2->v3 migration `MIGRATION_2_3`, dynamic `VerticalCapsuleBars` MVI wiring). `[DONE]`
+*   [ ] **Story 4.2:** Idempotent coin ledger engine & anti-farming model (`4-2-idempotent-coin-ledger-engine-anti-farming-model`). `[READY FOR DEV]`
 *   [ ] **Story 4.3:** VSync-aligned Bézier coin-earn animation & Coin HUD (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`).
 *   [ ] **Story 4.4:** Non-punishing companion widget & 7-state Rive machine (`4-4-non-punishing-companion-widget-7-state-rive-machine`).
 *   [ ] **Story 4.5:** Cosmetic shop UI & companion customization (`4-5-cosmetic-shop-ui-companion-customization`).
@@ -170,10 +168,10 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 4.1 Implementation with EGM & BMAD Build
+### Step 2: Kick off Story 4.2 Implementation with EGM & BMAD Build
 ```
-/bmad-build 4-1-habit-entity-models-cadence-tracking-streak-grace-engine
+/bmad-build 4-2-idempotent-coin-ledger-engine-anti-farming-model
 ```
-1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-4-1-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
+1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-4-2-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
 2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.
 3. **Implementation & Verification:** Implement via `invoke_subagent` (`Workspace: "inherit"`), verify JVM tests and Artemis Gate 6, and run `/egm:egm-drift-report` to confirm 0 drift.

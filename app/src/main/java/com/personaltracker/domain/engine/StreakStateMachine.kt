@@ -1,20 +1,26 @@
 package com.personaltracker.domain.engine
 
+import com.personaltracker.domain.model.CadenceType
+import com.personaltracker.domain.model.DayType
 import com.personaltracker.domain.model.Habit
+import com.personaltracker.domain.model.HabitLogStatus
+import java.time.LocalDate
 
 /**
- * 4-state flame model representing streak progression (AD-4).
+ * 5-state flame model representing streak progression and protection status (AD-4).
  */
 enum class FlameState {
     COLD,
     WARMING,
     BURNING,
-    BLAZING
+    BLAZING,
+    GRACE_SHIELD
 }
 
 /**
- * Pure Kotlin state machine managing non-punitive habit streaks, slack banking,
- * freeze grace rules, and 4-state flame transitions (FR-2.4, FR-8.5, AD-1, AD-4).
+ * Pure Kotlin state machine managing non-punitive habit streaks, cadence tracking,
+ * slack banking, freeze grace rules, DayType immunity, and 5-state flame transitions
+ * (FR-2.4, FR-8.5, AD-1, AD-4).
  *
  * Contains zero Android framework dependencies.
  */
@@ -30,23 +36,28 @@ class StreakStateMachine {
      */
     data class StreakEvaluationResult(
         val updatedHabit: Habit,
-        val resultingStatus: String, // "COMPLETED", "SLACK_USED", "FROZEN", "MISSED"
+        val resultingStatus: String, // See [HabitLogStatus]
         val flameState: FlameState
     )
 
     /**
-     * Determines the flame visualization state from a given streak count.
+     * Determines the flame visualization state from a given streak count and grace shield status.
      *
      * Thresholds:
+     * - GRACE_SHIELD: Active freeze day or day absorbed by grace shield/slack
      * - COLD: 0 days
      * - WARMING: 1..2 days
      * - BURNING: 3..6 days
      * - BLAZING: 7+ days
      *
      * @param streak Non-negative integer streak count
+     * @param isGraceShieldActive True if active freeze or grace shield is protecting the streak
      */
-    fun getFlameState(streak: Int): FlameState {
+    fun getFlameState(streak: Int, isGraceShieldActive: Boolean = false): FlameState {
         require(streak >= 0) { "Streak count must be non-negative: $streak" }
+        if (isGraceShieldActive) {
+            return FlameState.GRACE_SHIELD
+        }
         return when (streak) {
             0 -> FlameState.COLD
             in 1..2 -> FlameState.WARMING
@@ -60,10 +71,10 @@ class StreakStateMachine {
      * When current streak is 0, no active streak exists to protect, so freeze and slack days are preserved.
      *
      * Resolution order:
-     * 1. Current streak is 0: streak remains 0, protections preserved, status "MISSED"
-     * 2. Active freeze day: streak preserved, freeze consumed, status "FROZEN"
-     * 3. Available slack bank: streak preserved, slackBankDays decremented by 1, status "SLACK_USED"
-     * 4. No protection: streak resets to 0, status "MISSED"
+     * 1. Current streak is 0: streak remains 0, protections preserved, status "MISSED", flame COLD
+     * 2. Active freeze day: streak preserved, freeze consumed, status "GRACE_SHIELD_ABSORBED", flame GRACE_SHIELD
+     * 3. Available slack bank: streak preserved, slackBankDays decremented by 1, status "SLACK_USED", flame GRACE_SHIELD
+     * 4. No protection: streak resets to 0, status "MISSED", flame COLD
      *
      * In all cases, bestStreak is unconditionally preserved.
      */
@@ -94,7 +105,7 @@ class StreakStateMachine {
             return StreakEvaluationResult(
                 updatedHabit = habit,
                 resultingStatus = "NO_CHANGE",
-                flameState = getFlameState(habit.currentStreak)
+                flameState = getFlameState(habit.currentStreak, habit.isFreezeActive)
             )
         }
 
@@ -103,7 +114,7 @@ class StreakStateMachine {
         if (habit.currentStreak == 0) {
             return StreakEvaluationResult(
                 updatedHabit = habit.copy(bestStreak = bestStreak),
-                resultingStatus = "MISSED",
+                resultingStatus = HabitLogStatus.MISSED,
                 flameState = FlameState.COLD
             )
         }
@@ -112,13 +123,13 @@ class StreakStateMachine {
         var freezeActive = habit.isFreezeActive
         var slackBank = habit.slackBankDays
         var streak = habit.currentStreak
-        var status = "MISSED"
+        var status = HabitLogStatus.MISSED
 
         // 1. Consume freeze if available
         if (remainingMissed > 0 && freezeActive) {
             freezeActive = false
             remainingMissed--
-            status = "FROZEN"
+            status = HabitLogStatus.GRACE_SHIELD_ABSORBED
         }
 
         // 2. Consume slack days if available
@@ -126,13 +137,13 @@ class StreakStateMachine {
             val slackUsed = minOf(slackBank, remainingMissed)
             slackBank -= slackUsed
             remainingMissed -= slackUsed
-            status = "SLACK_USED"
+            status = HabitLogStatus.SLACK_USED
         }
 
         // 3. If missed days still remain, protections exhausted -> reset streak
         if (remainingMissed > 0) {
             streak = 0
-            status = "MISSED"
+            status = HabitLogStatus.MISSED
         }
 
         val updatedHabit = habit.copy(
@@ -142,10 +153,16 @@ class StreakStateMachine {
             isFreezeActive = freezeActive
         )
 
+        val flame = when (status) {
+            HabitLogStatus.GRACE_SHIELD_ABSORBED, HabitLogStatus.SLACK_USED -> FlameState.GRACE_SHIELD
+            HabitLogStatus.MISSED -> FlameState.COLD
+            else -> getFlameState(streak, freezeActive)
+        }
+
         return StreakEvaluationResult(
             updatedHabit = updatedHabit,
             resultingStatus = status,
-            flameState = getFlameState(streak)
+            flameState = flame
         )
     }
 
@@ -172,40 +189,90 @@ class StreakStateMachine {
 
         return StreakEvaluationResult(
             updatedHabit = updatedHabit,
-            resultingStatus = "COMPLETED",
-            flameState = getFlameState(newStreak)
+            resultingStatus = HabitLogStatus.COMPLETED,
+            flameState = getFlameState(newStreak, updatedHabit.isFreezeActive)
         )
     }
 
     /**
-     * Evaluates a habit log event (completed vs. missed).
-     * If uncompleted on a non-target rest day, preserves streak as REST_DAY without consuming slack or freeze.
+     * Evaluates a habit log event (completed vs. missed), incorporating DayType immunity,
+     * cadence off-day immunity, flexible weekly frequencies, and non-punitive grace shields.
      *
      * @param habit Habit domain model
      * @param isCompleted True if user completed the habit
-     * @param logDate Optional ISO date string ("YYYY-MM-DD") to evaluate against targetDaysOfWeek
+     * @param logDate Optional ISO date string ("YYYY-MM-DD") to evaluate against cadence schedules
+     * @param activeDayType Optional active DayType for the date (LOW_CAPACITY / REST provide immunity)
+     * @param weeklyCompletionsCount Optional completion count for the current week (for WeeklyFrequency evaluation on Sunday)
      */
     fun evaluateDay(
         habit: Habit,
         isCompleted: Boolean,
-        logDate: String? = null
+        logDate: String? = null,
+        activeDayType: DayType? = null,
+        weeklyCompletionsCount: Int? = null
     ): StreakEvaluationResult {
         if (isCompleted) {
             return evaluateCompletion(habit)
         }
 
-        // Check if date corresponds to a scheduled target day of week
-        if (logDate != null && habit.targetDaysOfWeek.isNotBlank()) {
-            val targetDays = habit.targetDaysOfWeek.split(",").mapNotNull { it.trim().toIntOrNull() }
-            if (targetDays.isNotEmpty()) {
-                val dayOfWeek = runCatching { java.time.LocalDate.parse(logDate).dayOfWeek.value }.getOrNull()
-                if (dayOfWeek != null && !targetDays.contains(dayOfWeek)) {
-                    // Today is a rest day according to habit cadence: preserve streak without consuming slack or freeze
-                    return StreakEvaluationResult(
-                        updatedHabit = habit,
-                        resultingStatus = "REST_DAY",
-                        flameState = getFlameState(habit.currentStreak)
-                    )
+        // 1. DayType Immunity Check: LOW_CAPACITY and REST days unconditionally protect streaks
+        if (activeDayType != null) {
+            val isImmuneDayType = activeDayType.id == DayType.LOW_CAPACITY.id ||
+                activeDayType.id == DayType.REST.id ||
+                activeDayType.name.equals(DayType.LOW_CAPACITY.name, ignoreCase = true) ||
+                activeDayType.name.equals(DayType.REST.name, ignoreCase = true) ||
+                activeDayType.name.contains("Rest", ignoreCase = true) ||
+                activeDayType.name.contains("Low Capacity", ignoreCase = true)
+
+            if (isImmuneDayType) {
+                return StreakEvaluationResult(
+                    updatedHabit = habit,
+                    resultingStatus = HabitLogStatus.DAY_TYPE_IMMUNITY,
+                    flameState = getFlameState(habit.currentStreak, habit.isFreezeActive)
+                )
+            }
+        }
+
+        // 2. Cadence & Schedule Immunity Check
+        if (logDate != null) {
+            val dayOfWeek = runCatching { LocalDate.parse(logDate).dayOfWeek.value }.getOrNull()
+
+            if (dayOfWeek != null) {
+                // Flexible WeeklyFrequency evaluation
+                if (habit.cadenceType == CadenceType.WEEKLY_FREQUENCY) {
+                    if (dayOfWeek != 7) {
+                        // Mon-Sat: mid-week is flexible; uncompleted days are non-penalizing REST_DAY
+                        return StreakEvaluationResult(
+                            updatedHabit = habit,
+                            resultingStatus = HabitLogStatus.REST_DAY,
+                            flameState = getFlameState(habit.currentStreak, habit.isFreezeActive)
+                        )
+                    } else {
+                        // Sunday week boundary check: if user already reached target frequency, week completed!
+                        if (weeklyCompletionsCount != null && weeklyCompletionsCount >= habit.weeklyTargetFrequency) {
+                            return StreakEvaluationResult(
+                                updatedHabit = habit,
+                                resultingStatus = HabitLogStatus.COMPLETED,
+                                flameState = getFlameState(habit.currentStreak, habit.isFreezeActive)
+                            )
+                        }
+                    }
+                }
+
+                // Specific days / custom weekdays cadence check
+                val isSpecificDays = habit.cadenceType == CadenceType.SPECIFIC_DAYS ||
+                    (habit.cadenceType == CadenceType.DAILY && habit.targetDaysOfWeek.isNotBlank() && habit.targetDaysOfWeek != "1,2,3,4,5,6,7")
+
+                if (isSpecificDays) {
+                    val targetDays = habit.targetDaysOfWeek.split(",").mapNotNull { it.trim().toIntOrNull() }
+                    if (targetDays.isNotEmpty() && !targetDays.contains(dayOfWeek)) {
+                        // Off-cadence rest day: preserve streak without consuming slack or freeze
+                        return StreakEvaluationResult(
+                            updatedHabit = habit,
+                            resultingStatus = HabitLogStatus.REST_DAY,
+                            flameState = getFlameState(habit.currentStreak, habit.isFreezeActive)
+                        )
+                    }
                 }
             }
         }

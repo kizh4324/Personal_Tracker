@@ -6,7 +6,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Habit domain entity supporting streak slack and freeze days (FR-2.4).
+ * Habit domain entity supporting streak slack, freeze days, and flexible cadences (FR-2.4).
  */
 @Entity(tableName = "habits")
 data class HabitEntity(
@@ -18,7 +18,13 @@ data class HabitEntity(
     val bestStreak: Int,
     val slackBankDays: Int,
     val isFreezeActive: Boolean,
-    val createdTimestamp: Long
+    val createdTimestamp: Long,
+    val cadenceType: String = "DAILY",
+    val weeklyTargetFrequency: Int = 7,
+    val reminderTime: String? = null,
+    val isReminderEnabled: Boolean = false,
+    val goalTargetCount: Int = 1,
+    val category: String? = null
 )
 
 /**
@@ -43,6 +49,6 @@ data class HabitLogEntity(
     @PrimaryKey val id: String, // UUIDv4
     val habitId: String,
     val logDate: String, // "YYYY-MM-DD"
-    val status: String, // "COMPLETED", "MISSED", "SLACK_USED", "FROZEN"
+    val status: String, // "COMPLETED", "MISSED", "SLACK_USED", "FROZEN", "GRACE_SHIELD_ABSORBED", "REST_DAY", "DAY_TYPE_IMMUNITY"
     val loggedTimestamp: Long
 )

@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Streak Flame Shield: Grace Shield / Slack Absorbed Protection -->
+    <!-- Outer Shield Container: Info Blue -->
+    <path
+        android:fillColor="#3B82F6"
+        android:pathData="M12,2L4,5v6.09c0,5.05 3.41,9.76 8,10.91c4.59,-1.15 8,-5.86 8,-10.91V5L12,2z"/>
+    <!-- Inner Flame Motif: Soft Ice Blue -->
+    <path
+        android:fillColor="#BFDBFE"
+        android:pathData="M12,6.5c-0.5,1.5 -1.9,3 -3.3,4.5c-1.3,1.5 -1.9,3.1 -1.9,4.7c0,2.6 2.2,4.8 5.2,4.8c3,0 5.2,-2.2 5.2,-4.8c0,-2.3 -1.7,-4.9 -3,-6.7c-0.8,-1 -1.4,-1.8 -2.2,-2.5z"/>
+</vector>

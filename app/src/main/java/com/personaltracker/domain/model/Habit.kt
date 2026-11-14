@@ -12,5 +12,29 @@ data class Habit(
     val bestStreak: Int = 0,
     val slackBankDays: Int = 0,
     val isFreezeActive: Boolean = false,
-    val createdTimestamp: Long = System.currentTimeMillis()
-)
+    val createdTimestamp: Long = System.currentTimeMillis(),
+    val cadenceType: CadenceType = CadenceType.DAILY,
+    val weeklyTargetFrequency: Int = 7,
+    val reminderTime: String? = null,
+    val isReminderEnabled: Boolean = false,
+    val goalTargetCount: Int = 1,
+    val category: String? = null
+) {
+    /**
+     * Resolves the polymorphic [HabitCadence] representation from the habit's configuration.
+     */
+    val cadence: HabitCadence
+        get() = when (cadenceType) {
+            CadenceType.DAILY -> HabitCadence.Daily
+            CadenceType.SPECIFIC_DAYS -> {
+                val days = targetDaysOfWeek.split(",")
+                    .mapNotNull { it.trim().toIntOrNull() }
+                    .filter { it in 1..7 }
+                    .toSet()
+                HabitCadence.SpecificDays(if (days.isNotEmpty()) days else (1..7).toSet())
+            }
+            CadenceType.WEEKLY_FREQUENCY -> HabitCadence.WeeklyFrequency(
+                weeklyTargetFrequency.coerceIn(1, 7)
+            )
+        }
+}

@@ -52,11 +52,13 @@ class DayRolloverCoordinator(
                     continue
                 }
 
+                val activeDayTypeForYesterday = resolveDayTypeUseCase(yesterdayDate)
                 // Uncompleted habit: evaluate via StreakStateMachine grace rules
                 val eval = streakStateMachine.evaluateDay(
                     habit = habit,
                     isCompleted = false,
-                    logDate = yesterdayDate
+                    logDate = yesterdayDate,
+                    activeDayType = activeDayTypeForYesterday
                 )
 
                 habitRepository.updateHabit(eval.updatedHabit)
