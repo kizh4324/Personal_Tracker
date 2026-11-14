@@ -5,9 +5,12 @@ import app.cash.turbine.test
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.StreakStateMachine
+import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.Habit
+import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
@@ -17,6 +20,7 @@ import com.personaltracker.domain.usecase.EvaluateTaskUrgencyScarcityUseCase
 import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
+import com.personaltracker.domain.usecase.ResumeInterruptedSessionUseCase
 import com.personaltracker.domain.usecase.SaveTaskUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
@@ -51,6 +55,8 @@ class HomeViewModelTest {
     private lateinit var routineRepository: TestRoutineRepository
     private lateinit var economyRepository: TestEconomyRepository
     private lateinit var dayTypeRepository: TestDayTypeRepository
+    private lateinit var studyRepository: TestStudySessionRepository
+    private lateinit var resumeInterruptedSessionUseCase: ResumeInterruptedSessionUseCase
 
     private lateinit var adaptiveEngine: AdaptiveScheduleEngine
     private lateinit var streakMachine: StreakStateMachine
@@ -77,6 +83,8 @@ class HomeViewModelTest {
         economyRepository = TestEconomyRepository()
         dayTypeRepository = TestDayTypeRepository()
         taskAlarmScheduler = TestTaskAlarmScheduler()
+        studyRepository = TestStudySessionRepository()
+        resumeInterruptedSessionUseCase = ResumeInterruptedSessionUseCase(studyRepository, FocusRescheduleEngine())
 
         adaptiveEngine = AdaptiveScheduleEngine()
         streakMachine = StreakStateMachine()
@@ -130,7 +138,9 @@ class HomeViewModelTest {
             dismissOverdueTasksUseCase = dismissOverdueTasksUseCase,
             saveTaskUseCase = saveTaskUseCase,
             deleteTaskUseCase = deleteTaskUseCase,
-            evaluateTaskUrgencyScarcityUseCase = evaluateTaskUrgencyScarcityUseCase
+            evaluateTaskUrgencyScarcityUseCase = evaluateTaskUrgencyScarcityUseCase,
+            studySessionRepository = studyRepository,
+            resumeInterruptedSessionUseCase = resumeInterruptedSessionUseCase
         )
     }
 
@@ -755,6 +765,66 @@ class HomeViewModelTest {
             val dismissedState = awaitItem()
             assertEquals(2, dismissedState.activeUrgentTaskCount)
             assertTrue(dismissedState.isUrgencySoftCapReached)
+        }
+    }
+
+    @Test
+    fun testInterruptedStudySessionFromRoomPromotesToHeroCardPriority2() = runTest {
+        val interrupted = StudySession(
+            id = "sess_interrupted_db",
+            subjectTag = "Kotlin Flow",
+            sessionDate = today,
+            startTime = "11:00",
+            durationMinutes = 15,
+            isInterrupted = true,
+            targetDurationMinutes = 25,
+            actualElapsedMinutes = 15,
+            intervalType = FocusIntervalType.DEEP_WORK
+        )
+        studyRepository.saveSession(interrupted)
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.heroCardState is HeroCardState.InterruptedResumable)
+            val resumable = state.heroCardState as HeroCardState.InterruptedResumable
+            assertEquals("Kotlin Flow Session", resumable.title)
+            assertTrue(resumable.isStudySession)
+            assertEquals(15, resumable.bankedMinutes)
+            assertEquals(10, resumable.remainingMinutes)
+            assertTrue(resumable.advisoryPrompt.contains("15 min banked!"))
+        }
+    }
+
+    @Test
+    fun testPausedTimerSessionStateAPromotesToHeroCardPriority2() = runTest {
+        val field: Field = StudySessionForegroundService::class.java.getDeclaredField("_timerState")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val serviceTimerState = field.get(null) as MutableStateFlow<StudySessionTimerState>
+        serviceTimerState.value = StudySessionTimerState(
+            sessionId = "sess_paused_live",
+            subjectTag = "Live Coding",
+            totalSeconds = 30 * 60L,
+            remainingSeconds = 10 * 60L,
+            isRunning = false,
+            isPaused = true,
+            isCompleted = false
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            assertTrue(state.heroCardState is HeroCardState.InterruptedResumable)
+            val resumable = state.heroCardState as HeroCardState.InterruptedResumable
+            assertEquals("Live Coding Session", resumable.title)
+            assertTrue(resumable.isStudySession)
+            assertEquals(20, resumable.bankedMinutes)
+            assertEquals(10, resumable.remainingMinutes)
         }
     }
 }

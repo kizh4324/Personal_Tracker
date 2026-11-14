@@ -3,6 +3,7 @@ package com.personaltracker.domain.engine
 import com.personaltracker.domain.model.FocusIntervalType
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import javax.inject.Inject
 
 /**
  * Pure Kotlin behavioral engine managing study session pause/resume recalculation,
@@ -10,7 +11,17 @@ import java.time.format.DateTimeFormatter
  *
  * Contains zero Android framework dependencies and zero guilt copy.
  */
-class FocusRescheduleEngine {
+class FocusRescheduleEngine @Inject constructor() {
+
+    enum class InterruptionReason {
+        PHONE_CALL,
+        USER_PAUSE,
+        USER_BREAK,
+        DISTRACTION_OVERLAY_BREAK,
+        USER_END_EARLY,
+        TASK_OVERRIDE,
+        APP_BACKGROUNDED
+    }
 
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -36,6 +47,16 @@ class FocusRescheduleEngine {
         val plannedDurationMinutes: Int,
         val elapsedMinutes: Int,
         val remainingMinutes: Int,
+        val advisoryMessage: String
+    )
+
+    data class ResumptionPlan(
+        val sessionId: String,
+        val subjectTag: String,
+        val targetDurationMinutes: Int,
+        val bankedMinutes: Int,
+        val remainingDurationMinutes: Int,
+        val intervalType: FocusIntervalType,
         val advisoryMessage: String
     )
 
@@ -164,6 +185,50 @@ class FocusRescheduleEngine {
             remainingMinutes = remainingMinutes,
             advisoryMessage = "Focus block paused with $remainingMinutes min remaining. You can resume anytime."
         )
+    }
+
+    /**
+     * Calculates structured interruption summary with zero-guilt microcopy based on interruption reason (Story 3.4).
+     */
+    fun calculateInterruptionSummary(
+        plannedDurationMinutes: Int,
+        elapsedSeconds: Long,
+        reason: InterruptionReason = InterruptionReason.USER_PAUSE
+    ): InterruptionSummary {
+        val elapsedMinutes = (elapsedSeconds / 60).toInt().coerceAtLeast(0)
+        val remainingMinutes = maxOf(0, plannedDurationMinutes - elapsedMinutes)
+        val advisory = when (reason) {
+            InterruptionReason.PHONE_CALL ->
+                "Call handled. $elapsedMinutes min banked — ready to jump back in whenever you are."
+            InterruptionReason.DISTRACTION_OVERLAY_BREAK,
+            InterruptionReason.USER_BREAK ->
+                "Resting for 5 min. $elapsedMinutes min banked from your session."
+            InterruptionReason.USER_END_EARLY ->
+                "Session ended calmly. $elapsedMinutes min banked for today."
+            else ->
+                if (elapsedMinutes > 0) {
+                    "Focus block paused with $remainingMinutes min remaining. $elapsedMinutes min banked!"
+                } else {
+                    "Focus block paused. Ready to jump back in whenever you are."
+                }
+        }
+        return InterruptionSummary(
+            plannedDurationMinutes = plannedDurationMinutes,
+            elapsedMinutes = elapsedMinutes,
+            remainingMinutes = remainingMinutes,
+            advisoryMessage = advisory
+        )
+    }
+
+    /**
+     * Formats zero-guilt supportive resumption prompt (AD-4, Story 3.4).
+     */
+    fun formatResumptionPrompt(bankedMinutes: Int, remainingMinutes: Int): String {
+        return if (bankedMinutes > 0) {
+            "Pick back up where you left off — $bankedMinutes min banked!"
+        } else {
+            "Ready to jump back in whenever you are."
+        }
     }
 
     /**

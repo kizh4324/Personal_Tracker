@@ -4,12 +4,15 @@ package com.personaltracker.domain.model
  * Domain DTO for an active study or focus session (AD-1).
  */
 data class HeroActiveSession(
+    val sessionId: String? = null,
     val subjectTag: String,
+    val totalSeconds: Long = 0L,
     val remainingSeconds: Long = 0L,
     val formattedRemainingTime: String = "00:00",
     val isRunning: Boolean = false,
     val isPaused: Boolean = false,
-    val isCompleted: Boolean = false
+    val isCompleted: Boolean = false,
+    val bankedMinutes: Int = 0
 )
 
 /**
@@ -34,8 +37,13 @@ sealed interface HeroPriorityState {
 
     data class InterruptedResumable(
         val taskId: String? = null,
+        val sessionId: String? = null,
         val title: String,
-        val elapsedSinceFormatted: String = "Paused"
+        val elapsedSinceFormatted: String = "Paused",
+        val bankedMinutes: Int = 0,
+        val remainingMinutes: Int = 0,
+        val advisoryPrompt: String = "Pick back up where you left off",
+        val isStudySession: Boolean = false
     ) : HeroPriorityState {
         override val priority: Int = 2
     }

@@ -26,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -160,6 +161,100 @@ fun StudyScreenContent(
         }
 
         Spacer(modifier = Modifier.height(spacing.sectionGap))
+
+        // Warm Organic Tactile Resumption Card (Story 3.4)
+        if (timer.isPaused || (!timer.isRunning && state.interruptedSession != null)) {
+            val bankedMinutes = if (timer.isPaused) {
+                timer.bankedMinutes
+            } else {
+                state.interruptedSession?.actualElapsedMinutes ?: 0
+            }
+            val remainingMinutes = if (timer.isPaused) {
+                (timer.remainingSeconds / 60).toInt().coerceAtLeast(1)
+            } else {
+                val target = state.interruptedSession?.targetDurationMinutes ?: 25
+                maxOf(1, target - bankedMinutes)
+            }
+
+            Surface(
+                shape = shapes.xxl,
+                color = colors.bannerPeach,
+                border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(spacing.spacing4),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                ) {
+                    Text(
+                        text = "PAUSED • RESUMABLE",
+                        style = typography.caption,
+                        color = colors.warning
+                    )
+                    Text(
+                        text = if (bankedMinutes > 0)
+                            "Pick back up where you left off — $bankedMinutes min banked!"
+                        else
+                            "Ready to jump back in whenever you are.",
+                        style = typography.title,
+                        color = colors.inkPrimary
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = { onIntent(StudyUiIntent.ResumeSession) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = colors.primary,
+                                contentColor = colors.surfaceRaised
+                            ),
+                            shape = shapes.full,
+                            modifier = Modifier
+                                .weight(1.2f)
+                                .defaultMinSize(minHeight = spacing.minTouchTarget)
+                        ) {
+                            Text(
+                                text = "Resume (${remainingMinutes}m)",
+                                style = typography.label,
+                                maxLines = 1
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = { onIntent(StudyUiIntent.TakeFiveMinuteBreak(5)) },
+                            shape = shapes.full,
+                            border = BorderStroke(spacing.spacing0_5, colors.borderSubtle),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = colors.inkPrimary
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = spacing.minTouchTarget)
+                        ) {
+                            Text(text = "5m Break", style = typography.label, maxLines = 1)
+                        }
+                        TextButton(
+                            onClick = { onIntent(StudyUiIntent.StopSession) },
+                            shape = shapes.full,
+                            modifier = Modifier
+                                .weight(1f)
+                                .defaultMinSize(minHeight = spacing.minTouchTarget)
+                        ) {
+                            Text(
+                                text = "End Early",
+                                style = typography.label,
+                                color = colors.inkSecondary,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(spacing.sectionGap))
+        }
 
         // Hero Focus Timer Stage Card
         Surface(

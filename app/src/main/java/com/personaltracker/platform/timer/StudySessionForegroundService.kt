@@ -13,12 +13,15 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.personaltracker.MainActivity
 import com.personaltracker.R
+import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.repository.StudySessionRepository
+import com.personaltracker.domain.usecase.PauseOrInterruptSessionUseCase
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +43,9 @@ class StudySessionForegroundService : Service() {
 
     @Inject
     lateinit var studySessionRepository: StudySessionRepository
+
+    @Inject
+    lateinit var pauseOrInterruptSessionUseCase: PauseOrInterruptSessionUseCase
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var timer: StudySessionTimer? = null
@@ -76,9 +82,43 @@ class StudySessionForegroundService : Service() {
             ACTION_STOP -> {
                 stopSession(interrupted = true)
             }
+            ACTION_START_BREAK -> {
+                val breakMinutes = intent.getIntExtra(EXTRA_BREAK_MINUTES, 5)
+                handleStartBreak(breakMinutes)
+            }
         }
 
         return START_NOT_STICKY
+    }
+
+    private fun handleStartBreak(breakMinutes: Int = 5) {
+        val currentState = _timerState.value
+        val activeSessionId = currentState.sessionId
+
+        timer?.stop()
+
+        if (activeSessionId != null && currentState.intervalType != FocusIntervalType.SHORT_BREAK) {
+            serviceScope.launch(Dispatchers.IO + NonCancellable) {
+                val elapsedSeconds = currentState.totalSeconds - currentState.remainingSeconds
+                pauseOrInterruptSessionUseCase(
+                    sessionId = activeSessionId,
+                    elapsedSeconds = elapsedSeconds,
+                    totalSeconds = currentState.totalSeconds,
+                    subjectTag = currentState.subjectTag,
+                    intervalType = currentState.intervalType,
+                    reason = FocusRescheduleEngine.InterruptionReason.DISTRACTION_OVERLAY_BREAK
+                )
+            }
+        }
+
+        val breakDurationSeconds = breakMinutes * 60L
+        val breakSessionId = UUID.randomUUID().toString()
+        startSession(
+            sessionId = breakSessionId,
+            subjectTag = "Break",
+            durationSeconds = breakDurationSeconds,
+            intervalType = FocusIntervalType.SHORT_BREAK
+        )
     }
 
     private fun startSession(
@@ -104,6 +144,8 @@ class StudySessionForegroundService : Service() {
             coinsEarned = 0,
             linkedTaskId = null,
             isInterrupted = false,
+            targetDurationMinutes = durationMinutes,
+            actualElapsedMinutes = 0,
             intervalType = intervalType
         )
 
@@ -158,7 +200,8 @@ class StudySessionForegroundService : Service() {
         val earnedCoins = maxOf(1, baseSession.durationMinutes / 5)
         val completedSession = baseSession.copy(
             coinsEarned = earnedCoins,
-            isInterrupted = false
+            isInterrupted = false,
+            actualElapsedMinutes = baseSession.durationMinutes
         )
 
         serviceScope.launch(Dispatchers.IO) {
@@ -195,20 +238,17 @@ class StudySessionForegroundService : Service() {
         prefs.edit().remove(KEY_ACTIVE_SESSION_ID).apply()
 
         if (interrupted && sessionId != null) {
-            serviceScope.launch(Dispatchers.IO) {
+            serviceScope.launch(Dispatchers.IO + NonCancellable) {
                 runCatching {
-                    val today = LocalDate.now().toString()
-                    val session = StudySession(
-                        id = sessionId,
+                    val elapsedSeconds = currentState.totalSeconds - currentState.remainingSeconds
+                    pauseOrInterruptSessionUseCase(
+                        sessionId = sessionId,
+                        elapsedSeconds = elapsedSeconds,
+                        totalSeconds = currentState.totalSeconds,
                         subjectTag = currentState.subjectTag,
-                        sessionDate = today,
-                        startTime = LocalTime.now().format(DateTimeFormatter.ofPattern("HH:mm")),
-                        durationMinutes = ((currentState.totalSeconds - currentState.remainingSeconds) / 60).toInt(),
-                        coinsEarned = 0,
-                        isInterrupted = true,
-                        intervalType = currentState.intervalType
+                        intervalType = currentState.intervalType,
+                        reason = FocusRescheduleEngine.InterruptionReason.USER_END_EARLY
                     )
-                    studySessionRepository.saveSession(session)
                 }
             }
         }
@@ -310,11 +350,13 @@ class StudySessionForegroundService : Service() {
         const val ACTION_PAUSE = "com.personaltracker.action.PAUSE_STUDY_SESSION"
         const val ACTION_RESUME = "com.personaltracker.action.RESUME_STUDY_SESSION"
         const val ACTION_STOP = "com.personaltracker.action.STOP_STUDY_SESSION"
+        const val ACTION_START_BREAK = "com.personaltracker.action.START_BREAK"
 
         const val EXTRA_SESSION_ID = "extra_session_id"
         const val EXTRA_SUBJECT_TAG = "extra_subject_tag"
         const val EXTRA_DURATION_SECONDS = "extra_duration_seconds"
         const val EXTRA_INTERVAL_TYPE = "extra_interval_type"
+        const val EXTRA_BREAK_MINUTES = "extra_break_minutes"
 
         const val NOTIFICATION_ID = 2001
         const val CHANNEL_ID = "study_session_channel"
@@ -339,6 +381,18 @@ class StudySessionForegroundService : Service() {
                 putExtra(EXTRA_SUBJECT_TAG, subjectTag)
                 putExtra(EXTRA_DURATION_SECONDS, durationSeconds)
                 putExtra(EXTRA_INTERVAL_TYPE, intervalType.name)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        fun startBreakService(context: Context, breakMinutes: Int = 5) {
+            val intent = Intent(context, StudySessionForegroundService::class.java).apply {
+                action = ACTION_START_BREAK
+                putExtra(EXTRA_BREAK_MINUTES, breakMinutes)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)

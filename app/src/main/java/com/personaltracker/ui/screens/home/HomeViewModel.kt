@@ -8,16 +8,19 @@ import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HeroActiveSession
 import com.personaltracker.domain.model.HeroPriorityState
 import com.personaltracker.domain.model.Routine
 import com.personaltracker.domain.model.RoutineStep
+import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.repository.DayTypeRepository
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
 import com.personaltracker.domain.repository.RoutineRepository
+import com.personaltracker.domain.repository.StudySessionRepository
 import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.usecase.AdvanceRoutineStepResult
 import com.personaltracker.domain.usecase.AdvanceRoutineStepUseCase
@@ -30,6 +33,7 @@ import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.RecalculateRoutineTimelineUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
+import com.personaltracker.domain.usecase.ResumeInterruptedSessionUseCase
 import com.personaltracker.domain.usecase.RoutineStepAction
 import com.personaltracker.domain.usecase.SaveRoutineUseCase
 import com.personaltracker.domain.usecase.SaveTaskUseCase
@@ -59,6 +63,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 
 private data class BaseHomeData(
@@ -67,7 +72,8 @@ private data class BaseHomeData(
     val balance: Int,
     val dayTypes: List<DayType>,
     val override: DayOverride?,
-    val routines: List<Routine>
+    val routines: List<Routine>,
+    val studySessions: List<StudySession>
 )
 
 private data class TaskEditorControl(
@@ -117,6 +123,8 @@ class HomeViewModel @Inject constructor(
         AdaptiveScheduleEngine()
     ),
     private val saveRoutineUseCase: SaveRoutineUseCase = SaveRoutineUseCase(routineRepository),
+    private val studySessionRepository: StudySessionRepository,
+    private val resumeInterruptedSessionUseCase: ResumeInterruptedSessionUseCase,
     @ApplicationContext private val context: Context? = null
 ) : ViewModel() {
 
@@ -154,6 +162,7 @@ class HomeViewModel @Inject constructor(
         val timerFlow = StudySessionForegroundService.timerState
         val routinesFlow = routineRepository.getAllRoutines()
             .onStart { routineRepository.ensureDefaultRoutines() }
+        val studySessionsFlow = studySessionRepository.getAllSessions()
 
         val baseDataFlow = combine(
             tasksFlow,
@@ -161,7 +170,8 @@ class HomeViewModel @Inject constructor(
             balanceFlow,
             dayTypesFlow,
             overrideFlow,
-            routinesFlow
+            routinesFlow,
+            studySessionsFlow
         ) { args: Array<Any?> ->
             @Suppress("UNCHECKED_CAST")
             BaseHomeData(
@@ -170,7 +180,8 @@ class HomeViewModel @Inject constructor(
                 balance = args[2] as Int,
                 dayTypes = args[3] as List<DayType>,
                 override = args[4] as DayOverride?,
-                routines = args[5] as List<Routine>
+                routines = args[5] as List<Routine>,
+                studySessions = args[6] as List<StudySession>
             )
         }
 
@@ -296,21 +307,30 @@ class HomeViewModel @Inject constructor(
             // Interrupted task
             val interruptedTask = runCatching { taskRepository.getLatestInterruptedTask() }.getOrNull()
 
+            // Latest interrupted study session from Room persistence (Story 3.4)
+            val latestInterruptedStudySession = baseData.studySessions.firstOrNull {
+                it.isInterrupted && !it.isBreak && it.actualElapsedMinutes < it.targetDurationMinutes
+            }
+
             // Active session DTO from timer
             val heroActiveSession = if (control.timer.isRunning || control.timer.isPaused) {
                 HeroActiveSession(
+                    sessionId = control.timer.sessionId,
                     subjectTag = control.timer.subjectTag,
+                    totalSeconds = control.timer.totalSeconds,
                     remainingSeconds = control.timer.remainingSeconds,
                     formattedRemainingTime = control.timer.formattedRemainingTime,
                     isRunning = control.timer.isRunning,
                     isPaused = control.timer.isPaused,
-                    isCompleted = control.timer.isCompleted
+                    isCompleted = control.timer.isCompleted,
+                    bankedMinutes = control.timer.bankedMinutes
                 )
             } else null
 
             // 6-state Hero Card priority resolution via pure domain use case
             val resolvedHeroPriority = resolveHeroStateUseCase.resolve(
                 activeSession = heroActiveSession,
+                interruptedSession = latestInterruptedStudySession,
                 interruptedTask = interruptedTask,
                 isMorningBannerDismissed = control.bannerDismissed,
                 activeDayTypeName = dayTypeName,
@@ -336,12 +356,24 @@ class HomeViewModel @Inject constructor(
                     HeroCardState.InterruptedResumable(
                         title = resolvedHeroPriority.title,
                         elapsedSinceFormatted = resolvedHeroPriority.elapsedSinceFormatted,
+                        bankedMinutes = resolvedHeroPriority.bankedMinutes,
+                        remainingMinutes = resolvedHeroPriority.remainingMinutes,
+                        advisoryPrompt = resolvedHeroPriority.advisoryPrompt,
+                        isStudySession = resolvedHeroPriority.isStudySession,
                         onResume = {
-                            if (resolvedHeroPriority.taskId != null) {
+                            if (resolvedHeroPriority.isStudySession) {
+                                handleResumeStudySession(resolvedHeroPriority.sessionId)
+                            } else if (resolvedHeroPriority.taskId != null) {
                                 onIntent(HomeUiIntent.ResumeInterruptedTask(resolvedHeroPriority.taskId))
                             } else {
                                 onIntent(HomeUiIntent.ResumeActiveFocus)
                             }
+                        },
+                        onTakeBreak = {
+                            context?.let { ctx -> StudySessionForegroundService.startBreakService(ctx, 5) }
+                        },
+                        onEndEarly = {
+                            context?.let { ctx -> StudySessionForegroundService.stopService(ctx) }
                         },
                         onReview = {
                             viewModelScope.launch {
@@ -716,6 +748,34 @@ class HomeViewModel @Inject constructor(
                 val task = taskRepository.getTaskById(intent.taskId)
                 if (task != null) {
                     taskRepository.updateTask(task.copy(state = "IN_PROGRESS"))
+                }
+            }
+        }
+    }
+
+    private fun handleResumeStudySession(sessionId: String?) {
+        val ctx = context ?: return
+        if (StudySessionForegroundService.timerState.value.isPaused) {
+            StudySessionForegroundService.resumeService(ctx)
+        } else {
+            viewModelScope.launch {
+                val plan = resumeInterruptedSessionUseCase(sessionId)
+                if (plan != null) {
+                    StudySessionForegroundService.startService(
+                        context = ctx,
+                        sessionId = plan.sessionId,
+                        subjectTag = plan.subjectTag,
+                        durationSeconds = plan.remainingDurationMinutes * 60L,
+                        intervalType = plan.intervalType
+                    )
+                } else {
+                    StudySessionForegroundService.startService(
+                        context = ctx,
+                        sessionId = sessionId ?: UUID.randomUUID().toString(),
+                        subjectTag = "Focus",
+                        durationSeconds = 25 * 60L,
+                        intervalType = FocusIntervalType.DEEP_WORK
+                    )
                 }
             }
         }

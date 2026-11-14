@@ -59,7 +59,13 @@ sealed interface HeroCardState {
     data class InterruptedResumable(
         val title: String,
         val elapsedSinceFormatted: String,
+        val bankedMinutes: Int = 0,
+        val remainingMinutes: Int = 0,
+        val advisoryPrompt: String = "Pick back up where you left off",
+        val isStudySession: Boolean = false,
         val onResume: () -> Unit = {},
+        val onTakeBreak: () -> Unit = {},
+        val onEndEarly: () -> Unit = {},
         val onReview: () -> Unit = {},
         val onMarkComplete: () -> Unit = {}
     ) : HeroCardState {
@@ -255,7 +261,7 @@ private fun InterruptedResumableContent(state: HeroCardState.InterruptedResumabl
         modifier = Modifier.fillMaxWidth()
     ) {
         Text(
-            text = "Interrupted Item",
+            text = if (state.isStudySession) "PAUSED • RESUMABLE" else "Interrupted Item",
             style = typography.caption,
             color = colors.warning
         )
@@ -265,41 +271,81 @@ private fun InterruptedResumableContent(state: HeroCardState.InterruptedResumabl
             color = colors.inkPrimary
         )
         Text(
-            text = "Paused ${state.elapsedSinceFormatted}",
+            text = if (state.isStudySession) state.advisoryPrompt else "Paused ${state.elapsedSinceFormatted}",
             style = typography.bodySecondary,
             color = colors.inkSecondary
         )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Button(
-                onClick = state.onResume,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = colors.primary,
-                    contentColor = colors.surfaceRaised
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .defaultMinSize(minHeight = spacing.minTouchTarget)
+        if (state.isStudySession) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Resume", style = typography.label, maxLines = 1)
+                Button(
+                    onClick = state.onResume,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.surfaceRaised
+                    ),
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(
+                        text = if (state.remainingMinutes > 0) "Resume (${state.remainingMinutes}m)" else "Resume",
+                        style = typography.label,
+                        maxLines = 1
+                    )
+                }
+                OutlinedButton(
+                    onClick = state.onTakeBreak,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "5m Break", style = typography.label, maxLines = 1)
+                }
+                TextButton(
+                    onClick = state.onEndEarly,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "End Early", style = typography.label, color = colors.inkSecondary, maxLines = 1)
+                }
             }
-            OutlinedButton(
-                onClick = state.onReview,
-                modifier = Modifier
-                    .weight(1f)
-                    .defaultMinSize(minHeight = spacing.minTouchTarget)
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(text = "Review", style = typography.label, maxLines = 1)
-            }
-            TextButton(
-                onClick = state.onMarkComplete,
-                modifier = Modifier
-                    .weight(1f)
-                    .defaultMinSize(minHeight = spacing.minTouchTarget)
-            ) {
-                Text(text = "Complete", style = typography.label, color = colors.success, maxLines = 1)
+                Button(
+                    onClick = state.onResume,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = colors.primary,
+                        contentColor = colors.surfaceRaised
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Resume", style = typography.label, maxLines = 1)
+                }
+                OutlinedButton(
+                    onClick = state.onReview,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Review", style = typography.label, maxLines = 1)
+                }
+                TextButton(
+                    onClick = state.onMarkComplete,
+                    modifier = Modifier
+                        .weight(1f)
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Complete", style = typography.label, color = colors.success, maxLines = 1)
+                }
             }
         }
     }

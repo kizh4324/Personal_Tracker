@@ -27,11 +27,9 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.personaltracker.MainActivity
-import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.ui.components.overlays.InterventionCard
 import com.personaltracker.ui.theme.PersonalTrackerTheme
-import java.util.UUID
 
 /**
  * Custom standalone LifecycleOwner enabling Jetpack Compose within a system alert window overlay
@@ -135,16 +133,17 @@ class InterventionOverlay(
                             InterventionCard(
                                 onResumeFocus = {
                                     dismiss()
+                                    StudySessionForegroundService.resumeService(context)
                                     launchMainActivity()
                                 },
                                 onTakeBreak = {
                                     dismiss()
-                                    startFiveMinuteBreak()
+                                    StudySessionForegroundService.startBreakService(context, breakMinutes = 5)
                                     launchMainActivity()
                                 },
                                 onEndEarly = {
                                     dismiss()
-                                    endSessionEarly()
+                                    StudySessionForegroundService.stopService(context)
                                 },
                                 appDisplayName = appDisplayName
                             )
@@ -207,19 +206,5 @@ class InterventionOverlay(
             }
             context.startActivity(intent)
         }
-    }
-
-    private fun startFiveMinuteBreak() {
-        StudySessionForegroundService.startService(
-            context = context,
-            sessionId = UUID.randomUUID().toString(),
-            subjectTag = "Break",
-            durationSeconds = 5 * 60L,
-            intervalType = FocusIntervalType.SHORT_BREAK
-        )
-    }
-
-    private fun endSessionEarly() {
-        StudySessionForegroundService.stopService(context)
     }
 }

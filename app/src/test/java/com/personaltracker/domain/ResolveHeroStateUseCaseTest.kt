@@ -3,8 +3,10 @@ package com.personaltracker.domain.usecase
 import com.personaltracker.domain.model.HeroActiveSession
 import com.personaltracker.domain.model.HeroPriorityState
 import com.personaltracker.domain.model.RoutineStep
+import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.model.Task
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -67,6 +69,7 @@ class ResolveHeroStateUseCaseTest {
         val resumable = state as HeroPriorityState.InterruptedResumable
         assertEquals("Code Review", resumable.title)
         assertEquals("task_int", resumable.taskId)
+        assertFalse(resumable.isStudySession)
     }
 
     @Test
@@ -92,12 +95,15 @@ class ResolveHeroStateUseCaseTest {
     @Test
     fun testPriority2PausedSessionResolvesInterruptedResumable() {
         val pausedSession = HeroActiveSession(
+            sessionId = "sess_algo",
             subjectTag = "Algorithms",
+            totalSeconds = 25 * 60L,
             remainingSeconds = 600L,
             formattedRemainingTime = "10:00",
             isRunning = false,
             isPaused = true,
-            isCompleted = false
+            isCompleted = false,
+            bankedMinutes = 15
         )
 
         val state = useCase.resolve(
@@ -109,6 +115,101 @@ class ResolveHeroStateUseCaseTest {
         assertEquals(2, state.priority)
         val resumable = state as HeroPriorityState.InterruptedResumable
         assertEquals("Algorithms Session", resumable.title)
+        assertEquals("sess_algo", resumable.sessionId)
+        assertTrue(resumable.isStudySession)
+        assertEquals(15, resumable.bankedMinutes)
+        assertEquals(10, resumable.remainingMinutes)
+        assertTrue(resumable.advisoryPrompt.contains("15 min banked!"))
+    }
+
+    @Test
+    fun testPriority2InterruptedSessionFromRoomResolvesInterruptedResumable() {
+        val interrupted = StudySession(
+            id = "sess_room_1",
+            subjectTag = "Deep Focus",
+            sessionDate = "2026-11-14",
+            startTime = "14:00",
+            durationMinutes = 12,
+            coinsEarned = 0,
+            isInterrupted = true,
+            targetDurationMinutes = 30,
+            actualElapsedMinutes = 12
+        )
+
+        val state = useCase.resolve(
+            activeSession = null,
+            interruptedSession = interrupted
+        )
+
+        assertTrue(state is HeroPriorityState.InterruptedResumable)
+        val resumable = state as HeroPriorityState.InterruptedResumable
+        assertEquals("Deep Focus Session", resumable.title)
+        assertEquals("sess_room_1", resumable.sessionId)
+        assertTrue(resumable.isStudySession)
+        assertEquals(12, resumable.bankedMinutes)
+        assertEquals(18, resumable.remainingMinutes)
+        assertTrue(resumable.advisoryPrompt.contains("12 min banked!"))
+    }
+
+    @Test
+    fun testPriority2PrecedenceOrderActiveSessionOverRoomOverTask() {
+        val pausedSession = HeroActiveSession(
+            sessionId = "sess_live",
+            subjectTag = "Live Session",
+            remainingSeconds = 300L,
+            isPaused = true,
+            bankedMinutes = 20
+        )
+        val interruptedSession = StudySession(
+            id = "sess_db",
+            subjectTag = "DB Session",
+            sessionDate = "2026-11-14",
+            startTime = "10:00",
+            durationMinutes = 10,
+            isInterrupted = true,
+            targetDurationMinutes = 25,
+            actualElapsedMinutes = 10
+        )
+        val interruptedTask = Task(
+            id = "task_int",
+            title = "Task Interrupted",
+            scheduledDate = "2026-11-14",
+            state = "INTERRUPTED"
+        )
+
+        // 1. Live paused timer wins over DB session and task
+        val state1 = useCase.resolve(
+            activeSession = pausedSession,
+            interruptedSession = interruptedSession,
+            interruptedTask = interruptedTask
+        )
+        assertTrue(state1 is HeroPriorityState.InterruptedResumable)
+        val r1 = state1 as HeroPriorityState.InterruptedResumable
+        assertEquals("Live Session Session", r1.title)
+        assertEquals("sess_live", r1.sessionId)
+
+        // 2. Room interrupted session wins over task when activeSession is null
+        val state2 = useCase.resolve(
+            activeSession = null,
+            interruptedSession = interruptedSession,
+            interruptedTask = interruptedTask
+        )
+        assertTrue(state2 is HeroPriorityState.InterruptedResumable)
+        val r2 = state2 as HeroPriorityState.InterruptedResumable
+        assertEquals("DB Session Session", r2.title)
+        assertEquals("sess_db", r2.sessionId)
+
+        // 3. When Room session has completed its target duration, task wins
+        val completedRoomSession = interruptedSession.copy(actualElapsedMinutes = 25)
+        val state3 = useCase.resolve(
+            activeSession = null,
+            interruptedSession = completedRoomSession,
+            interruptedTask = interruptedTask
+        )
+        assertTrue(state3 is HeroPriorityState.InterruptedResumable)
+        val r3 = state3 as HeroPriorityState.InterruptedResumable
+        assertEquals("Task Interrupted", r3.title)
+        assertFalse(r3.isStudySession)
     }
 
     @Test

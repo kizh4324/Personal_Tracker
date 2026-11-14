@@ -14,6 +14,7 @@ sealed interface StudyUiIntent {
     object PauseSession : StudyUiIntent
     object ResumeSession : StudyUiIntent
     object StopSession : StudyUiIntent
+    data class TakeFiveMinuteBreak(val breakMinutes: Int = 5) : StudyUiIntent
     data class SelectSubjectTag(val tag: String) : StudyUiIntent
     data class SelectDuration(val minutes: Int) : StudyUiIntent
     data class SelectIntervalType(val intervalType: FocusIntervalType) : StudyUiIntent

@@ -3,6 +3,8 @@ package com.personaltracker.data.local.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.personaltracker.data.local.db.converters.DateConverters
 import com.personaltracker.data.local.db.converters.EncryptedPayloadConverter
 import com.personaltracker.data.local.db.daos.CoinLedgerDao
@@ -31,10 +33,10 @@ import com.personaltracker.data.local.db.entities.TaskEntity
 import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
 
 /**
- * Main Room Database for Personal-Tracker v1.
+ * Main Room Database for Personal-Tracker v2.
  * Encrypted at rest over SQLCipher with Android Keystore hardware-backed key protection.
  *
- * Implements ARCH-2, NFR-4, and Story 1.2 specifications.
+ * Implements ARCH-2, NFR-4, and Story 1.2 / Story 3.4 specifications.
  */
 @Database(
     entities = [
@@ -52,7 +54,7 @@ import com.personaltracker.data.local.db.entities.UnfiledCaptureInboxEntity
         UnfiledCaptureInboxEntity::class,
         InterventionRuleEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(EncryptedPayloadConverter::class, DateConverters::class)
@@ -72,5 +74,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val DATABASE_NAME = "personal_tracker_encrypted.db"
+
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE study_sessions ADD COLUMN targetDurationMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE study_sessions ADD COLUMN actualElapsedMinutes INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE study_sessions ADD COLUMN intervalType TEXT NOT NULL DEFAULT 'DEEP_WORK'")
+            }
+        }
     }
 }

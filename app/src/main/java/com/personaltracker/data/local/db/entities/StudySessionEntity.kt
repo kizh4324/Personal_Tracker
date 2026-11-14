@@ -23,5 +23,8 @@ data class StudySessionEntity(
     val coinsEarned: Int,
     val linkedTaskId: String?,
     val isInterrupted: Boolean,
-    val createdTimestamp: Long
+    val createdTimestamp: Long,
+    val targetDurationMinutes: Int = durationMinutes,
+    val actualElapsedMinutes: Int = durationMinutes,
+    val intervalType: String = "DEEP_WORK"
 )

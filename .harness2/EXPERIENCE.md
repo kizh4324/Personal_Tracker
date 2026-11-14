@@ -253,6 +253,28 @@ Authoritative repository of verified engineering heuristics, operational invaria
 * **Heuristic:** Virtual keyboards (such as Gboard, Samsung Keyboard, SwiftKey) transition between window states during text input. If soft keyboard package transitions (`com.google.android.inputmethod.latin`, `com.touchtype.swiftkey`, `com.samsung.android.honeyboard`) are evaluated as potential distractions or treated as target foreground apps, text input during legitimate note-taking, quick-capture, or whitelisted apps gets obstructed or causes spurious overlay re-evaluations.
 * **Rule:** Unconditionally exempt all input method editors and soft keyboard packages via explicit package matching and segment filtering (`.inputmethod.`, `.keyboard.`, `swiftkey`, `honeyboard`, `ime`) in `InterceptDistractionUseCase`. Treat IME window transitions as non-distracting interactions that neither trigger an intervention card nor dismiss active overlays.
 
+---
+
+## 20. Resumption Engine & Service Concurrency Invariants
+
+### EXP-040: NonCancellable Coroutine Scope in Service Teardown Persistence (AD-3, AD-4)
+* **Context:** Banking elapsed focus session progress during Android `Service.stopSelf()` teardown (`StudySessionForegroundService.kt`).
+* **Heuristic:** Calling `serviceScope.launch(Dispatchers.IO) { repo.saveSession(session) }` followed immediately by `stopSelf()` triggers `onDestroy()` on the main thread, executing `serviceScope.cancel()`. Because SQLCipher Room transactions over encrypted SQLite take multiple milliseconds, cancelling `serviceScope` aborts the in-flight database write before disk commit, silently discarding the user's banked focus minutes.
+* **Rule:** Always wrap critical database persistence operations in `serviceScope.launch(Dispatchers.IO + NonCancellable)` inside `stopSession()` or service teardown hooks, ensuring the database transaction completes fully even as the Service lifecycle terminates.
+
+### EXP-041: Atomic Multi-Intent Transitions in Android Foreground Services (AD-1, AD-4)
+* **Context:** Transitioning directly from an active focus session to a short break timer via system overlay actions (`InterventionOverlay.kt`, `StudySessionForegroundService.kt`).
+* **Heuristic:** Attempting to transition between service states by calling `stopService(context)` followed immediately by `startService(context, ...)` introduces an asynchronous lifecycle race condition where `stopSelf()` can tear down the newly requested foreground session, or spawn concurrent ticker coroutines racing into `_timerState`.
+* **Rule:** Expose dedicated intent actions (`ACTION_START_BREAK`) handled directly in `onStartCommand` of the running service. The service instance must atomically: (1) cancel the active countdown timer, (2) bank the current focus session via `PauseOrInterruptSessionUseCase` in `NonCancellable`, and (3) launch the new break timer without destroying the foreground service process.
+
+### EXP-042: State A vs. State B Focus Session Resumption Contract (AD-2, AD-4)
+* **Context:** Handling user resumption intents from `HeroActionCard` and `StudyScreen` (`HomeViewModel.kt`, `StudyViewModel.kt`).
+* **Heuristic:** Conflating live-paused timers (service active in foreground) with cold-resumed sessions (service stopped, session record stored in Room) causes silent failure: sending `ACTION_RESUME` when the service is stopped is a no-op because no timer instance exists in memory.
+* **Rule:** Decouple resumption into a 2-tier contract:
+  - **State A (Live In-Memory Pause):** `timerState.isRunning && timerState.isPaused` -> dispatch `StudySessionForegroundService.resumeService(context)`.
+  - **State B (Cold Resumption from Room DB):** `!timerState.isRunning && latestInterruptedSession != null` -> execute `ResumeInterruptedSessionUseCase` to calculate remaining duration (`targetDurationMinutes - actualElapsedMinutes`), then start the service via `StudySessionForegroundService.startService(context, plan.sessionId, plan.subjectTag, plan.remainingDurationMinutes * 60L, plan.intervalType)`.
+
+
 
 
 

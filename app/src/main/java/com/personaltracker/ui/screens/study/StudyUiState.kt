@@ -19,6 +19,7 @@ data class StudyUiState(
     val selectedCellDate: String? = null,
     val todayTotalStudyMinutes: Int = 0,
     val recentSessions: List<StudySession> = emptyList(),
+    val interruptedSession: StudySession? = null,
     val isLoading: Boolean = false,
     val errorMessage: String? = null
 ) {

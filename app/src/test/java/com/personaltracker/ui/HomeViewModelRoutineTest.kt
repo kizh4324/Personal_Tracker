@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.engine.CompanionMood
+import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.CompanionProfile
@@ -19,6 +20,7 @@ import com.personaltracker.domain.usecase.LogHabitUseCase
 import com.personaltracker.domain.usecase.RecalculateRoutineTimelineUseCase
 import com.personaltracker.domain.usecase.ResolveDayTypeUseCase
 import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
+import com.personaltracker.domain.usecase.ResumeInterruptedSessionUseCase
 import com.personaltracker.domain.usecase.SaveRoutineUseCase
 import com.personaltracker.domain.usecase.SaveTaskUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
@@ -29,6 +31,7 @@ import com.personaltracker.ui.TestDayTypeRepository
 import com.personaltracker.ui.TestEconomyRepository
 import com.personaltracker.ui.TestHabitRepository
 import com.personaltracker.ui.TestRoutineRepository
+import com.personaltracker.ui.TestStudySessionRepository
 import com.personaltracker.ui.TestTaskAlarmScheduler
 import com.personaltracker.ui.TestTaskRepository
 import com.personaltracker.ui.components.animation.RewardAnimationType
@@ -61,6 +64,8 @@ class HomeViewModelRoutineTest {
     private lateinit var economyRepository: TestEconomyRepository
     private lateinit var dayTypeRepository: TestDayTypeRepository
     private lateinit var taskAlarmScheduler: TestTaskAlarmScheduler
+    private lateinit var studyRepository: TestStudySessionRepository
+    private lateinit var resumeInterruptedSessionUseCase: ResumeInterruptedSessionUseCase
 
     private lateinit var adaptiveEngine: AdaptiveScheduleEngine
     private lateinit var streakMachine: StreakStateMachine
@@ -90,6 +95,8 @@ class HomeViewModelRoutineTest {
         economyRepository = TestEconomyRepository()
         dayTypeRepository = TestDayTypeRepository()
         taskAlarmScheduler = TestTaskAlarmScheduler()
+        studyRepository = TestStudySessionRepository()
+        resumeInterruptedSessionUseCase = ResumeInterruptedSessionUseCase(studyRepository, FocusRescheduleEngine())
 
         adaptiveEngine = AdaptiveScheduleEngine()
         streakMachine = StreakStateMachine()
@@ -176,7 +183,9 @@ class HomeViewModelRoutineTest {
             evaluateTaskUrgencyScarcityUseCase = evaluateTaskUrgencyScarcityUseCase,
             advanceRoutineStepUseCase = advanceRoutineStepUseCase,
             recalculateRoutineTimelineUseCase = recalculateRoutineTimelineUseCase,
-            saveRoutineUseCase = saveRoutineUseCase
+            saveRoutineUseCase = saveRoutineUseCase,
+            studySessionRepository = studyRepository,
+            resumeInterruptedSessionUseCase = resumeInterruptedSessionUseCase
         )
     }
 

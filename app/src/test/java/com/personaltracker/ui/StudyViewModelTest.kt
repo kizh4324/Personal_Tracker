@@ -232,4 +232,52 @@ class StudyViewModelTest {
         assertEquals(5, finalState.selectedDurationMinutes)
         assertEquals(1, finalState.completedCycles)
     }
+
+    @Test
+    fun testInterruptedSessionIncludedInTodayTotalMinutesAndSurfacesInState() = runTest {
+        val today = LocalDate.now().toString()
+        val interrupted = StudySession(
+            id = "sess_interrupted_1",
+            subjectTag = "Architecture",
+            sessionDate = today,
+            startTime = "08:00",
+            durationMinutes = 18,
+            coinsEarned = 0,
+            isInterrupted = true,
+            targetDurationMinutes = 30,
+            actualElapsedMinutes = 18,
+            intervalType = FocusIntervalType.DEEP_WORK
+        )
+        val completed = StudySession(
+            id = "sess_completed_1",
+            subjectTag = "Reading",
+            sessionDate = today,
+            startTime = "09:00",
+            durationMinutes = 20,
+            coinsEarned = 4,
+            isInterrupted = false,
+            targetDurationMinutes = 20,
+            actualElapsedMinutes = 20,
+            intervalType = FocusIntervalType.DEEP_WORK
+        )
+        studyRepository.saveSession(interrupted)
+        studyRepository.saveSession(completed)
+
+        val viewModel = StudyViewModel(
+            studySessionRepository = studyRepository,
+            heatmapLedgerEngine = heatmapLedgerEngine,
+            focusRescheduleEngine = focusRescheduleEngine,
+            context = null
+        )
+
+        viewModel.uiState.test {
+            val state = awaitItem()
+            // 18 min from interrupted + 20 min from completed = 38 min
+            assertEquals(38, state.todayTotalStudyMinutes)
+            assertNotNull(state.interruptedSession)
+            assertEquals("sess_interrupted_1", state.interruptedSession?.id)
+            assertEquals(18, state.interruptedSession?.actualElapsedMinutes)
+            assertEquals(30, state.interruptedSession?.targetDurationMinutes)
+        }
+    }
 }

@@ -7,6 +7,7 @@ import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.engine.HeatmapLedgerEngine
 import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.repository.StudySessionRepository
+import com.personaltracker.domain.usecase.ResumeInterruptedSessionUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.util.UUID
 import javax.inject.Inject
@@ -34,6 +36,10 @@ import javax.inject.Inject
 @HiltViewModel
 class StudyViewModel @Inject constructor(
     private val studySessionRepository: StudySessionRepository,
+    private val resumeInterruptedSessionUseCase: ResumeInterruptedSessionUseCase = ResumeInterruptedSessionUseCase(
+        studySessionRepository,
+        FocusRescheduleEngine()
+    ),
     private val heatmapLedgerEngine: HeatmapLedgerEngine = HeatmapLedgerEngine(),
     private val focusRescheduleEngine: FocusRescheduleEngine = FocusRescheduleEngine(),
     @ApplicationContext private val context: Context? = null
@@ -96,16 +102,20 @@ class StudyViewModel @Inject constructor(
             .distinctUntilChanged()
             .onEach { sessions ->
                 val todayMinutes = sessions
-                    .filter { it.sessionDate == today && !it.isInterrupted && !it.isBreak }
+                    .filter { it.sessionDate == today && !it.isBreak }
                     .sumOf { if (it.actualElapsedMinutes > 0) it.actualElapsedMinutes else it.durationMinutes }
 
                 val heatmap = heatmapLedgerEngine.calculateHeatmap(sessions)
+                val latestInterrupted = sessions.firstOrNull {
+                    it.isInterrupted && !it.isBreak && it.actualElapsedMinutes < it.targetDurationMinutes
+                }
 
                 _uiState.update {
                     it.copy(
                         recentSessions = sessions.take(50),
                         todayTotalStudyMinutes = todayMinutes,
-                        heatmapData = heatmap
+                        heatmapData = heatmap,
+                        interruptedSession = latestInterrupted
                     )
                 }
             }.launchIn(viewModelScope)
@@ -121,6 +131,7 @@ class StudyViewModel @Inject constructor(
             is StudyUiIntent.PauseSession -> handlePauseSession()
             is StudyUiIntent.ResumeSession -> handleResumeSession()
             is StudyUiIntent.StopSession -> handleStopSession()
+            is StudyUiIntent.TakeFiveMinuteBreak -> handleTakeFiveMinuteBreak(intent.breakMinutes)
             is StudyUiIntent.SelectSubjectTag -> _uiState.update { it.copy(selectedSubjectTag = intent.tag) }
             is StudyUiIntent.SelectDuration -> _uiState.update { it.copy(selectedDurationMinutes = intent.minutes) }
             is StudyUiIntent.SelectIntervalType -> handleSelectIntervalType(intent.intervalType)
@@ -170,11 +181,34 @@ class StudyViewModel @Inject constructor(
 
     private fun handleResumeSession() {
         val ctx = context ?: return
-        StudySessionForegroundService.resumeService(ctx)
+        val timer = StudySessionForegroundService.timerState.value
+        if (timer.isPaused) {
+            StudySessionForegroundService.resumeService(ctx)
+        } else {
+            viewModelScope.launch {
+                val plan = resumeInterruptedSessionUseCase(_uiState.value.interruptedSession?.id)
+                if (plan != null) {
+                    StudySessionForegroundService.startService(
+                        context = ctx,
+                        sessionId = plan.sessionId,
+                        subjectTag = plan.subjectTag,
+                        durationSeconds = plan.remainingDurationMinutes * 60L,
+                        intervalType = plan.intervalType
+                    )
+                } else {
+                    StudySessionForegroundService.resumeService(ctx)
+                }
+            }
+        }
     }
 
     private fun handleStopSession() {
         val ctx = context ?: return
         StudySessionForegroundService.stopService(ctx)
+    }
+
+    private fun handleTakeFiveMinuteBreak(breakMinutes: Int = 5) {
+        val ctx = context ?: return
+        StudySessionForegroundService.startBreakService(ctx, breakMinutes)
     }
 }

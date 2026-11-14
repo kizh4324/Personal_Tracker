@@ -17,6 +17,7 @@ import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLog
 import com.personaltracker.domain.model.InterventionRule
@@ -171,7 +172,10 @@ internal fun StudySessionEntity.toDomain(): StudySession = StudySession(
     coinsEarned = coinsEarned,
     linkedTaskId = linkedTaskId,
     isInterrupted = isInterrupted,
-    createdTimestamp = createdTimestamp
+    createdTimestamp = createdTimestamp,
+    targetDurationMinutes = targetDurationMinutes,
+    actualElapsedMinutes = actualElapsedMinutes,
+    intervalType = runCatching { FocusIntervalType.valueOf(intervalType) }.getOrDefault(FocusIntervalType.DEEP_WORK)
 )
 
 internal fun StudySession.toEntity(): StudySessionEntity = StudySessionEntity(
@@ -183,7 +187,10 @@ internal fun StudySession.toEntity(): StudySessionEntity = StudySessionEntity(
     coinsEarned = coinsEarned,
     linkedTaskId = linkedTaskId,
     isInterrupted = isInterrupted,
-    createdTimestamp = createdTimestamp
+    createdTimestamp = createdTimestamp,
+    targetDurationMinutes = targetDurationMinutes,
+    actualElapsedMinutes = actualElapsedMinutes,
+    intervalType = intervalType.name
 )
 
 internal fun CoinLedgerEntity.toDomain(): CoinTransaction = CoinTransaction(

@@ -13,7 +13,8 @@ data class StudySessionTimerState(
     val isRunning: Boolean = false,
     val isPaused: Boolean = false,
     val isCompleted: Boolean = false,
-    val intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK
+    val intervalType: FocusIntervalType = FocusIntervalType.DEEP_WORK,
+    val bankedMinutes: Int = ((totalSeconds - remainingSeconds) / 60).toInt().coerceAtLeast(0)
 ) {
     val formattedRemainingTime: String
         get() {
