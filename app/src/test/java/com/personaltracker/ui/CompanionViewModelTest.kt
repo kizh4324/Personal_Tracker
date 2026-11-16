@@ -5,8 +5,10 @@ import com.personaltracker.domain.engine.CompanionMood
 import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CompanionProfile
+import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.usecase.PurchaseOrEquipShopItemUseCase
+import com.personaltracker.domain.usecase.PurchaseStreakShieldUseCase
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import com.personaltracker.ui.screens.companion.CompanionUiEffect
 import com.personaltracker.ui.screens.companion.CompanionUiIntent
@@ -27,21 +29,26 @@ class CompanionViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private lateinit var economyRepository: TestEconomyRepository
+    private lateinit var habitRepository: TestHabitRepository
     private lateinit var ledgerEngine: GamificationLedgerEngine
     private lateinit var purchaseOrEquipShopItemUseCase: PurchaseOrEquipShopItemUseCase
+    private lateinit var purchaseStreakShieldUseCase: PurchaseStreakShieldUseCase
 
     @Before
     fun setUp() {
         economyRepository = TestEconomyRepository()
+        habitRepository = TestHabitRepository(economyRepository)
         ledgerEngine = GamificationLedgerEngine()
         purchaseOrEquipShopItemUseCase = PurchaseOrEquipShopItemUseCase(economyRepository)
+        purchaseStreakShieldUseCase = PurchaseStreakShieldUseCase(habitRepository, economyRepository)
     }
 
     private fun createViewModel(): CompanionViewModel {
         return CompanionViewModel(
             economyRepository = economyRepository,
             ledgerEngine = ledgerEngine,
-            purchaseOrEquipShopItemUseCase = purchaseOrEquipShopItemUseCase
+            purchaseOrEquipShopItemUseCase = purchaseOrEquipShopItemUseCase,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase
         )
     }
 
@@ -190,6 +197,86 @@ class CompanionViewModelTest {
             assertEquals(RewardAnimationType.MilestoneFullReveal, (effect as CompanionUiEffect.PlayLottieReward).type)
 
             assertEquals(CompanionState.CELEBRATING_REWARD, viewModel.uiState.value.mood)
+        }
+    }
+
+    @Test
+    fun testCompanionLevelUpTriggersMilestoneCelebration() = runTest {
+        val initialProfile = CompanionProfile(
+            speciesName = "Sproutling",
+            level = 1,
+            currentEnergyUnits = 90
+        )
+        economyRepository.profileFlow.value = initialProfile
+
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            // Simulate level up: Level 1 -> 2
+            val updatedProfile = initialProfile.copy(level = 2, currentEnergyUnits = 10)
+            economyRepository.profileFlow.value = updatedProfile
+
+            val effect = awaitItem()
+            assertTrue(effect is CompanionUiEffect.PlayLottieReward)
+            assertEquals(RewardAnimationType.MilestoneFullReveal, (effect as CompanionUiEffect.PlayLottieReward).type)
+        }
+    }
+
+    @Test
+    fun testPurchaseGraceShieldFromCompanionShopSucceeds() = runTest {
+        economyRepository.balanceFlow.value = 50
+        val habit = Habit(id = "h_companion_test", name = "Reading", targetDaysOfWeek = "1,2,3,4,5,6,7", slackBankDays = 0)
+        habitRepository.saveHabit(habit)
+
+        val shieldItem = ShopItem(
+            id = "item_streak_shield",
+            name = "Grace Shield",
+            category = ShopItem.CATEGORY_UTILITY,
+            priceCoins = 30
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(shieldItem))
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is CompanionUiEffect.PlayLottieReward)
+            assertEquals(RewardAnimationType.CoinEarnMicro, (effect1 as CompanionUiEffect.PlayLottieReward).type)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is CompanionUiEffect.ShowSnackbar)
+            assertTrue((effect2 as CompanionUiEffect.ShowSnackbar).message.contains("Grace Shield activated on Reading"))
+
+            assertEquals(20, economyRepository.balanceFlow.value)
+            assertEquals(1, habitRepository.getHabitById("h_companion_test")?.slackBankDays)
+            // Utility item should NOT equip or corrupt accessory
+            assertEquals(null, economyRepository.profileFlow.value?.activeAccessoryId)
+        }
+    }
+
+    @Test
+    fun testPurchaseGraceShieldAtCapEmitsEmpoweringMessage() = runTest {
+        economyRepository.balanceFlow.value = 100
+        val habit = Habit(id = "h_cap", name = "Meditation", targetDaysOfWeek = "1,2,3,4,5,6,7", slackBankDays = 3)
+        habitRepository.saveHabit(habit)
+
+        val shieldItem = ShopItem(
+            id = "item_streak_shield",
+            name = "Grace Shield",
+            category = ShopItem.CATEGORY_UTILITY,
+            priceCoins = 30
+        )
+
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(CompanionUiIntent.PurchaseOrEquipItem(shieldItem))
+
+            val effect = awaitItem()
+            assertTrue(effect is CompanionUiEffect.ShowSnackbar)
+            assertTrue((effect as CompanionUiEffect.ShowSnackbar).message.contains("Streak shield bank is already at maximum capacity"))
+            assertEquals(100, economyRepository.balanceFlow.value)
         }
     }
 }

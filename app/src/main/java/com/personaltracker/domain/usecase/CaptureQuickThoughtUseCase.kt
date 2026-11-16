@@ -83,6 +83,8 @@ class CaptureQuickThoughtUseCase @Inject constructor(
                     override suspend fun updateHabit(habit: com.personaltracker.domain.model.Habit) {}
                     override suspend fun logHabit(log: com.personaltracker.domain.model.HabitLog) {}
                     override suspend fun logHabitWithReward(log: com.personaltracker.domain.model.HabitLog, coinReward: Int, idempotencyKey: String) {}
+                    override suspend fun purchaseStreakShield(habitId: String, priceCoins: Int, idempotencyKey: String): com.personaltracker.domain.model.Habit =
+                        throw UnsupportedOperationException("purchaseStreakShield not supported on fallback validator stub")
                 },
                 object : RoutineRepository {
                     override fun getRoutinesForDayType(dayTypeId: String) = kotlinx.coroutines.flow.flowOf(emptyList<com.personaltracker.domain.model.Routine>())

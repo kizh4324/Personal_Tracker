@@ -88,12 +88,13 @@ fun CompanionScreenContent(
     val spacing = PersonalTrackerTheme.spacing
     val shapes = PersonalTrackerTheme.shapes
 
-    // Canonical shop items matching Frame 05
+    // Canonical shop items matching Frame 05 + Utility items
     val defaultShopItems = listOf(
-        ShopItem("item_scarf", "OUTFIT", "Cozy Scarf", 25, isUnlocked = true),
-        ShopItem("item_cap", "ACCESSORY", "Study Cap", 40, isUnlocked = false),
-        ShopItem("item_crown", "ACCESSORY", "Golden Crown", 100, isUnlocked = false),
-        ShopItem("item_coffee", "ACCESSORY", "Warm Coffee", 15, isUnlocked = false)
+        ShopItem("item_scarf", ShopItem.CATEGORY_OUTFIT, "Cozy Scarf", 25, isUnlocked = true),
+        ShopItem("item_cap", ShopItem.CATEGORY_ACCESSORY, "Study Cap", 40, isUnlocked = false),
+        ShopItem("item_crown", ShopItem.CATEGORY_ACCESSORY, "Golden Crown", 100, isUnlocked = false),
+        ShopItem("item_coffee", ShopItem.CATEGORY_ACCESSORY, "Warm Coffee", 15, isUnlocked = false),
+        ShopItem("item_streak_shield", ShopItem.CATEGORY_UTILITY, "Grace Shield", 30, isUnlocked = false)
     )
     val displayShopItems = if (state.availableShopItems.isNotEmpty()) state.availableShopItems else defaultShopItems
 
@@ -278,8 +279,8 @@ fun CompanionScreenContent(
 
                 Spacer(modifier = Modifier.height(spacing.spacing3))
 
-                // 2x2 Grid of Items
-                displayShopItems.take(4).chunked(2).forEach { rowItems ->
+                // Grid of Items
+                displayShopItems.chunked(2).forEach { rowItems ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(spacing.spacing3)
@@ -288,9 +289,11 @@ fun CompanionScreenContent(
                             val itemColor = when (item.id) {
                                 "item_scarf" -> colors.iconSoftLavender
                                 "item_cap" -> colors.iconSoftMatcha
+                                "item_streak_shield" -> colors.iconSoftPeach
                                 else -> colors.iconSoftPeach
                             }
-                            val isEquipped = item.isUnlocked && item.id == state.activeAccessoryId
+                            val isUtility = item.category == ShopItem.CATEGORY_UTILITY
+                            val isEquipped = !isUtility && item.isUnlocked && item.id == state.activeAccessoryId
 
                             Surface(
                                 shape = shapes.xl,
@@ -342,24 +345,33 @@ fun CompanionScreenContent(
 
                                     val buttonColor = if (isEquipped) {
                                         colors.inkPrimary
-                                    } else if (item.isUnlocked) {
+                                    } else if (!isUtility && item.isUnlocked) {
                                         colors.surfaceRaised
+                                    } else if (isUtility) {
+                                        colors.secondary
                                     } else {
                                         colors.primary
                                     }
 
                                     val buttonTextColor = if (isEquipped) {
                                         colors.surfaceRaised
-                                    } else if (item.isUnlocked) {
+                                    } else if (!isUtility && item.isUnlocked) {
                                         colors.inkPrimary
                                     } else {
                                         colors.surfaceRaised
                                     }
 
-                                    val buttonBorder = if (isEquipped || !item.isUnlocked) {
+                                    val buttonBorder = if (isEquipped || isUtility || !item.isUnlocked) {
                                         null
                                     } else {
                                         BorderStroke(spacing.spacing0_5, colors.borderSubtle)
+                                    }
+
+                                    val buttonText = when {
+                                        isUtility -> "Buy (${item.priceCoins}🪙)"
+                                        isEquipped -> "Equipped"
+                                        item.isUnlocked -> "Equip"
+                                        else -> "Get"
                                     }
 
                                     Surface(
@@ -368,7 +380,10 @@ fun CompanionScreenContent(
                                         border = buttonBorder,
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .defaultMinSize(minHeight = spacing.minTouchTarget)
+                                            .defaultMinSize(
+                                                minWidth = spacing.minTouchTarget,
+                                                minHeight = spacing.minTouchTarget
+                                            )
                                             .clip(shapes.full)
                                             .clickable(role = Role.Button) {
                                                 onIntent(CompanionUiIntent.PurchaseOrEquipItem(item))
@@ -381,7 +396,7 @@ fun CompanionScreenContent(
                                                 .padding(vertical = spacing.spacing1)
                                         ) {
                                             Text(
-                                                text = if (isEquipped) "Equipped" else if (item.isUnlocked) "Equip" else "Get",
+                                                text = buttonText,
                                                 style = typography.caption,
                                                 color = buttonTextColor
                                             )
@@ -389,6 +404,9 @@ fun CompanionScreenContent(
                                     }
                                 }
                             }
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
                 }

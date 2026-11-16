@@ -156,12 +156,12 @@ fun HabitsScreenContent(
                 state.habits.forEach { habitState ->
                     val habitId = habitState.habit.id
                     HabitStreakCard(
-                        name = habitState.habit.name,
-                        currentStreak = habitState.habit.currentStreak,
-                        cadence = habitState.habit.targetDaysOfWeek,
-                        isFreezeActive = habitState.habit.isFreezeActive,
+                        habit = habitState.habit,
                         isCompleted = habitState.isCompletedToday,
                         flameState = habitState.flameState,
+                        onBuyShield = {
+                            onIntent(HabitsUiIntent.BuyStreakShield(habitId))
+                        },
                         onToggleCompletion = {
                             val offset = habitOffsets[habitId] ?: Offset.Zero
                             onIntent(HabitsUiIntent.ToggleHabit(habitId, offset))

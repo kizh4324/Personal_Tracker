@@ -8,5 +8,6 @@ import androidx.compose.ui.geometry.Offset
 sealed interface HabitsUiIntent {
     data class ToggleHabit(val habitId: String, val startOffset: Offset = Offset.Zero) : HabitsUiIntent
     data class CreateHabit(val name: String, val cadence: String = "DAILY") : HabitsUiIntent
+    data class BuyStreakShield(val habitId: String) : HabitsUiIntent
     object Refresh : HabitsUiIntent
 }

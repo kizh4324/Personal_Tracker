@@ -319,6 +319,26 @@ Authoritative repository of verified engineering heuristics, operational invaria
   4. **Catalog Cold-Start Seeding:** Repositories must auto-seed baseline items (`DEFAULT_SHOP_ITEMS`: Cozy Scarf, Study Cap, Golden Crown, Warm Coffee) and default `CompanionProfile` (`Sproutling`, Level 1, Energy 0) when the database is empty.
   5. **48dp Interactive Touch Target Floor (AD-7):** All wardrobe purchase and equip buttons must enforce `Modifier.defaultMinSize(minHeight = spacing.minTouchTarget)` (48dp). The home greeting avatar must be an interactive 48dp clickable target navigating directly to the Companion destination.
 
+---
+
+## 25. Consumable Utility vs Permanent Cosmetic Decoupling & Milestone Choreography
+
+### EXP-048: Consumable Utility Shop Decoupling, Atomic Streak Shield Banking & Reduced-Motion Milestone Choreography (AD-1, AD-3, AD-4, AD-6, AD-7, Story 4.5)
+* **Context:** Consumable utility items (Grace Shields / Slack Bank Days), dynamic shop catalog categories, atomic multi-dao Room `@Transaction` boundaries, and modal milestone full-reveal celebrations in `ShopItem.kt`, `PurchaseStreakShieldUseCase.kt`, `HabitRepositoryImpl.kt`, `EconomyRepositoryImpl.kt`, `RewardMotionStage.kt`, `HabitStreakCard.kt`, `HabitsViewModel.kt`, and `CompanionViewModel.kt`.
+* **Heuristic:**
+  1. Conflating consumable items (e.g. Grace Shields) with permanent cosmetics corrupts wardrobe state (`activeAccessoryId`) and locks repeatable purchases if `isUnlocked = true` is persisted.
+  2. Executing coin deduction in `EconomyRepository` and habit streak shield increment in `HabitRepository` across separate domain use-case calls creates race conditions and partial transaction failures where coins are lost if shield increment fails.
+  3. When purchasing shields from the Companion Screen shop without an explicit habit context, attempting a blind purchase fails unless the use case dynamically resolves the active habit with the lowest slack days.
+  4. Firing micro coin animations simultaneously with modal milestone full-reveal celebrations causes Lottie visual collision, frame drop, and conflicting audio/visual cues.
+  5. Playing full-screen modal celebrations when the system has reduced-motion enabled violates accessibility standards and blocks user workflows.
+* **Rule:**
+  1. **Strict Category Decoupling (`ShopItem.kt`):** Categorize items into `CATEGORY_OUTFIT`, `CATEGORY_ACCESSORY`, `CATEGORY_BACKGROUND_DECOR`, and `CATEGORY_UTILITY`. Consumable utility items (`CATEGORY_UTILITY`) must bypass `activeAccessoryId` updates and must never persist `isUnlocked = true`, ensuring repeatable purchases.
+  2. **Single Atomic Room `@Transaction` Boundary (AD-3, AD-6):** Consolidate consumable purchases (`HabitRepository.purchaseStreakShield`) into a single Room `@Transaction` block on `Dispatchers.IO` joining `CoinLedgerDao` (deducting coins with unique idempotency key `SHIELD_BUY_{habitId}_{timestamp}`) and `HabitDao` (incrementing `slackBankDays` capped at 3).
+  3. **Null Target Habit Resolution (`PurchaseStreakShieldUseCase.kt`):** When `targetHabitId` is null (e.g. bought from Companion Shop), automatically query all active habits and target the habit with the lowest `slackBankDays < 3`. If all active habits are at max capacity (3/3), cleanly return `PurchaseStreakShieldResult.CapReached`.
+  4. **Milestone Preemption Hierarchy (`HabitsViewModel.kt`):** On 7-day consistency milestones (`streak > 0 && streak % 7 == 0`), the full milestone reveal (`MilestoneFullReveal`) supersedes `CoinEarnMicro` to eliminate Lottie slot collisions, while setting companion expression to `CompanionState.CELEBRATING_REWARD`.
+  5. **Reduced-Motion Modal Bypass (`RewardMotionStage.kt`):** When `isReducedMotion == true`, modal celebrations (`MilestoneFullReveal`) must immediately invoke `onLottieComplete()` via `LaunchedEffect` without composing animations or blocking user navigation.
+
+
 
 
 

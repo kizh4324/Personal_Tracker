@@ -465,6 +465,12 @@ private class FakeHabitRepository : HabitRepository {
     override suspend fun updateHabit(habit: Habit) { saveHabit(habit) }
     override suspend fun logHabit(log: HabitLog) { logs.removeAll { it.habitId == log.habitId && it.logDate == log.logDate }; logs.add(log) }
     override suspend fun logHabitWithReward(log: HabitLog, coinReward: Int, idempotencyKey: String) { logHabit(log) }
+    override suspend fun purchaseStreakShield(habitId: String, priceCoins: Int, idempotencyKey: String): Habit {
+        val habit = habits.find { it.id == habitId } ?: throw IllegalArgumentException("Habit not found")
+        val updated = habit.copy(slackBankDays = habit.slackBankDays + 1)
+        saveHabit(updated)
+        return updated
+    }
 }
 
 private class FakeEconomyRepository : EconomyRepository {

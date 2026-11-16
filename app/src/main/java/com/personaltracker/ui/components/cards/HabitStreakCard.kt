@@ -87,6 +87,8 @@ fun HabitStreakCard(
     isFreezeActive: Boolean = false,
     cadence: String = "DAILY",
     flameState: FlameState? = null,
+    slackBankDays: Int = 0,
+    onBuyShield: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     val colors = PersonalTrackerTheme.colors
@@ -226,6 +228,51 @@ fun HabitStreakCard(
                                     color = colors.info
                                 )
                             }
+                        } else if (slackBankDays > 0) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.spacing0_5)
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_flame_shield),
+                                    contentDescription = null,
+                                    tint = colors.secondary,
+                                    modifier = Modifier.size(spacing.spacing3)
+                                )
+                                Text(
+                                    text = "Slack Bank: $slackBankDays/3",
+                                    style = typography.caption,
+                                    color = colors.inkSecondary
+                                )
+                            }
+                        }
+
+                        if (onBuyShield != null) {
+                            val canBuyShield = slackBankDays < 3
+                            Surface(
+                                shape = shapes.full,
+                                color = if (canBuyShield) colors.iconSoftPeach else colors.surfaceSunken,
+                                border = BorderStroke(spacing.spacing0_5 / 2, colors.borderSubtle),
+                                modifier = Modifier
+                                    .defaultMinSize(
+                                        minWidth = spacing.minTouchTarget,
+                                        minHeight = spacing.minTouchTarget
+                                    )
+                                    .clickable(role = Role.Button) {
+                                        onBuyShield()
+                                    }
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(horizontal = spacing.spacing2, vertical = spacing.spacing1)
+                                ) {
+                                    Text(
+                                        text = if (canBuyShield) "+ 🛡️ (30🪙)" else "🛡️ Full (3/3)",
+                                        style = typography.caption,
+                                        color = if (canBuyShield) colors.barWarmRust else colors.inkTertiary
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -281,6 +328,7 @@ fun HabitStreakCard(
     onToggleCompletion: () -> Unit,
     modifier: Modifier = Modifier,
     flameState: FlameState? = null,
+    onBuyShield: (() -> Unit)? = null,
     onClick: () -> Unit = {}
 ) {
     HabitStreakCard(
@@ -293,6 +341,8 @@ fun HabitStreakCard(
         isFreezeActive = habit.isFreezeActive,
         cadence = habit.targetDaysOfWeek,
         flameState = flameState,
+        slackBankDays = habit.slackBankDays,
+        onBuyShield = onBuyShield,
         onClick = onClick
     )
 }

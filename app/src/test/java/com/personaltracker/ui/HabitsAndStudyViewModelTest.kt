@@ -8,6 +8,7 @@ import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.usecase.LogHabitUseCase
+import com.personaltracker.domain.usecase.PurchaseStreakShieldUseCase
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
@@ -42,15 +43,17 @@ class HabitsAndStudyViewModelTest {
     private lateinit var streakMachine: StreakStateMachine
     private lateinit var ledgerEngine: GamificationLedgerEngine
     private lateinit var logHabitUseCase: LogHabitUseCase
+    private lateinit var purchaseStreakShieldUseCase: PurchaseStreakShieldUseCase
 
     @Before
     fun setUp() {
-        habitRepository = TestHabitRepository()
         economyRepository = TestEconomyRepository()
+        habitRepository = TestHabitRepository(economyRepository)
         studyRepository = TestStudySessionRepository()
         streakMachine = StreakStateMachine()
         ledgerEngine = GamificationLedgerEngine()
         logHabitUseCase = LogHabitUseCase(habitRepository, economyRepository, streakMachine, ledgerEngine)
+        purchaseStreakShieldUseCase = PurchaseStreakShieldUseCase(habitRepository, economyRepository)
         resetTimerState()
     }
 
@@ -83,7 +86,9 @@ class HabitsAndStudyViewModelTest {
         val viewModel = HabitsViewModel(
             habitRepository = habitRepository,
             logHabitUseCase = logHabitUseCase,
-            streakStateMachine = streakMachine
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
         )
 
         viewModel.uiState.test {
@@ -111,14 +116,16 @@ class HabitsAndStudyViewModelTest {
         val viewModel = HabitsViewModel(
             habitRepository = habitRepository,
             logHabitUseCase = logHabitUseCase,
-            streakStateMachine = streakMachine
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
         )
 
         viewModel.uiEffect.test {
             viewModel.onIntent(HabitsUiIntent.ToggleHabit("h_meditate", Offset(200f, 300f)))
 
             val effect1 = awaitItem()
-            assertTrue(effect1 is HabitsUiEffect.ShowCoinReward)
+            assertTrue("Expected ShowCoinReward but was $effect1", effect1 is HabitsUiEffect.ShowCoinReward)
             val coinReward = effect1 as HabitsUiEffect.ShowCoinReward
             assertEquals(Offset(200f, 300f), coinReward.startOffset)
             assertEquals(7, coinReward.coinCount)
@@ -134,7 +141,9 @@ class HabitsAndStudyViewModelTest {
         val viewModel = HabitsViewModel(
             habitRepository = habitRepository,
             logHabitUseCase = logHabitUseCase,
-            streakStateMachine = streakMachine
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
         )
 
         viewModel.onIntent(HabitsUiIntent.CreateHabit(name = "Read 10 pages", cadence = "DAILY"))
@@ -144,6 +153,87 @@ class HabitsAndStudyViewModelTest {
         assertEquals("Read 10 pages", allHabits.first().name)
         assertEquals(0, allHabits.first().currentStreak)
         assertEquals(0, allHabits.first().slackBankDays)
+    }
+
+    @Test
+    fun testHabitsViewModelBuyStreakShieldSucceedsWithSufficientCoins() = runTest {
+        economyRepository.balanceFlow.value = 50
+        val habit = Habit(id = "h_shield", name = "Guitar Practice", targetDaysOfWeek = "1,2,3,4,5,6,7", slackBankDays = 1)
+        habitRepository.saveHabit(habit)
+
+        val viewModel = HabitsViewModel(
+            habitRepository = habitRepository,
+            logHabitUseCase = logHabitUseCase,
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
+        )
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HabitsUiIntent.BuyStreakShield("h_shield"))
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is HabitsUiEffect.ShowLottieReward)
+            assertEquals(RewardAnimationType.CoinEarnMicro, (effect1 as HabitsUiEffect.ShowLottieReward).type)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is HabitsUiEffect.ShowSnackbar)
+            assertTrue((effect2 as HabitsUiEffect.ShowSnackbar).message.contains("Grace Shield activated"))
+
+            val updated = habitRepository.getHabitById("h_shield")!!
+            assertEquals(2, updated.slackBankDays)
+            assertEquals(20, economyRepository.balanceFlow.value)
+        }
+    }
+
+    @Test
+    fun testHabitsViewModelBuyStreakShieldAtCapEmitsEmpoweringNotice() = runTest {
+        economyRepository.balanceFlow.value = 100
+        val habit = Habit(id = "h_full", name = "Journaling", targetDaysOfWeek = "1,2,3,4,5,6,7", slackBankDays = 3)
+        habitRepository.saveHabit(habit)
+
+        val viewModel = HabitsViewModel(
+            habitRepository = habitRepository,
+            logHabitUseCase = logHabitUseCase,
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
+        )
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HabitsUiIntent.BuyStreakShield("h_full"))
+
+            val effect = awaitItem()
+            assertTrue(effect is HabitsUiEffect.ShowSnackbar)
+            assertTrue((effect as HabitsUiEffect.ShowSnackbar).message.contains("Streak shield bank is already at maximum capacity"))
+            assertEquals(100, economyRepository.balanceFlow.value)
+        }
+    }
+
+    @Test
+    fun testHabitsViewModelMilestoneStreakTriggersMilestoneFullReveal() = runTest {
+        // Current streak 6 -> completing today makes it 7 (7 % 7 == 0 milestone)
+        val habit = Habit(id = "h_milestone", name = "Daily Coding", targetDaysOfWeek = "1,2,3,4,5,6,7", currentStreak = 6)
+        habitRepository.saveHabit(habit)
+
+        val viewModel = HabitsViewModel(
+            habitRepository = habitRepository,
+            logHabitUseCase = logHabitUseCase,
+            streakStateMachine = streakMachine,
+            purchaseStreakShieldUseCase = purchaseStreakShieldUseCase,
+            economyRepository = economyRepository
+        )
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HabitsUiIntent.ToggleHabit("h_milestone", Offset(100f, 100f)))
+
+            val effect1 = awaitItem()
+            assertTrue(effect1 is HabitsUiEffect.ShowCoinReward)
+
+            val effect2 = awaitItem()
+            assertTrue(effect2 is HabitsUiEffect.ShowLottieReward)
+            assertEquals(RewardAnimationType.MilestoneFullReveal, (effect2 as HabitsUiEffect.ShowLottieReward).type)
+        }
     }
 
     // ==========================================

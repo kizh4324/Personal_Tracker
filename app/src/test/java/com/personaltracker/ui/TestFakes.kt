@@ -139,6 +139,34 @@ class TestHabitRepository(var economyRepository: EconomyRepository? = null) : Ha
             )
         )
     }
+
+    override suspend fun purchaseStreakShield(
+        habitId: String,
+        priceCoins: Int,
+        idempotencyKey: String
+    ): Habit {
+        val habit = getHabitById(habitId) ?: throw IllegalArgumentException("Habit with id '$habitId' not found.")
+        check(habit.slackBankDays < com.personaltracker.domain.engine.StreakStateMachine.MAX_SLACK_BANK_DAYS) {
+            "Streak shield bank is already at maximum capacity"
+        }
+        val currentBalance = economyRepository?.getLatestBalance() ?: 100
+        check(currentBalance >= priceCoins) {
+            "Insufficient coin balance"
+        }
+        economyRepository?.recordTransaction(
+            CoinTransaction(
+                id = java.util.UUID.randomUUID().toString(),
+                idempotencyKey = idempotencyKey,
+                deltaAmount = -priceCoins,
+                eventType = EconomyEventTypes.SHOP_PURCHASE,
+                sourceEntityId = habitId,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+        val updated = habit.copy(slackBankDays = habit.slackBankDays + 1)
+        updateHabit(updated)
+        return updated
+    }
 }
 
 class TestRoutineRepository : RoutineRepository {

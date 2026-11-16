@@ -193,6 +193,13 @@ fun RewardMotionStage(
         }
     }
 
+    // Modal Lottie reduced-motion bypass
+    LaunchedEffect(state.isLottiePlaying, isReducedMotion) {
+        if (isReducedMotion && state.isLottiePlaying) {
+            onLottieComplete()
+        }
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -227,8 +234,8 @@ fun RewardMotionStage(
             }
         }
 
-        // Full viewport modal reward celebration animation
-        if (state.activeLottieAnimation != null && state.isLottiePlaying) {
+        // Full viewport modal reward celebration animation (guarded against reduced motion)
+        if (!isReducedMotion && state.activeLottieAnimation != null && state.isLottiePlaying) {
             RewardAnimation(
                 type = state.activeLottieAnimation,
                 isPlaying = true,

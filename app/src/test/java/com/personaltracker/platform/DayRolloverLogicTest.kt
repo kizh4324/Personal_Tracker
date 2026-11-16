@@ -210,6 +210,14 @@ class DayRolloverLogicTest {
         override suspend fun logHabitWithReward(log: HabitLog, coinReward: Int, idempotencyKey: String) {
             logs.add(log)
         }
+
+        override suspend fun purchaseStreakShield(habitId: String, priceCoins: Int, idempotencyKey: String): Habit {
+            val habit = habits[habitId] ?: throw IllegalArgumentException("Habit not found")
+            val updated = habit.copy(slackBankDays = habit.slackBankDays + 1)
+            habits[habitId] = updated
+            habitsFlow.value = habits.values.toList()
+            return updated
+        }
     }
 
     private class FakeDayTypeRepository : DayTypeRepository {

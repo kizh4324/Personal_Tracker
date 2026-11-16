@@ -20,4 +20,9 @@ interface HabitRepository {
         coinReward: Int = 5,
         idempotencyKey: String
     )
+    suspend fun purchaseStreakShield(
+        habitId: String,
+        priceCoins: Int = 30,
+        idempotencyKey: String
+    ): Habit
 }

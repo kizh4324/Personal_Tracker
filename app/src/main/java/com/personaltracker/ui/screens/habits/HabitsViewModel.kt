@@ -2,12 +2,16 @@ package com.personaltracker.ui.screens.habits
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personaltracker.domain.engine.CompanionState
 import com.personaltracker.domain.engine.StreakStateMachine
 import com.personaltracker.domain.model.CadenceType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.HabitLogStatus
+import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
 import com.personaltracker.domain.usecase.LogHabitUseCase
+import com.personaltracker.domain.usecase.PurchaseStreakShieldResult
+import com.personaltracker.domain.usecase.PurchaseStreakShieldUseCase
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import com.personaltracker.ui.components.cards.VerticalBarMetric
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,13 +32,16 @@ import java.util.UUID
 import javax.inject.Inject
 
 /**
- * Production ViewModel driving habit streak tracking, cadence evaluation, and non-punitive logging (AD-1, AD-4).
+ * Production ViewModel driving habit streak tracking, cadence evaluation, non-punitive logging,
+ * and streak shield utility purchases (AD-1, AD-4).
  */
 @HiltViewModel
 class HabitsViewModel @Inject constructor(
     private val habitRepository: HabitRepository,
     private val logHabitUseCase: LogHabitUseCase,
-    private val streakStateMachine: StreakStateMachine
+    private val streakStateMachine: StreakStateMachine,
+    private val purchaseStreakShieldUseCase: PurchaseStreakShieldUseCase,
+    private val economyRepository: EconomyRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HabitsUiState(isLoading = true))
@@ -44,6 +51,7 @@ class HabitsViewModel @Inject constructor(
     val uiEffect: Flow<HabitsUiEffect> = _uiEffect.receiveAsFlow()
 
     private var observeDataJob: Job? = null
+    private var isPurchasingShield = false
 
     init {
         observeHabits()
@@ -110,6 +118,7 @@ class HabitsViewModel @Inject constructor(
         when (intent) {
             is HabitsUiIntent.ToggleHabit -> handleToggleHabit(intent)
             is HabitsUiIntent.CreateHabit -> handleCreateHabit(intent)
+            is HabitsUiIntent.BuyStreakShield -> handleBuyStreakShield(intent.habitId)
             is HabitsUiIntent.Refresh -> observeHabits()
         }
     }
@@ -119,15 +128,61 @@ class HabitsViewModel @Inject constructor(
             runCatching {
                 val today = LocalDate.now().toString()
                 val result = logHabitUseCase(intent.habitId, today, isCompleted = true)
+                val streak = result.updatedHabit.currentStreak
+                val isMilestone = streak > 0 && streak % 7 == 0
+
                 if (result.coinsEarned > 0) {
                     _uiEffect.send(HabitsUiEffect.ShowCoinReward(intent.startOffset, result.coinsEarned))
+                }
+
+                if (isMilestone) {
+                    _uiEffect.send(HabitsUiEffect.ShowLottieReward(RewardAnimationType.MilestoneFullReveal))
+                    economyRepository.getCompanionProfile()?.let { profile ->
+                        economyRepository.updateCompanionProfile(
+                            profile.copy(currentExpressionOrdinal = CompanionState.CELEBRATING_REWARD.ordinalValue)
+                        )
+                    }
+                } else if (result.coinsEarned > 0) {
                     _uiEffect.send(HabitsUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
                 }
                 if (result.isCapReached) {
                     _uiEffect.send(HabitsUiEffect.ShowSnackbar("Daily coin goal reached! Awesome work today."))
                 }
-            }.onFailure {
-                _uiEffect.send(HabitsUiEffect.ShowSnackbar("Could not log habit. Please try again."))
+            }.onFailure { e ->
+                _uiEffect.send(HabitsUiEffect.ShowSnackbar("Could not log habit: ${e.message}"))
+            }
+        }
+    }
+
+    private fun handleBuyStreakShield(habitId: String) {
+        if (isPurchasingShield) return
+        isPurchasingShield = true
+        viewModelScope.launch {
+            try {
+                when (val result = purchaseStreakShieldUseCase(habitId)) {
+                    is PurchaseStreakShieldResult.Success -> {
+                        _uiEffect.send(HabitsUiEffect.ShowLottieReward(RewardAnimationType.CoinEarnMicro))
+                        _uiEffect.send(HabitsUiEffect.ShowSnackbar("Grace Shield activated! Streak protected."))
+                    }
+                    is PurchaseStreakShieldResult.CapReached -> {
+                        _uiEffect.send(
+                            HabitsUiEffect.ShowSnackbar(
+                                "Streak shield bank is already at maximum capacity (${result.currentShields}/${result.maxAllowed}). Keep up the wonderful momentum!"
+                            )
+                        )
+                    }
+                    is PurchaseStreakShieldResult.InsufficientCoins -> {
+                        _uiEffect.send(HabitsUiEffect.ShowSnackbar("Not enough coins yet. Keep going!"))
+                    }
+                    is PurchaseStreakShieldResult.HabitNotFound -> {
+                        _uiEffect.send(HabitsUiEffect.ShowSnackbar("Habit not found."))
+                    }
+                    is PurchaseStreakShieldResult.Error -> {
+                        _uiEffect.send(HabitsUiEffect.ShowSnackbar(result.message))
+                    }
+                }
+            } finally {
+                isPurchasingShield = false
             }
         }
     }
@@ -147,7 +202,7 @@ class HabitsViewModel @Inject constructor(
                     targetDaysOfWeek = intent.cadence,
                     currentStreak = 0,
                     bestStreak = 0,
-                    slackBankDays = 0, // Default slackBankDays = 0 per spec
+                    slackBankDays = 0,
                     isFreezeActive = false,
                     cadenceType = cadenceType
                 )

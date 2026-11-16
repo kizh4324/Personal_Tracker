@@ -241,8 +241,10 @@ internal class EconomyRepositoryImpl @Inject constructor(
                     ?: throw IllegalArgumentException("Shop item not found with id: $shopItemId")
             }
 
-            // If already unlocked or idempotency key exists, treat as safe idempotent equip toggle/success
-            if (existing != null || item.isUnlocked) {
+            val isUtility = item.category == ShopItem.CATEGORY_UTILITY
+
+            // If already unlocked or idempotency key exists, treat as safe idempotent equip toggle/success for cosmetics
+            if (!isUtility && (existing != null || item.isUnlocked)) {
                 if (!item.isUnlocked) {
                     shopItemDao.updateShopItem(
                         item.copy(
@@ -286,25 +288,27 @@ internal class EconomyRepositoryImpl @Inject constructor(
             )
             coinLedgerDao.insertTransaction(ledgerEntry)
 
-            shopItemDao.updateShopItem(
-                item.copy(
-                    isUnlocked = true,
-                    unlockedTimestamp = timestamp
+            if (!isUtility) {
+                shopItemDao.updateShopItem(
+                    item.copy(
+                        isUnlocked = true,
+                        unlockedTimestamp = timestamp
+                    )
                 )
-            )
 
-            // Auto-equip on purchase
-            val current = companionProfileDao.getProfile()
-                ?: CompanionProfileEntity(
-                    id = 1,
-                    speciesName = "Sproutling",
-                    level = 1,
-                    currentEnergyUnits = 0,
-                    activeAccessoryId = null,
-                    activeBackgroundId = null,
-                    currentExpressionOrdinal = 0
-                )
-            companionProfileDao.insertOrUpdateProfile(current.copy(activeAccessoryId = shopItemId))
+                // Auto-equip on purchase
+                val current = companionProfileDao.getProfile()
+                    ?: CompanionProfileEntity(
+                        id = 1,
+                        speciesName = "Sproutling",
+                        level = 1,
+                        currentEnergyUnits = 0,
+                        activeAccessoryId = null,
+                        activeBackgroundId = null,
+                        currentExpressionOrdinal = 0
+                    )
+                companionProfileDao.insertOrUpdateProfile(current.copy(activeAccessoryId = shopItemId))
+            }
         }
     }
 
@@ -341,9 +345,11 @@ internal class EconomyRepositoryImpl @Inject constructor(
                 )
             )
         }
-        val existingItem = shopItemDao.getShopItemById("item_scarf")
-        if (existingItem == null) {
-            shopItemDao.insertShopItems(DEFAULT_SHOP_ITEMS.map { it.toEntity() })
+        for (item in DEFAULT_SHOP_ITEMS) {
+            val existingItem = shopItemDao.getShopItemById(item.id)
+            if (existingItem == null) {
+                shopItemDao.insertShopItems(listOf(item.toEntity()))
+            }
         }
     }
 
@@ -398,10 +404,11 @@ internal class EconomyRepositoryImpl @Inject constructor(
 
     companion object {
         val DEFAULT_SHOP_ITEMS = listOf(
-            ShopItem(id = "item_scarf", category = "OUTFIT", name = "Cozy Scarf", priceCoins = 25, isUnlocked = true),
-            ShopItem(id = "item_cap", category = "ACCESSORY", name = "Study Cap", priceCoins = 40, isUnlocked = false),
-            ShopItem(id = "item_crown", category = "ACCESSORY", name = "Golden Crown", priceCoins = 100, isUnlocked = false),
-            ShopItem(id = "item_coffee", category = "ACCESSORY", name = "Warm Coffee", priceCoins = 15, isUnlocked = false)
+            ShopItem(id = "item_scarf", category = ShopItem.CATEGORY_OUTFIT, name = "Cozy Scarf", priceCoins = 25, isUnlocked = true),
+            ShopItem(id = "item_cap", category = ShopItem.CATEGORY_ACCESSORY, name = "Study Cap", priceCoins = 40, isUnlocked = false),
+            ShopItem(id = "item_crown", category = ShopItem.CATEGORY_ACCESSORY, name = "Golden Crown", priceCoins = 100, isUnlocked = false),
+            ShopItem(id = "item_coffee", category = ShopItem.CATEGORY_ACCESSORY, name = "Warm Coffee", priceCoins = 15, isUnlocked = false),
+            ShopItem(id = "item_streak_shield", category = ShopItem.CATEGORY_UTILITY, name = "Grace Shield", priceCoins = 30, isUnlocked = false)
         )
     }
 }

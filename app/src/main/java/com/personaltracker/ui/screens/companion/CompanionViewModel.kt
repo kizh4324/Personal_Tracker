@@ -9,6 +9,8 @@ import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.usecase.PurchaseOrEquipResult
 import com.personaltracker.domain.usecase.PurchaseOrEquipShopItemUseCase
+import com.personaltracker.domain.usecase.PurchaseStreakShieldResult
+import com.personaltracker.domain.usecase.PurchaseStreakShieldUseCase
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -29,13 +31,15 @@ import javax.inject.Inject
 /**
  * Production ViewModel driving the non-punishing companion pet screen (AD-1, AD-4).
  * Enforces zero health points, zero hunger decay, zero death mechanics,
- * and maintains atomic idempotent ledgering for shop item purchases and equip toggles.
+ * maintains atomic idempotent ledgering for shop item purchases and equip toggles,
+ * and triggers milestone celebrations on companion level-ups.
  */
 @HiltViewModel
 class CompanionViewModel @Inject constructor(
     private val economyRepository: EconomyRepository,
     private val ledgerEngine: GamificationLedgerEngine,
-    private val purchaseOrEquipShopItemUseCase: PurchaseOrEquipShopItemUseCase
+    private val purchaseOrEquipShopItemUseCase: PurchaseOrEquipShopItemUseCase,
+    private val purchaseStreakShieldUseCase: PurchaseStreakShieldUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CompanionUiState(isLoading = true))
@@ -45,6 +49,8 @@ class CompanionViewModel @Inject constructor(
     val uiEffect: Flow<CompanionUiEffect> = _uiEffect.receiveAsFlow()
 
     private var observeDataJob: Job? = null
+    private var previousLevel: Int? = null
+    private var isPurchasingShield = false
 
     init {
         observeCompanionData()
@@ -67,6 +73,13 @@ class CompanionViewModel @Inject constructor(
                 currentEnergyUnits = 0,
                 currentExpressionOrdinal = CompanionState.IDLE_COZY.ordinalValue
             )
+
+            // Trigger celebration only on real level-up after initial cold start
+            if (previousLevel != null && safeProfile.level > previousLevel!!) {
+                _uiEffect.trySend(CompanionUiEffect.PlayLottieReward(RewardAnimationType.MilestoneFullReveal))
+                handleSelectMood(CompanionState.CELEBRATING_REWARD)
+            }
+            previousLevel = safeProfile.level
 
             val resolvedMood = CompanionState.fromOrdinal(safeProfile.currentExpressionOrdinal)
             val energyProgress = (safeProfile.currentEnergyUnits.toFloat() / GamificationLedgerEngine.ENERGY_PER_LEVEL)
@@ -116,6 +129,41 @@ class CompanionViewModel @Inject constructor(
     }
 
     private fun handlePurchaseOrEquipItem(item: ShopItem) {
+        if (item.category == ShopItem.CATEGORY_UTILITY || item.id == "item_streak_shield") {
+            if (isPurchasingShield) return
+            isPurchasingShield = true
+            viewModelScope.launch {
+                try {
+                    when (val result = purchaseStreakShieldUseCase(targetHabitId = null)) {
+                        is PurchaseStreakShieldResult.Success -> {
+                            _uiEffect.send(CompanionUiEffect.PlayLottieReward(RewardAnimationType.CoinEarnMicro))
+                            _uiEffect.send(CompanionUiEffect.ShowSnackbar("Grace Shield activated on ${result.updatedHabit.name}! Streak protected."))
+                            handleSelectMood(CompanionState.CELEBRATING_REWARD)
+                        }
+                        is PurchaseStreakShieldResult.CapReached -> {
+                            _uiEffect.send(
+                                CompanionUiEffect.ShowSnackbar(
+                                    "Streak shield bank is already at maximum capacity (${result.currentShields}/${result.maxAllowed}). Keep up the wonderful momentum!"
+                                )
+                            )
+                        }
+                        is PurchaseStreakShieldResult.InsufficientCoins -> {
+                            _uiEffect.send(CompanionUiEffect.ShowSnackbar("Not enough coins yet. Keep going!"))
+                        }
+                        is PurchaseStreakShieldResult.HabitNotFound -> {
+                            _uiEffect.send(CompanionUiEffect.ShowSnackbar("No habit found to protect."))
+                        }
+                        is PurchaseStreakShieldResult.Error -> {
+                            _uiEffect.send(CompanionUiEffect.ShowSnackbar(result.message))
+                        }
+                    }
+                } finally {
+                    isPurchasingShield = false
+                }
+            }
+            return
+        }
+
         viewModelScope.launch {
             when (val result = purchaseOrEquipShopItemUseCase(item)) {
                 is PurchaseOrEquipResult.PurchasedAndEquipped -> {
@@ -148,8 +196,8 @@ class CompanionViewModel @Inject constructor(
 
     private fun handleTriggerMilestone() {
         viewModelScope.launch {
-            _uiState.update { it.copy(mood = CompanionState.CELEBRATING_REWARD) }
             _uiEffect.send(CompanionUiEffect.PlayLottieReward(RewardAnimationType.MilestoneFullReveal))
+            handleSelectMood(CompanionState.CELEBRATING_REWARD)
         }
     }
 

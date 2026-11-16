@@ -64,12 +64,12 @@ development_status:
   3-4-frictionless-interruption-handling-zero-guilt-resumption: done
   epic-3-retrospective: optional
 
-  epic-4: in-progress
+  epic-4: done
   4-1-habit-entity-models-cadence-tracking-streak-grace-engine: done
   4-2-idempotent-coin-ledger-engine-anti-farming-model: done
   4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud: done
   4-4-non-punishing-companion-widget-7-state-rive-machine: done
-  4-5-cosmetic-shop-ui-companion-customization: backlog
+  4-5-cosmetic-shop-ui-companion-customization: done
   epic-4-retrospective: optional
 
   epic-5: backlog
