@@ -2,4 +2,22 @@
 <resources>
     <string name="app_name">Personal Tracker</string>
     <string name="accessibility_service_description">Detects when configured distracting applications open during active focus sessions to provide gentle intervention reminders. Strictly restricted to window change detection with zero text or keystroke logging.</string>
+
+    <!-- Tiered Notification Channels (Story 5.1, AD-4) -->
+    <string name="notification_channel_routine_name">Calm Routines</string>
+    <string name="notification_channel_routine_description">Gentle, silent reminders for your daily habits and self-care.</string>
+    <string name="notification_channel_important_name">Standard Reminders</string>
+    <string name="notification_channel_important_description">Timely prompts for your scheduled daily tasks.</string>
+    <string name="notification_channel_urgent_name">Time-Sensitive Alerts</string>
+    <string name="notification_channel_urgent_description">Priority alerts for commitments requiring your immediate attention.</string>
+    <string name="notification_fallback_message">Ready whenever you want to begin.</string>
+
+    <!-- Settings Screen Notification & Alarm Copy (Story 5.1, AD-4, AD-7) -->
+    <string name="settings_notifications_title">Notifications &amp; Alarm Timing</string>
+    <string name="settings_exact_alarm_status_granted">Precise Reminders: Allowed</string>
+    <string name="settings_exact_alarm_status_fallback">Flexible Timing Active • Battery friendly</string>
+    <string name="settings_notifications_status_enabled">App Notifications: Allowed</string>
+    <string name="settings_notifications_status_disabled">App Notifications: Disabled</string>
+    <string name="settings_exact_alarm_button">Configure Exact Alarm Timing</string>
+    <string name="settings_notification_channels_button">Configure Notification Channels</string>
 </resources>

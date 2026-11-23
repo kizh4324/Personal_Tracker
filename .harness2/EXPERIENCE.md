@@ -338,6 +338,26 @@ Authoritative repository of verified engineering heuristics, operational invaria
   4. **Milestone Preemption Hierarchy (`HabitsViewModel.kt`):** On 7-day consistency milestones (`streak > 0 && streak % 7 == 0`), the full milestone reveal (`MilestoneFullReveal`) supersedes `CoinEarnMicro` to eliminate Lottie slot collisions, while setting companion expression to `CompanionState.CELEBRATING_REWARD`.
   5. **Reduced-Motion Modal Bypass (`RewardMotionStage.kt`):** When `isReducedMotion == true`, modal celebrations (`MilestoneFullReveal`) must immediately invoke `onLottieComplete()` via `LaunchedEffect` without composing animations or blocking user navigation.
 
+---
+
+## 26. Tiered Notification Channels & Defensive Exact Alarm Scheduling
+
+### EXP-049: Tiered Notification Channels, Differentiated Alarm Wakeups & Defensive Permission Fallbacks (AD-1, AD-3, AD-4, AD-7, Story 5.1)
+* **Context:** Differentiated notification channels (`channel_routine` [LOW], `channel_important` [DEFAULT], `channel_urgent` [HIGH] with companion double-pulse haptics), battery-conscious alarm scheduling, Android 14+ `SCHEDULE_EXACT_ALARM` defensive fallbacks, and Settings permission deep-links in `TieredNotificationManager.kt`, `ExactAlarmScheduler.kt`, `AlarmNotificationReceiver.kt`, `TaskAlarmScheduler.kt`, `SettingsViewModel.kt`, and `SettingsScreen.kt`.
+* **Heuristic:**
+  1. Invoking `AlarmManager.setAlarmClock()` indiscriminately for all tasks clutters the Android status bar and lockscreen with a persistent alarm clock icon, inducing psychological fatigue and anxiety (violating AD-4).
+  2. Calling `setExactAndAllowWhileIdle()` on Android 14+ (API 34+) when `SCHEDULE_EXACT_ALARM` has been revoked by the user or OS throws an uncaught `SecurityException`, crashing the application immediately.
+  3. Catching `SecurityException` inside low-level delegates (e.g. `SystemAlarmManagerDelegate`) prevents callers from executing coordinated fallback strategies and returning failure indicators to domain engines.
+  4. Attempting to schedule alarms for past timestamps (`triggerEpochMillis <= System.currentTimeMillis()`) triggers immediate spuriously delivered notifications during startup or recovery sweeps.
+  5. Posting notifications (`notificationManager.notify()`) on Android 13+ (API 33+) without verifying `POST_NOTIFICATIONS` triggers fatal Android lint errors and security warnings.
+* **Rule:**
+  1. **Tier-Differentiated Wakeup Precision:** Differentiate alarm delivery strictly by intensity: `ROUTINE` tasks use inexact `setAndAllowWhileIdle()` with zero status bar clock icon; `IMPORTANT` tasks use exact `setExactAndAllowWhileIdle()`; and only `URGENT` tasks use `setAlarmClock()` with heads-up display and status bar icons.
+  2. **Single-Responsibility Exception Handling:** Low-level delegates (`SystemAlarmManagerDelegate`) must let `SecurityException` bubble up. The orchestration scheduler (`ExactAlarmScheduler`) catches `SecurityException` at a single explicit boundary, immediately invokes `scheduleInexactFallback()`, and returns `false` to communicate exact scheduling unavailability.
+  3. **Temporal Invariant & Past Rejection:** `ExactAlarmScheduler` must guard against past timestamps (`triggerEpochMillis <= System.currentTimeMillis()`), returning `false` immediately without scheduling.
+  4. **Domain Purity Bridge (AD-1):** Expose exact alarm capability through pure Kotlin domain interface `TaskAlarmScheduler.canScheduleExactAlarms(): Boolean` with zero `android.*` imports, implemented in platform layer via `exactAlarmScheduler.canScheduleExact()`.
+  5. **Direct Settings Deep-Links & Non-Punitive Copy (AD-4, AD-7):** In `SettingsScreen`, present notification channel preferences and exact alarm permission status using 100% `PersonalTrackerTheme` tokens (48dp touch targets). Deep-link directly to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` with `package:${context.packageName}` and `ACTION_APP_NOTIFICATION_SETTINGS` with `EXTRA_APP_PACKAGE`.
+
+
 
 
 

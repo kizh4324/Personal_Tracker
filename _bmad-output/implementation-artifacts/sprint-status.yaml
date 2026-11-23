@@ -72,8 +72,8 @@ development_status:
   4-5-cosmetic-shop-ui-companion-customization: done
   epic-4-retrospective: optional
 
-  epic-5: backlog
-  5-1-tiered-notification-channels-exact-alarm-scheduling-engine: backlog
+  epic-5: in-progress
+  5-1-tiered-notification-channels-exact-alarm-scheduling-engine: done
   5-2-acknowledgement-based-bounded-escalation-engine: backlog
   5-3-urgency-soft-cap-scarcity-guidance: backlog
   5-4-evening-morning-carry-forward-review-card: backlog

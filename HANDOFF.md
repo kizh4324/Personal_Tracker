@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-16 19:40:00 +05:30
-*   **Current Git Commit:** Story 4.5 Complete — Cosmetics Wardrobe Shop, Consumable Grace Shields & Milestone Choreography (Epic 4 Complete)
+*   **Date/Time:** 2026-11-23 09:15:00 +05:30
+*   **Current Git Commit:** Story 5.1 Complete — Tiered Notification Channels & Exact Alarm Scheduling Engine (Epic 5 In-Progress)
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -27,7 +27,7 @@ status: active
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
     *   **Multi-Agent Plugins:** Elephant-Goldfish Model (EGM) Global Plugin (`C:\Users\User\.gemini\config\plugins\egm`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (499+ tests, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (511 tests, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -40,49 +40,40 @@ status: active
     *   **Epic 2 (Low-Friction Multimodal Capture & Confidence Routing Pipeline):** 100% Complete (`done`).
     *   **Epic 3 (Focus Mode, Distraction Interception & Resumption Engine):** 100% Complete (`done`).
     *   **Epic 4 (Gamification Economy, Streak State Machine & Non-Punishing Companion):** 100% Complete (`done`).
-        *   **Story 4.1 (`4-1-habit-entity-models-cadence-tracking-streak-grace-engine`):** 100% Complete (`done`).
-        *   **Story 4.2 (`4-2-idempotent-coin-ledger-engine-anti-farming-model`):** 100% Complete (`done`).
-        *   **Story 4.3 (`4-3-vsync-aligned-bézier-coin-earn-animation-coin-hud`):** 100% Complete (`done`).
-        *   **Story 4.4 (`4-4-non-punishing-companion-widget-7-state-rive-machine`):** 100% Complete (`done`).
-        *   **Story 4.5 (`4-5-cosmetic-shop-ui-companion-customization`):** 100% Complete (`done`).
-    *   **Epic 5 (Non-Punishing Notification & Escalation Engine):** Ready for Dev (`backlog` / next up).
+    *   **Epic 5 (Non-Punishing Notification & Escalation Engine):** In Progress (`in-progress`).
+        *   **Story 5.1 (`5-1-tiered-notification-channels-exact-alarm-scheduling-engine`):** 100% Complete (`done`).
+        *   **Story 5.2 (`5-2-acknowledgement-based-bounded-escalation-engine`):** Ready for Dev (`backlog` / next up).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 
 ---
 
-## 2. Completed Work Today (2026-10-25)
+## 2. Completed Work Today (2026-11-23)
 
-### A. 50/50 Figma + Framer + Compose "Warm Organic Tactile" Pipeline
-1.  **Figma Live Frames & Spec Generation (`figma-write-bridge`, Channel `ooccx025`):**
-    *   `01_Home_Daily_Routine` (`x: 0, y: 0`): Warm Cream canvas (`#F9F6F0`), 7-day capsule strip, hero reminder card (`#FCD9B8`), vertical stepper timeline with category icon containers, floating FAB (`#59280E`).
-    *   `02_New_Habit_Modal` (`x: 438, y: 0`): Lime calendar hero container (`#A3D929`), full-pill form inputs, 7 circular repeat day pills, Vibrant Orange CTA button (`#F26B1D`).
-    *   `03_Progress_And_Insights` (`x: 876, y: 0`): 4 vertical capsule progress bars (Walking 48%, Running 33%, Meditation 27%, Drink 40%) with sand hatched track (`#EBE5DC`), 842 points summary card.
-    *   `04_Study_Focus_Timer` (`x: 1314, y: 0`): Circular timer ring dial (`#FFFFFF`), sand track (`#EBE5DC`), Tangerine progress arc (`#F26B1D`), 24:18 countdown, `+10 Coins Reward` pill (`#FFE8D6`), intensity capsules, Deep Espresso pause button (`#59280E`).
-    *   `05_Companion_And_Shop` (`x: 1752, y: 0`): Coin badge (`🪙 145 Coins`), hero stage card (`#FCD9B8`), fox avatar container (`🦊 Level 3 • Happy Fox`), Lime energy progress bar (`#A3D929`), 2x2 cosmetics wardrobe shop grid (`Cozy Scarf`, `Study Cap`, `Golden Crown`, `Warm Coffee`).
-    *   Saved node mappings into `docs/design/figma_structural_spec.json` and created automated socket dispatcher `scripts/draw_frames_4_and_5.ts`.
-2.  **Framer Motion Interactive Prototype Layer (`QaEW7GnAiltJMNVpWjTs-dKIrE`):**
-    *   Created `DayCapsuleSelector.tsx`, `TimelineCheckList.tsx`, `SharedElementModal.tsx`, `VerticalCapsuleBars.tsx`, `FocusTimerRing.tsx`, `CompanionStage.tsx`, and `AppPrototype.tsx`.
-    *   Calibrated spring physics in `docs/design/framer_motion_spec.json` and `AnimationTokens.kt` (`timerPauseResumeSpringSpec`: stiffness 350, damping 25; `shopPurchaseBurstSpringSpec`: stiffness 400, damping 18).
-3.  **Jetpack Compose Screen Synchronization:**
-    *   `HomeScreen.kt`: Restyled top greeting row, horizontal capsule strip, stepper cards with pastel icon boxes (`iconSoftPeach`, `iconSoftMatcha`, `iconSoftLavender`), floating quick-capture FAB.
-    *   `StudyScreen.kt`: Restyled with Canvas-rendered progress arc, countdown hero score, soft peach coin reward pill, tactile capsule duration/tag selectors (`shapes.full`), 56dp action buttons.
-    *   `CompanionScreen.kt`: Restyled with coin balance header badge, Warm Peach stage card, Lime energy indicator, 2x2 cosmetics shop grid, emotional registers pill selector, root reward buttons.
-    *   `QuickCaptureSheet.kt`: Restyled with 28dp top radius (`shapes.xxxl`), Warm Cream modal container, full-pill text input and confirmation chips, Deep Espresso mic button, 5-second undo toast pill.
-    *   `CompanionView.kt` & `Type.kt`: Replaced raw `dp` literals with design tokens; added `ctaText` (16sp Bold) conforming to Figma spec.
-
-### B. Critical Startup Crash Fix (SQLCipher JNI Linking)
-*   **Symptom:** App crashed immediately upon launch from phone icon with `java.lang.UnsatisfiedLinkError: No implementation found for long net.zetetic.database.sqlcipher.SQLiteConnection.nativeOpen(...)`.
-*   **Root Cause:** SQLCipher 4.6.1 requires its native C binary (`libsqlcipher.so`) loaded prior to opening the encrypted SQLite connection. Neither `PersonalTrackerApplication` nor `DatabaseModule` called `System.loadLibrary("sqlcipher")`.
-*   **Correction:**
-    *   Updated `PersonalTrackerApplication.kt` with an `onCreate()` lifecycle override invoking `System.loadLibrary("sqlcipher")`.
-    *   Added a fallback `System.loadLibrary("sqlcipher")` invocation in `DatabaseModule.kt` before constructing `SupportOpenHelperFactory`.
-*   **Result:** App launches cleanly with zero crash logs (`LaunchState: COLD, TotalTime: 2244ms`, active process `com.personaltracker`).
-
-### C. Analysis of "Start Now" Task Completion Behavior
-*   **Observation:** Pressing "Start Now" on the Hero Card immediately marked tasks as `COMPLETED` and awarded coins.
-*   **Investigation:** Traced to `HomeViewModel.kt:519` where `handleStartHeroItem()` was stubbed during Story 1.9 to invoke `handleToggleTask()` (`completeTaskUseCase`).
-*   **Roadmap Context:** The true focus timer execution engine is scheduled for **Epic 3: Focus Mode, Distraction Interception & Resumption Engine (Story 3.1)**, where "Start Now" initiates `StudySessionForegroundService` and transitions the Hero Card into **Priority 1 (`ActiveFocus`)** with live countdown, pause/resume, and distraction blocking.
+### A. Story 5.1: Tiered Notification Channels & Exact Alarm Scheduling Engine
+1. **Tiered Notification Manager (`TieredNotificationManager.kt`):**
+   - Implemented singleton registering 3 Android notification channels for API 26+:
+     - `channel_routine` (`IMPORTANCE_LOW`): Silent routine task reminders with zero heads-up interruption.
+     - `channel_important` (`IMPORTANCE_DEFAULT`): Default importance, audible chime, no heads-up display.
+     - `channel_urgent` (`IMPORTANCE_HIGH`): High importance, heads-up banner, and companion double-pulse vibration pattern (`[0, 250, 150, 250]`).
+   - Added legacy channel purge (`task_reminders_channel`).
+   - Added pure companion object static resolver `getChannelIdForIntensity(deliveryIntensity: String): String`.
+2. **Defensive Alarm Scheduling Engine (`ExactAlarmScheduler.kt`):**
+   - Tier-differentiated wakeup mechanics:
+     - `ROUTINE`: Inexact wakeup via `setAndAllowWhileIdle()` (zero lock screen / status bar alarm clock icon).
+     - `IMPORTANT`: Exact wakeup via `setExactAndAllowWhileIdle()`.
+     - `URGENT`: Exact wakeup via `setAlarmClock()` (heads-up delivery and lockscreen alarm clock integration).
+   - Defensive `SecurityException` catch at a single explicit boundary, falling back automatically to `scheduleInexactFallback(alarm)`.
+   - Past-timestamp rejection (`triggerEpochMillis <= System.currentTimeMillis()`).
+3. **Pure Domain & UI Wiring (`TaskAlarmScheduler.kt`, `SettingsViewModel.kt`, `SettingsScreen.kt`):**
+   - Extended pure Kotlin domain interface `TaskAlarmScheduler` with `canScheduleExactAlarms(): Boolean` (AD-1).
+   - Added `isExactAlarmGranted` and `isNotificationsEnabled` to `SettingsUiState`.
+   - Built "Notifications & Alarm Timing" surface card in `SettingsScreen` with 100% `PersonalTrackerTheme` semantic tokens (AD-7) and 48dp minimum touch targets.
+   - Deep-linked directly to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` and `ACTION_APP_NOTIFICATION_SETTINGS`.
+4. **Elephant-Goldfish Model (EGM) Design & Review Gates:**
+   - Authored specification `spec-5-1-tiered-notification-channels-exact-alarm-scheduling-engine.md`.
+   - Executed 3-stage Goldfish review gate (`egm-comprehension`, `egm-design`, `egm-implementation-readiness`), resolving all findings into Iteration 2.
+   - Compiled drift report `docs/designs/drift/drift-report-5-1.md` confirming 100% specification conformance and 0.0% drift.
 
 ---
 
@@ -128,12 +119,12 @@ flowchart TD
 ### Verification Gate Results
 *   **`python .agents/scripts/domain_purity_check.py`:** **PASSED** (0 `android.*` in domain, 0 raw hex in UI)
 *   **`python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .`:** **PASSED** (0 findings)
-*   **`.\gradlew test`:** **PASSED** (All 398 JVM unit tests passing)
+*   **`.\gradlew test`:** **PASSED** (All 511 JVM unit tests passing)
 *   **`.\gradlew lintDebug`:** **PASSED** (0 errors)
 *   **Gate 6 (Artemis E2E Real-Device Verification):** **CONFIGURED** (`tools/artemis`, `.agents/rules/artemis-mobile-testing.md`, `.agents/mcp_config.json`)
 *   **`adb install` & Launch:** **PASSED** (Verified on physical device `10BD9D24YF000BE`)
 *   **Graphify Knowledge Graph:** **CURRENT** (`graphify update .` completed)
-*   **Git Status:** **CLEAN** (Commit `ad241ac` on `origin/main`)
+*   **Git Status:** **CLEAN** (Commit ready on `origin/main`)
 
 ---
 
@@ -159,6 +150,13 @@ flowchart TD
 *   [x] **Story 4.4:** Non-punishing companion widget & 7-state Rive machine (`4-4-non-punishing-companion-widget-7-state-rive-machine`, canonical 7-state `CompanionState(0..6)` matching Rive inputs, DayType rest immunity, atomic cosmetics purchase & equip engine, catalog auto-seeding, 48dp minimum touch target floor, interactive home avatar badge). `[DONE]`
 *   [x] **Story 4.5:** Cosmetics wardrobe shop, consumable grace shields & milestone choreography (`4-5-cosmetic-shop-ui-companion-customization`, consumable Grace Shields / Slack Bank Days capped at 3, atomic coin deduction and cap enforcement in `HabitRepository.purchaseStreakShield`, dynamic fallback habit selection in `PurchaseStreakShieldUseCase`, unclipped modal milestone celebration in `RewardMotionStage`, 7-day consistency milestone companion celebrations `CompanionState.CELEBRATING_REWARD`, strict reduced-motion bypass). `[DONE]`
 
+### Epic 5: Local Privacy, Encryption & Non-Punishing Notifications (In Progress)
+*   [x] **Story 5.1:** Tiered notification channels & exact alarm scheduling engine (`5-1-tiered-notification-channels-exact-alarm-scheduling-engine`, `TieredNotificationManager`, `channel_routine` [LOW], `channel_important` [DEFAULT], `channel_urgent` [HIGH], tier-differentiated wakeups, `ExactAlarmScheduler` defensive `SecurityException` fallback, `TaskAlarmScheduler.canScheduleExactAlarms()`, Settings MVI deep-links). `[DONE]`
+*   [ ] **Story 5.2:** Acknowledgement-based bounded escalation engine (`5-2-acknowledgement-based-bounded-escalation-engine`, bounded nudge sequences, escalation caps, non-punishing dismissals). `[READY FOR DEV]`
+*   [ ] **Story 5.3:** Urgency soft-cap scarcity guidance (`5-3-urgency-soft-cap-scarcity-guidance`). `[BACKLOG]`
+*   [ ] **Story 5.4:** Evening/morning carry-forward review card (`5-4-evening-morning-carry-forward-review-card`). `[BACKLOG]`
+*   [ ] **Story 5.5:** Advisory workload capacity indicator guardrails (`5-5-advisory-workload-capacity-indicator-guardrails`). `[BACKLOG]`
+
 ---
 
 ## 5. Next Session Kickoff Runbook
@@ -172,11 +170,10 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Epic 5 Implementation with EGM & BMAD Build
+### Step 2: Kick off Story 5.2 Implementation with EGM & BMAD Build
 ```
-/bmad-build 5-1-tiered-notification-channels-exact-alarm-scheduling-engine
+/bmad-build 5-2-acknowledgement-based-bounded-escalation-engine
 ```
-1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-5-1-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
+1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-5-2-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
 2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.
-3. **Implementation & Verification:** Implement via `invoke_subagent` (`Workspace: "inherit"`), verify JVM tests and Artemis Gate 6, and run `/egm:egm-drift-report` to confirm 0 drift.
 3. **Implementation & Verification:** Implement via `invoke_subagent` (`Workspace: "inherit"`), verify JVM tests and Artemis Gate 6, and run `/egm:egm-drift-report` to confirm 0 drift.

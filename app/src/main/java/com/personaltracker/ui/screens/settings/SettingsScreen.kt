@@ -81,8 +81,15 @@ fun SettingsRoute(
                     runCatching {
                         val intent = Intent(effect.action).apply {
                             flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                            if (effect.action == Settings.ACTION_MANAGE_OVERLAY_PERMISSION) {
-                                data = Uri.parse("package:${context.packageName}")
+                            when (effect.action) {
+                                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
+                                Settings.ACTION_APPLICATION_DETAILS_SETTINGS -> {
+                                    data = Uri.parse("package:${context.packageName}")
+                                }
+                                Settings.ACTION_APP_NOTIFICATION_SETTINGS -> {
+                                    putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                }
                             }
                         }
                         context.startActivity(intent)
@@ -520,7 +527,161 @@ fun SettingsScreenContent(
 
         Spacer(modifier = Modifier.height(spacing.sectionGap))
 
-        // 4. Local-First Encryption & Data Card (AD-5)
+        // 4. Notifications & Exact Alarm Timing Card (Story 5.1, AD-4, AD-7)
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = shapes.lg,
+            color = colors.surfaceRaised
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(spacing.spacing4)
+            ) {
+                Text(
+                    text = "Notifications & Alarm Timing",
+                    style = typography.headline,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing1))
+
+                // Supportive reassurance banner
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = shapes.sm,
+                    color = colors.surfaceSunken
+                ) {
+                    Text(
+                        text = "Tiered notification channels deliver calm, non-punishing task prompts tailored to importance.",
+                        style = typography.caption,
+                        color = colors.inkSecondary,
+                        modifier = Modifier.padding(spacing.spacing2)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Exact Alarm Timing Row / Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Exact Alarm Timing",
+                            style = typography.title,
+                            color = colors.inkPrimary
+                        )
+                        Text(
+                            text = if (state.isExactAlarmGranted) {
+                                "Sub-second wakeup precision active for urgent reminders"
+                            } else {
+                                "Flexible Timing Active • Battery friendly"
+                            },
+                            style = typography.caption,
+                            color = colors.inkSecondary
+                        )
+                    }
+                    Text(
+                        text = if (state.isExactAlarmGranted) "Allowed" else "Flexible",
+                        style = typography.label,
+                        color = if (state.isExactAlarmGranted) colors.success else colors.primary
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                OutlinedButton(
+                    onClick = { onIntent(SettingsUiIntent.OpenExactAlarmSettings) },
+                    shape = shapes.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Configure Exact Alarm Timing", style = typography.label)
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Notification Permission Status
+                if (!state.isNotificationsEnabled) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shapes.sm,
+                        color = colors.surfaceSunken
+                    ) {
+                        Text(
+                            text = "App Notifications: Disabled in system settings",
+                            style = typography.caption,
+                            color = colors.inkPrimary,
+                            modifier = Modifier.padding(spacing.spacing2)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(spacing.spacing2))
+                }
+
+                // Tiered Channels Overview
+                Text(
+                    text = "Notification Channel Tiers:",
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                ) {
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shapes.sm,
+                        color = colors.surfaceSunken
+                    ) {
+                        Column(modifier = Modifier.padding(spacing.spacing3)) {
+                            Text(text = "Calm Routines (Low)", style = typography.title, color = colors.inkPrimary)
+                            Text(text = "Silent in-tray prompts for daily habits and self-care.", style = typography.caption, color = colors.inkSecondary)
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shapes.sm,
+                        color = colors.surfaceSunken
+                    ) {
+                        Column(modifier = Modifier.padding(spacing.spacing3)) {
+                            Text(text = "Standard Reminders (Default)", style = typography.title, color = colors.inkPrimary)
+                            Text(text = "Timely prompts with standard sound and vibration for scheduled tasks.", style = typography.caption, color = colors.inkSecondary)
+                        }
+                    }
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = shapes.sm,
+                        color = colors.surfaceSunken
+                    ) {
+                        Column(modifier = Modifier.padding(spacing.spacing3)) {
+                            Text(text = "Time-Sensitive Alerts (High)", style = typography.title, color = colors.inkPrimary)
+                            Text(text = "Heads-up alert with companion double-pulse haptics for critical milestones.", style = typography.caption, color = colors.inkSecondary)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing3))
+
+                OutlinedButton(
+                    onClick = { onIntent(SettingsUiIntent.OpenNotificationSettings) },
+                    shape = shapes.md,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = spacing.minTouchTarget)
+                ) {
+                    Text(text = "Configure Notification Channels", style = typography.label)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(spacing.sectionGap))
+
+        // 5. Local-First Encryption & Data Card (AD-5)
         Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = shapes.lg,

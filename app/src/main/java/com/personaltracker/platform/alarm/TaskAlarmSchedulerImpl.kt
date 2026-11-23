@@ -6,12 +6,16 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Platform implementation of [TaskAlarmScheduler] delegating to [ExactAlarmScheduler] (FR-5, AD-1).
+ * Platform implementation of [TaskAlarmScheduler] delegating to [ExactAlarmScheduler] (FR-5, AD-1, Story 5.1).
  */
 @Singleton
 class TaskAlarmSchedulerImpl @Inject constructor(
     private val exactAlarmScheduler: ExactAlarmScheduler
 ) : TaskAlarmScheduler {
+
+    override fun canScheduleExactAlarms(): Boolean {
+        return exactAlarmScheduler.canScheduleExact()
+    }
 
     override fun scheduleTaskAlarm(task: Task): Boolean {
         return exactAlarmScheduler.scheduleForTask(task)

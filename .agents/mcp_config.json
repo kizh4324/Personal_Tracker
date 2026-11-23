@@ -1,64 +1,74 @@
 {
-  "mcpServers": {
-    "artemis": {
-      "command": "${workspaceFolder}/tools/artemis/.venv/Scripts/python.exe",
-      "args": [
-        "-m",
-        "mcp_server"
-      ],
-      "cwd": "${workspaceFolder}/tools/artemis",
-      "env": {
-        "PYTHONUNBUFFERED": "1",
-        "PYTHONPATH": "${workspaceFolder}/tools/artemis"
-      },
-      "eagerTools": [
-        "mobile_run_task",
-        "mobile_manage_task",
-        "mobile_get_device_state",
-        "mobile_inspect_trace",
-        "mobile_diagnose"
-      ]
-    },
-    "stitch": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@google/stitch-mcp"
-      ],
-      "env": {
-        "STITCH_PROJECT_PATH": "${workspaceFolder}"
-      }
-    },
-    "figma-developer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-figma"
-      ],
-      "env": {
-        "FIGMA_PERSONAL_ACCESS_TOKEN": "${FIGMA_PERSONAL_ACCESS_TOKEN}"
-      }
-    },
-    "figma-write-bridge": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "cursor-talk-to-figma-mcp"
-      ],
-      "env": {
-        "FIGMA_PERSONAL_ACCESS_TOKEN": "${FIGMA_PERSONAL_ACCESS_TOKEN}"
-      }
-    },
-    "framer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "framer-mcp"
-      ],
-      "env": {
-        "FRAMER_API_KEY": "${FRAMER_API_KEY}",
-        "FRAMER_PROJECT_ID": "${FRAMER_PROJECT_ID}"
-      }
-    }
-  }
+    "mcpServers":  {
+                       "artemis":  {
+                                       "command":  "${workspaceFolder}/tools/artemis/.venv/Scripts/python.exe",
+                                       "args":  [
+                                                    "-m",
+                                                    "mcp_server"
+                                                ],
+                                       "cwd":  "${workspaceFolder}/tools/artemis",
+                                       "env":  {
+                                                   "PYTHONUNBUFFERED":  "1",
+                                                   "PYTHONPATH":  "${workspaceFolder}/tools/artemis"
+                                               },
+                                       "eagerTools":  [
+                                                          "mobile_run_task",
+                                                          "mobile_manage_task",
+                                                          "mobile_get_device_state",
+                                                          "mobile_inspect_trace",
+                                                          "mobile_diagnose"
+                                                      ]
+                                   },
+                       "stitch":  {
+                                      "command":  "npx",
+                                      "args":  [
+                                                   "-y",
+                                                   "@google/stitch-mcp"
+                                               ],
+                                      "env":  {
+                                                  "STITCH_PROJECT_PATH":  "${workspaceFolder}"
+                                              }
+                                  },
+                       "figma-developer":  {
+                                               "command":  "npx",
+                                               "args":  [
+                                                            "-y",
+                                                            "@modelcontextprotocol/server-figma"
+                                                        ],
+                                               "env":  {
+                                                           "FIGMA_PERSONAL_ACCESS_TOKEN":  "${FIGMA_PERSONAL_ACCESS_TOKEN}"
+                                                       }
+                                           },
+                       "figma-write-bridge":  {
+                                                  "command":  "npx",
+                                                  "args":  [
+                                                               "-y",
+                                                               "cursor-talk-to-figma-mcp"
+                                                           ],
+                                                  "env":  {
+                                                              "FIGMA_PERSONAL_ACCESS_TOKEN":  "${FIGMA_PERSONAL_ACCESS_TOKEN}"
+                                                          }
+                                              },
+                       "framer":  {
+                                      "command":  "npx",
+                                      "args":  [
+                                                   "-y",
+                                                   "framer-mcp"
+                                               ],
+                                      "env":  {
+                                                  "FRAMER_API_KEY":  "${FRAMER_API_KEY}",
+                                                  "FRAMER_PROJECT_ID":  "${FRAMER_PROJECT_ID}"
+                                              }
+                                  },
+                       "vibe-wise":  {
+                                         "command":  "node",
+                                         "args":  [
+                                                      "C:\\Users\\User\\OneDrive\\Music\\Personal-Tracker\\tools\\vibe-wise-mcp\\dist\\server.js"
+                                                  ],
+                                         "cwd":  "C:\\Users\\User\\OneDrive\\Music\\Personal-Tracker",
+                                         "env":  {
+                                                     "NODE_ENV":  "production"
+                                                 }
+                                     }
+                   }
 }

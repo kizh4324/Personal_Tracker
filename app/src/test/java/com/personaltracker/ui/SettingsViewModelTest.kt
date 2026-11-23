@@ -391,4 +391,50 @@ class SettingsViewModelTest {
             assertNull(rule)
         }
     }
+
+    @Test
+    fun testExactAlarmAndNotificationPermissionChecks() = runTest {
+        val testScheduler = TestTaskAlarmScheduler()
+        testScheduler.hasExactPermission = false
+
+        val viewModel = SettingsViewModel(
+            dayTypeRepository = dayTypeRepository,
+            resolveDayTypeUseCase = resolveDayTypeUseCase,
+            getInterventionRulesUseCase = getInterventionRulesUseCase,
+            togglePackageInterceptionRuleUseCase = togglePackageInterceptionRuleUseCase,
+            addWhitelistedAppUseCase = addWhitelistedAppUseCase,
+            removeWhitelistedAppUseCase = removeWhitelistedAppUseCase,
+            getWhitelistRulesUseCase = getWhitelistRulesUseCase,
+            toggleAppWhitelistUseCase = toggleAppWhitelistUseCase,
+            taskAlarmScheduler = testScheduler
+        )
+        viewModel.exactAlarmChecker = { false }
+        viewModel.notificationChecker = { true }
+
+        viewModel.checkPermissions()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isExactAlarmGranted)
+        assertTrue(state.isNotificationsEnabled)
+    }
+
+    @Test
+    fun testOpenExactAlarmSettingsEmitsSideEffect() = runTest {
+        val viewModel = createViewModel()
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.OpenExactAlarmSettings)
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.OpenSystemSetting)
+        }
+    }
+
+    @Test
+    fun testOpenNotificationSettingsEmitsSideEffect() = runTest {
+        val viewModel = createViewModel()
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.OpenNotificationSettings)
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.OpenSystemSetting)
+        }
+    }
 }

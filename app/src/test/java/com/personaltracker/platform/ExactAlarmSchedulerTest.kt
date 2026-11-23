@@ -9,6 +9,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -41,12 +42,13 @@ class ExactAlarmSchedulerTest {
     }
 
     @Test
-    fun `scheduleAlarm invokes scheduleExact when exact alarm permission is granted`() {
+    fun `scheduleAlarm invokes scheduleExact when exact alarm permission is granted for IMPORTANT or URGENT`() {
         fakeDelegate.hasExactPermission = true
+        val futureMillis = System.currentTimeMillis() + 3600_000L
 
         val alarm = ScheduledAlarm(
             alarmId = "alarm-1",
-            triggerEpochMillis = 1760790000000L,
+            triggerEpochMillis = futureMillis,
             title = "Math Practice",
             message = "Time for study",
             taskId = "task-1",
@@ -59,21 +61,44 @@ class ExactAlarmSchedulerTest {
         assertEquals(1, fakeDelegate.exactAlarms.size)
         assertEquals(0, fakeDelegate.inexactAlarms.size)
         assertEquals("alarm-1", fakeDelegate.exactAlarms.first().alarmId)
-        assertEquals(1760790000000L, fakeDelegate.exactAlarms.first().triggerEpochMillis)
+        assertEquals(futureMillis, fakeDelegate.exactAlarms.first().triggerEpochMillis)
         assertEquals("Math Practice", fakeDelegate.exactAlarms.first().title)
     }
 
     @Test
-    fun `scheduleAlarm falls back to inexact idle schedule when permission is denied`() {
+    fun `scheduleAlarm routes ROUTINE alarms directly to inexact fallback and returns true`() {
+        fakeDelegate.hasExactPermission = true
+        val futureMillis = System.currentTimeMillis() + 3600_000L
+
+        val alarm = ScheduledAlarm(
+            alarmId = "alarm-routine",
+            triggerEpochMillis = futureMillis,
+            title = "Gentle Walk",
+            message = "Time for fresh air",
+            taskId = "task-routine",
+            deliveryIntensity = "ROUTINE"
+        )
+
+        val result = scheduler.scheduleAlarm(alarm)
+
+        assertTrue("Expected scheduleAlarm to return true for accepted routine task", result)
+        assertEquals(0, fakeDelegate.exactAlarms.size)
+        assertEquals(1, fakeDelegate.inexactAlarms.size)
+        assertEquals("alarm-routine", fakeDelegate.inexactAlarms.first().alarmId)
+    }
+
+    @Test
+    fun `scheduleAlarm falls back to inexact idle schedule when permission is denied and returns false`() {
         fakeDelegate.hasExactPermission = false
+        val futureMillis = System.currentTimeMillis() + 3600_000L
 
         val alarm = ScheduledAlarm(
             alarmId = "alarm-2",
-            triggerEpochMillis = 1760795000000L,
-            title = "Calm Reminder",
-            message = "Ready when you are",
+            triggerEpochMillis = futureMillis,
+            title = "Urgent Focus",
+            message = "Deadline reminder",
             taskId = "task-2",
-            deliveryIntensity = "ROUTINE"
+            deliveryIntensity = "URGENT"
         )
 
         val result = scheduler.scheduleAlarm(alarm)
@@ -82,23 +107,67 @@ class ExactAlarmSchedulerTest {
         assertEquals(0, fakeDelegate.exactAlarms.size)
         assertEquals(1, fakeDelegate.inexactAlarms.size)
         assertEquals("alarm-2", fakeDelegate.inexactAlarms.first().alarmId)
-        assertEquals(1760795000000L, fakeDelegate.inexactAlarms.first().triggerEpochMillis)
     }
 
     @Test
-    fun `scheduleForTask schedules alarm when task has scheduledTime`() {
+    fun `scheduleAlarm catches SecurityException from scheduleExact and falls back to inexact returning false`() {
         fakeDelegate.hasExactPermission = true
+        fakeDelegate.throwSecurityExceptionOnExact = true
+        val futureMillis = System.currentTimeMillis() + 3600_000L
+
+        val alarm = ScheduledAlarm(
+            alarmId = "alarm-sec-ex",
+            triggerEpochMillis = futureMillis,
+            title = "Urgent Meeting",
+            message = "Join call now",
+            taskId = "task-sec-ex",
+            deliveryIntensity = "URGENT"
+        )
+
+        val result = scheduler.scheduleAlarm(alarm)
+
+        assertFalse("Expected scheduleAlarm to return false on SecurityException fallback", result)
+        assertEquals(0, fakeDelegate.exactAlarms.size)
+        assertEquals(1, fakeDelegate.inexactAlarms.size)
+        assertEquals("alarm-sec-ex", fakeDelegate.inexactAlarms.first().alarmId)
+    }
+
+    @Test
+    fun `scheduleAlarm rejects past triggerEpochMillis and returns false without scheduling`() {
+        fakeDelegate.hasExactPermission = true
+        val pastMillis = System.currentTimeMillis() - 60_000L
+
+        val alarm = ScheduledAlarm(
+            alarmId = "alarm-past",
+            triggerEpochMillis = pastMillis,
+            title = "Old Task",
+            message = "Already past",
+            taskId = "task-past",
+            deliveryIntensity = "IMPORTANT"
+        )
+
+        val result = scheduler.scheduleAlarm(alarm)
+
+        assertFalse("Expected scheduleAlarm to reject past timestamps", result)
+        assertEquals(0, fakeDelegate.exactAlarms.size)
+        assertEquals(0, fakeDelegate.inexactAlarms.size)
+    }
+
+    @Test
+    fun `scheduleForTask schedules alarm when task has scheduledTime in future`() {
+        fakeDelegate.hasExactPermission = true
+        val tomorrow = LocalDate.now().plusDays(1).toString()
 
         val task = Task(
             id = "task-alpha",
             title = "Review Physics notes",
             description = "Chapter 4 kinematics",
-            scheduledDate = "2026-10-18",
+            scheduledDate = tomorrow,
             scheduledTime = "14:00",
             deliveryIntensity = "URGENT"
         )
 
-        val result = scheduler.scheduleForTask(task, ZoneId.of("UTC"))
+        val result = scheduler.scheduleForTask(task, ZoneId.systemDefault())
 
         assertTrue(result)
         assertEquals(1, fakeDelegate.exactAlarms.size)
@@ -126,6 +195,15 @@ class ExactAlarmSchedulerTest {
     }
 
     @Test
+    fun `canScheduleExact reflects delegate state`() {
+        fakeDelegate.hasExactPermission = true
+        assertTrue(scheduler.canScheduleExact())
+
+        fakeDelegate.hasExactPermission = false
+        assertFalse(scheduler.canScheduleExact())
+    }
+
+    @Test
     fun `cancelAlarm invokes delegate with target alarmId`() {
         scheduler.cancelAlarm("alarm-to-cancel")
 
@@ -136,6 +214,7 @@ class ExactAlarmSchedulerTest {
 
     private class FakeAlarmManagerDelegate : AlarmManagerDelegate {
         var hasExactPermission: Boolean = true
+        var throwSecurityExceptionOnExact: Boolean = false
         val exactAlarms = mutableListOf<ScheduledAlarm>()
         val inexactAlarms = mutableListOf<ScheduledAlarm>()
         val cancelledAlarmIds = mutableListOf<String>()
@@ -143,6 +222,9 @@ class ExactAlarmSchedulerTest {
         override fun canScheduleExactAlarms(): Boolean = hasExactPermission
 
         override fun scheduleExact(alarm: ScheduledAlarm) {
+            if (throwSecurityExceptionOnExact) {
+                throw SecurityException("Caller not allowed to schedule exact alarms")
+            }
             exactAlarms.add(alarm)
         }
 

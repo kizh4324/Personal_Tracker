@@ -16,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 class BootCompletedRecoveryTest {
 
@@ -46,10 +47,11 @@ class BootCompletedRecoveryTest {
 
     @Test
     fun `boot recovery marks active study session as interrupted`() = runTest {
+        val testDate = LocalDate.now().toString()
         val activeSession = StudySession(
             id = "active-session-123",
             subjectTag = "Calculus",
-            sessionDate = "2026-10-18",
+            sessionDate = testDate,
             startTime = "10:00",
             durationMinutes = 25,
             coinsEarned = 0,
@@ -59,7 +61,7 @@ class BootCompletedRecoveryTest {
 
         coordinator.recover(
             activeSessionId = "active-session-123",
-            currentDate = "2026-10-18"
+            currentDate = testDate
         )
 
         val updated = fakeStudySessionRepository.savedSessions.last()
@@ -69,33 +71,37 @@ class BootCompletedRecoveryTest {
 
     @Test
     fun `boot recovery reschedules alarms for pending tasks today`() = runTest {
+        val futureDate = LocalDate.now().plusDays(1).toString()
         val pendingTaskWithTime = Task(
             id = "task-1",
             title = "Morning Routine",
-            scheduledDate = "2026-10-18",
+            scheduledDate = futureDate,
             scheduledTime = "09:00",
-            state = "PENDING"
+            state = "PENDING",
+            deliveryIntensity = "IMPORTANT"
         )
         val completedTask = Task(
             id = "task-2",
             title = "Breakfast",
-            scheduledDate = "2026-10-18",
+            scheduledDate = futureDate,
             scheduledTime = "08:00",
-            state = "COMPLETED"
+            state = "COMPLETED",
+            deliveryIntensity = "IMPORTANT"
         )
         val taskWithoutTime = Task(
             id = "task-3",
             title = "Evening walk",
-            scheduledDate = "2026-10-18",
+            scheduledDate = futureDate,
             scheduledTime = null,
-            state = "PENDING"
+            state = "PENDING",
+            deliveryIntensity = "IMPORTANT"
         )
 
         fakeTaskRepository.tasksForDate = listOf(pendingTaskWithTime, completedTask, taskWithoutTime)
 
         coordinator.recover(
             activeSessionId = null,
-            currentDate = "2026-10-18"
+            currentDate = futureDate
         )
 
         assertEquals("Only pending tasks with scheduledTime should be rescheduled", 1, fakeAlarmDelegate.exactAlarms.size)
@@ -136,10 +142,23 @@ class BootCompletedRecoveryTest {
     }
 
     private class FakeAlarmManagerDelegate : AlarmManagerDelegate {
+        var hasExactPermission: Boolean = true
         val exactAlarms = mutableListOf<ScheduledAlarm>()
-        override fun canScheduleExactAlarms(): Boolean = true
-        override fun scheduleExact(alarm: ScheduledAlarm) { exactAlarms.add(alarm) }
-        override fun scheduleInexactFallback(alarm: ScheduledAlarm) {}
-        override fun cancelAlarm(alarmId: String) {}
+        val inexactAlarms = mutableListOf<ScheduledAlarm>()
+        val cancelledAlarmIds = mutableListOf<String>()
+
+        override fun canScheduleExactAlarms(): Boolean = hasExactPermission
+
+        override fun scheduleExact(alarm: ScheduledAlarm) {
+            exactAlarms.add(alarm)
+        }
+
+        override fun scheduleInexactFallback(alarm: ScheduledAlarm) {
+            inexactAlarms.add(alarm)
+        }
+
+        override fun cancelAlarm(alarmId: String) {
+            cancelledAlarmIds.add(alarmId)
+        }
     }
 }

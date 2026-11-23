@@ -30,6 +30,8 @@ private class FakeTaskAlarmScheduler : TaskAlarmScheduler {
     val scheduledTasks = mutableListOf<Task>()
     val cancelledAlarms = mutableListOf<String>()
 
+    override fun canScheduleExactAlarms(): Boolean = true
+
     override fun scheduleTaskAlarm(task: Task): Boolean {
         scheduledTasks.add(task)
         return true

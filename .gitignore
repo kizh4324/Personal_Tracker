@@ -56,3 +56,7 @@ cursor-talk-to-figma-mcp/
 .egm-cache/
 .egm-scratch/
 
+
+tools/vibe-wise/
+tools/vibe-wise-mcp/
+.vibe-wise/

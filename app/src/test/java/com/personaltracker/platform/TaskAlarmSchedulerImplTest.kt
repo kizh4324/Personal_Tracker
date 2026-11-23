@@ -10,12 +10,15 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 class TaskAlarmSchedulerImplTest {
 
     private lateinit var fakeDelegate: FakeAlarmManagerDelegate
     private lateinit var exactAlarmScheduler: ExactAlarmScheduler
     private lateinit var scheduler: TaskAlarmSchedulerImpl
+
+    private val futureDate = LocalDate.now().plusDays(1).toString()
 
     @Before
     fun setUp() {
@@ -29,7 +32,7 @@ class TaskAlarmSchedulerImplTest {
         val task = Task(
             id = "task_xyz",
             title = "Focus Block",
-            scheduledDate = "2026-10-25",
+            scheduledDate = futureDate,
             scheduledTime = "14:00",
             deliveryIntensity = "URGENT"
         )
@@ -49,7 +52,7 @@ class TaskAlarmSchedulerImplTest {
         val task = Task(
             id = "task_no_time",
             title = "Open-ended Task",
-            scheduledDate = "2026-10-25",
+            scheduledDate = futureDate,
             scheduledTime = null
         )
 
@@ -57,6 +60,15 @@ class TaskAlarmSchedulerImplTest {
 
         assertFalse(result)
         assertEquals(0, fakeDelegate.exactAlarms.size)
+    }
+
+    @Test
+    fun `canScheduleExactAlarms delegates to exactAlarmScheduler`() {
+        fakeDelegate.hasExactPermission = true
+        assertTrue(scheduler.canScheduleExactAlarms())
+
+        fakeDelegate.hasExactPermission = false
+        assertFalse(scheduler.canScheduleExactAlarms())
     }
 
     @Test

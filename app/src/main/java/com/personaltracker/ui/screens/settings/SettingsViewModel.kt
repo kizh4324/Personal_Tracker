@@ -5,8 +5,10 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import android.text.TextUtils
+import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.repository.DayTypeRepository
@@ -38,7 +40,7 @@ import javax.inject.Inject
 
 /**
  * Production ViewModel driving Settings, DayType template swaps, focus interception permissions,
- * and emergency / dynamic app whitelist management (AD-1, AD-2, FR-4.6, FR-10.1).
+ * tiered notifications, exact alarm status, and emergency / dynamic app whitelist management (AD-1, AD-2, FR-4.6, FR-10.1, Story 5.1).
  */
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -50,10 +52,13 @@ class SettingsViewModel @Inject constructor(
     private val removeWhitelistedAppUseCase: RemoveWhitelistedAppUseCase,
     private val getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
     private val toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
-    @ApplicationContext private val context: Context? = null
+    @ApplicationContext private val context: Context? = null,
+    private val taskAlarmScheduler: TaskAlarmScheduler? = null
 ) : ViewModel() {
 
     internal var permissionChecker: (() -> Pair<Boolean, Boolean>)? = null
+    internal var exactAlarmChecker: (() -> Boolean)? = null
+    internal var notificationChecker: (() -> Boolean)? = null
 
     private val _searchQuery = MutableStateFlow("")
     private val _focusTimerPolicy = MutableStateFlow(DistractionInterceptionService.activeFocusTimerPolicy)
@@ -92,6 +97,7 @@ class SettingsViewModel @Inject constructor(
         ) { (dayTypes, override), categorizedRules, timerPolicy, isSheetOpen ->
             val resolvedActive = resolveDayTypeUseCase.resolve(today, override, dayTypes)
             val (accessibility, overlay) = checkPermissionsStatus()
+            val (exactAlarm, notifications) = checkAlarmAndNotificationStatus()
 
             SettingsUiState(
                 allDayTypes = dayTypes,
@@ -105,6 +111,8 @@ class SettingsViewModel @Inject constructor(
                 isWhitelistSheetOpen = isSheetOpen,
                 isAccessibilityGranted = accessibility,
                 isOverlayGranted = overlay,
+                isExactAlarmGranted = exactAlarm,
+                isNotificationsEnabled = notifications,
                 isLoading = false,
                 errorMessage = null
             )
@@ -122,6 +130,8 @@ class SettingsViewModel @Inject constructor(
             is SettingsUiIntent.CheckPermissions -> checkPermissions()
             is SettingsUiIntent.OpenAccessibilitySettings -> handleOpenAccessibilitySettings()
             is SettingsUiIntent.OpenOverlaySettings -> handleOpenOverlaySettings()
+            is SettingsUiIntent.OpenExactAlarmSettings -> handleOpenExactAlarmSettings()
+            is SettingsUiIntent.OpenNotificationSettings -> handleOpenNotificationSettings()
             is SettingsUiIntent.Refresh -> {
                 observeSettingsData()
                 checkPermissions()
@@ -138,10 +148,13 @@ class SettingsViewModel @Inject constructor(
 
     fun checkPermissions() {
         val (accessibility, overlay) = checkPermissionsStatus()
+        val (exactAlarm, notifications) = checkAlarmAndNotificationStatus()
         _uiState.update {
             it.copy(
                 isAccessibilityGranted = accessibility,
-                isOverlayGranted = overlay
+                isOverlayGranted = overlay,
+                isExactAlarmGranted = exactAlarm,
+                isNotificationsEnabled = notifications
             )
         }
     }
@@ -156,6 +169,12 @@ class SettingsViewModel @Inject constructor(
             true
         }
         return Pair(accessibility, overlay)
+    }
+
+    private fun checkAlarmAndNotificationStatus(): Pair<Boolean, Boolean> {
+        val exact = exactAlarmChecker?.invoke() ?: (taskAlarmScheduler?.canScheduleExactAlarms() ?: true)
+        val notifications = notificationChecker?.invoke() ?: (context?.let { NotificationManagerCompat.from(it).areNotificationsEnabled() } ?: true)
+        return Pair(exact, notifications)
     }
 
     private fun isAccessibilityEnabled(context: Context): Boolean {
@@ -178,7 +197,7 @@ class SettingsViewModel @Inject constructor(
                 }
             }
             false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
     }
@@ -192,6 +211,28 @@ class SettingsViewModel @Inject constructor(
     private fun handleOpenOverlaySettings() {
         viewModelScope.launch {
             _uiEffect.send(SettingsUiEffect.OpenSystemSetting(Settings.ACTION_MANAGE_OVERLAY_PERMISSION))
+        }
+    }
+
+    private fun handleOpenExactAlarmSettings() {
+        viewModelScope.launch {
+            val action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM
+            } else {
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            }
+            _uiEffect.send(SettingsUiEffect.OpenSystemSetting(action))
+        }
+    }
+
+    private fun handleOpenNotificationSettings() {
+        viewModelScope.launch {
+            val action = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Settings.ACTION_APP_NOTIFICATION_SETTINGS
+            } else {
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS
+            }
+            _uiEffect.send(SettingsUiEffect.OpenSystemSetting(action))
         }
     }
 

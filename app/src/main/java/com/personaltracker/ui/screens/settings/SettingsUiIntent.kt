@@ -3,7 +3,7 @@ package com.personaltracker.ui.screens.settings
 import com.personaltracker.domain.model.FocusTimerPolicy
 
 /**
- * Sealed interface representing all user actions on the Settings screen (AD-2).
+ * Sealed interface representing all user actions on the Settings screen (AD-2, Story 5.1).
  */
 sealed interface SettingsUiIntent {
     data class SelectDayTypeOverride(val dayTypeId: String) : SettingsUiIntent
@@ -12,6 +12,8 @@ sealed interface SettingsUiIntent {
     object CheckPermissions : SettingsUiIntent
     object OpenAccessibilitySettings : SettingsUiIntent
     object OpenOverlaySettings : SettingsUiIntent
+    object OpenExactAlarmSettings : SettingsUiIntent
+    object OpenNotificationSettings : SettingsUiIntent
     object Refresh : SettingsUiIntent
 
     // Whitelist and Call Policy Intents (Story 3.3)

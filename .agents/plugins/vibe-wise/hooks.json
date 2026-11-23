@@ -1,0 +1,11 @@
+{
+  "vibe-wise-restoration": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "C:\\Users\\User\\AppData\\Local\\Programs\\Python\\Python312\\python.exe C:\\Users\\User\\OneDrive\\Music\\Personal-Tracker\\.agents\\plugins\\vibe-wise\\adapters\\antigravity\\pre_invocation.py",
+        "timeout": 5
+      }
+    ]
+  }
+}

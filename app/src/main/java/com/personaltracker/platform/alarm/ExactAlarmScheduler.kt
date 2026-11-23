@@ -60,16 +60,6 @@ class SystemAlarmManagerDelegate(
     override fun scheduleExact(alarm: ScheduledAlarm) {
         val requestCode = alarm.alarmId.hashCode()
 
-        val showIntent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        val showPendingIntent = PendingIntent.getActivity(
-            context,
-            requestCode,
-            showIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val triggerIntent = Intent(context, AlarmNotificationReceiver::class.java).apply {
             action = ExactAlarmScheduler.ACTION_TRIGGER_ALARM
             putExtra(ExactAlarmScheduler.EXTRA_ALARM_ID, alarm.alarmId)
@@ -85,8 +75,27 @@ class SystemAlarmManagerDelegate(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val clockInfo = AlarmManager.AlarmClockInfo(alarm.triggerEpochMillis, showPendingIntent)
-        alarmManager.setAlarmClock(clockInfo, triggerPendingIntent)
+        if (alarm.deliveryIntensity.equals("URGENT", ignoreCase = true)) {
+            // URGENT: uses setAlarmClock for prominent wakeup with status bar indicator
+            val showIntent = Intent(context, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            val showPendingIntent = PendingIntent.getActivity(
+                context,
+                requestCode,
+                showIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            val clockInfo = AlarmManager.AlarmClockInfo(alarm.triggerEpochMillis, showPendingIntent)
+            alarmManager.setAlarmClock(clockInfo, triggerPendingIntent)
+        } else {
+            // IMPORTANT: exact wakeup from idle without persistent status bar clock icon
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                alarm.triggerEpochMillis,
+                triggerPendingIntent
+            )
+        }
     }
 
     override fun scheduleInexactFallback(alarm: ScheduledAlarm) {
@@ -133,8 +142,9 @@ class SystemAlarmManagerDelegate(
 }
 
 /**
- * Exact alarm scheduler managing tiered task reminders via [AlarmManager] (FR-5, AD-1, AD-4).
- * Enforces API 31+ canScheduleExactAlarms() permission checks and graceful idle fallback.
+ * Exact alarm scheduler managing tiered task reminders via [AlarmManager] (FR-5, AD-1, AD-4, Story 5.1).
+ * Enforces API 31+ canScheduleExactAlarms() permission checks, graceful idle fallback,
+ * tier-differentiated scheduling, and defensive SecurityException recovery.
  */
 @Singleton
 class ExactAlarmScheduler(
@@ -166,16 +176,36 @@ class ExactAlarmScheduler(
     fun canScheduleExact(): Boolean = delegate.canScheduleExactAlarms()
 
     /**
-     * Schedules an alarm. If exact alarm permission is granted, schedules via setAlarmClock();
-     * otherwise falls back to setAndAllowWhileIdle().
+     * Schedules an alarm with defensive fallbacks and tier differentiation (AD-4, Story 5.1).
+     * - Past timestamps are rejected immediately.
+     * - ROUTINE tasks use inexact idle-wake alarms to avoid cluttering status bar.
+     * - IMPORTANT / URGENT tasks check exact alarm permission; if denied or if SecurityException
+     *   is thrown at runtime, gracefully routes to inexact fallback.
      *
-     * @return true if scheduled exactly, false if scheduled via inexact fallback.
+     * @return true if scheduled exactly (or accepted as routine), false if fallen back or rejected.
      */
     fun scheduleAlarm(alarm: ScheduledAlarm): Boolean {
-        return if (delegate.canScheduleExactAlarms()) {
-            delegate.scheduleExact(alarm)
-            true
-        } else {
+        // Guard against past timestamps
+        if (alarm.triggerEpochMillis <= System.currentTimeMillis()) {
+            return false
+        }
+
+        // Routine tasks: battery-friendly inexact scheduling without status bar clock icon
+        if (alarm.deliveryIntensity.equals("ROUTINE", ignoreCase = true)) {
+            delegate.scheduleInexactFallback(alarm)
+            return true
+        }
+
+        // Important / Urgent tasks: attempt exact scheduling with defensive catch
+        return try {
+            if (delegate.canScheduleExactAlarms()) {
+                delegate.scheduleExact(alarm)
+                true
+            } else {
+                delegate.scheduleInexactFallback(alarm)
+                false
+            }
+        } catch (_: SecurityException) {
             delegate.scheduleInexactFallback(alarm)
             false
         }
@@ -183,7 +213,7 @@ class ExactAlarmScheduler(
 
     /**
      * Convenience method to schedule an alarm for a domain [Task].
-     * Returns true if scheduled, false if task does not contain scheduledTime.
+     * Returns true if scheduled, false if task does not contain scheduledTime or was rejected.
      */
     fun scheduleForTask(task: Task, zoneId: ZoneId = ZoneId.systemDefault()): Boolean {
         val time = task.scheduledTime ?: return false
@@ -196,8 +226,7 @@ class ExactAlarmScheduler(
             taskId = task.id,
             deliveryIntensity = task.deliveryIntensity
         )
-        scheduleAlarm(alarm)
-        return true
+        return scheduleAlarm(alarm)
     }
 
     /**

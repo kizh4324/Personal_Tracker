@@ -460,8 +460,11 @@ class TestStudySessionRepository : StudySessionRepository {
 }
 
 class TestTaskAlarmScheduler : TaskAlarmScheduler {
+    var hasExactPermission: Boolean = true
     val scheduledTasks = mutableListOf<Task>()
     val cancelledAlarms = mutableListOf<String>()
+
+    override fun canScheduleExactAlarms(): Boolean = hasExactPermission
 
     override fun scheduleTaskAlarm(task: Task): Boolean {
         scheduledTasks.add(task)
@@ -475,6 +478,7 @@ class TestTaskAlarmScheduler : TaskAlarmScheduler {
     fun clear() {
         scheduledTasks.clear()
         cancelledAlarms.clear()
+        hasExactPermission = true
     }
 }
 
