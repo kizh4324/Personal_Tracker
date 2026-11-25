@@ -33,4 +33,28 @@
     <string name="settings_escalation_max_refires_label">Maximum follow-ups</string>
     <string name="settings_escalation_refires_off">Off</string>
     <string name="settings_escalation_refires_option">%1$dx</string>
+
+    <!-- Urgency Soft-Cap Scarcity Guidance (Story 5.3, AD-4, AD-7) -->
+    <string name="urgency_slot_pill_available">%1$d/%2$d Urgent</string>
+    <string name="urgency_slot_pill_approaching">%1$d/%2$d Urgent • 1 left</string>
+    <string name="urgency_slot_pill_at_cap">%1$d/%2$d Urgent • Full</string>
+    <string name="urgency_slot_status_available">slots available</string>
+    <string name="urgency_slot_status_approaching">approaching limit</string>
+    <string name="urgency_slot_status_at_cap">soft cap reached</string>
+    <string name="urgency_slot_pill_cd">Urgent focus slots today: %1$d of %2$d, %3$s</string>
+    <string name="urgency_scarcity_approaching_hint">%1$d of %2$d urgent slots used today. Only 1 urgent slot left for focused attention.</string>
+    <string name="urgency_scarcity_banner_title_one">%1$d urgent task already active today. Keep focus sharp!</string>
+    <string name="urgency_scarcity_banner_title">%1$d urgent tasks already active today. Keep focus sharp!</string>
+    <string name="urgency_scarcity_banner_subtitle">You can still save as urgent — soft guidance helps keep priorities focused.</string>
+    <string name="urgency_scarcity_switch_to_important">Switch to Important</string>
+    <string name="urgency_scarcity_dialog_title">Keep Urgent or Switch?</string>
+    <string name="urgency_scarcity_dialog_message_today_one">You already have %1$d Urgent item today. Keep Urgent or Change to Important?</string>
+    <string name="urgency_scarcity_dialog_message_today_many">You already have %1$d Urgent items today. Keep Urgent or Change to Important?</string>
+    <string name="urgency_scarcity_dialog_message_date_one">You already have %1$d Urgent item scheduled for %2$s. Keep Urgent or Change to Important?</string>
+    <string name="urgency_scarcity_dialog_message_date_many">You already have %1$d Urgent items scheduled for %2$s. Keep Urgent or Change to Important?</string>
+    <string name="urgency_scarcity_dialog_subtitle">Both choices save your task right away. Important still delivers a standard reminder without follow-up escalation.</string>
+    <string name="urgency_scarcity_action_change_important">Change to Important</string>
+    <string name="urgency_scarcity_action_keep_urgent">Keep Urgent</string>
+    <string name="urgency_scarcity_action_dismiss">Keep Editing</string>
+    <string name="urgency_scarcity_dialog_cd">Urgency soft-cap guidance dialog</string>
 </resources>

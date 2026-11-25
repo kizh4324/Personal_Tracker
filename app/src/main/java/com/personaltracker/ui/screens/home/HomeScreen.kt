@@ -37,9 +37,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personaltracker.R
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import com.personaltracker.ui.components.atoms.DayCapsuleStrip
 import com.personaltracker.ui.components.cards.AdaptiveRoutineStepCard
 import com.personaltracker.ui.components.cards.HabitStreakCard
@@ -49,6 +54,7 @@ import com.personaltracker.ui.components.cards.TaskIntensityCard
 import com.personaltracker.ui.components.overlays.CarryForwardReviewDialog
 import com.personaltracker.ui.components.overlays.DayTypeSelectorDialog
 import com.personaltracker.ui.components.overlays.TaskEditorSheet
+import com.personaltracker.ui.components.overlays.UrgencyScarcityGuidanceDialog
 import com.personaltracker.ui.navigation.LocalRewardMotionStage
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -155,6 +161,10 @@ fun HomeScreenContent(
         task = state.editingTask,
         isSoftCapReached = state.isUrgencySoftCapReached,
         activeUrgentTaskCount = state.activeUrgentTaskCount,
+        maxActiveUrgent = state.maxActiveUrgent,
+        urgencyScarcityTier = state.urgencyScarcityTier,
+        isScarcityPromptOpen = state.pendingUrgencyScarcityPrompt != null,
+        isSavingTask = state.isSavingTask,
         onSave = { task ->
             onIntent(HomeUiIntent.SaveTaskItem(task))
         },
@@ -163,6 +173,19 @@ fun HomeScreenContent(
         },
         onDismiss = {
             onIntent(HomeUiIntent.DismissTaskEditor)
+        }
+    )
+
+    UrgencyScarcityGuidanceDialog(
+        promptState = state.pendingUrgencyScarcityPrompt,
+        onKeepUrgent = {
+            onIntent(HomeUiIntent.ResolveUrgencyScarcity(keepUrgent = true))
+        },
+        onChangeToImportant = {
+            onIntent(HomeUiIntent.ResolveUrgencyScarcity(keepUrgent = false))
+        },
+        onDismissRequest = {
+            onIntent(HomeUiIntent.DismissUrgencyScarcityPrompt)
         }
     )
 
@@ -271,6 +294,12 @@ fun HomeScreenContent(
                         text = "Tap checkmark to complete and earn coins",
                         style = typography.caption,
                         color = colors.inkSecondary
+                    )
+                    Spacer(modifier = Modifier.height(spacing.spacing1))
+                    UrgencySlotStatusPill(
+                        activeCount = state.homeActiveUrgentCount,
+                        maxCount = state.maxActiveUrgent,
+                        tier = state.homeUrgencyScarcityTier
                     )
                 }
 
@@ -584,4 +613,81 @@ fun HomeScreenContent(
         }
     }
 }
+}
+
+internal data class UrgencySlotPillSpec(
+    val labelResId: Int,
+    val statusResId: Int
+)
+
+internal fun resolveUrgencySlotPillSpec(tier: UrgencyScarcityTier): UrgencySlotPillSpec = when (tier) {
+    UrgencyScarcityTier.AVAILABLE -> UrgencySlotPillSpec(
+        labelResId = R.string.urgency_slot_pill_available,
+        statusResId = R.string.urgency_slot_status_available
+    )
+    UrgencyScarcityTier.APPROACHING -> UrgencySlotPillSpec(
+        labelResId = R.string.urgency_slot_pill_approaching,
+        statusResId = R.string.urgency_slot_status_approaching
+    )
+    UrgencyScarcityTier.AT_OR_OVER_CAP -> UrgencySlotPillSpec(
+        labelResId = R.string.urgency_slot_pill_at_cap,
+        statusResId = R.string.urgency_slot_status_at_cap
+    )
+}
+
+@Composable
+private fun UrgencySlotStatusPill(
+    activeCount: Int,
+    maxCount: Int,
+    tier: UrgencyScarcityTier,
+    modifier: Modifier = Modifier
+) {
+    val colors = PersonalTrackerTheme.colors
+    val typography = PersonalTrackerTheme.typography
+    val spacing = PersonalTrackerTheme.spacing
+    val shapes = PersonalTrackerTheme.shapes
+
+    val backgroundColor = when (tier) {
+        UrgencyScarcityTier.AVAILABLE -> colors.surfaceSunken
+        UrgencyScarcityTier.APPROACHING -> colors.infoSubtle
+        UrgencyScarcityTier.AT_OR_OVER_CAP -> colors.warningSubtle
+    }
+    val borderColor = when (tier) {
+        UrgencyScarcityTier.AVAILABLE -> colors.borderSubtle
+        UrgencyScarcityTier.APPROACHING -> colors.info
+        UrgencyScarcityTier.AT_OR_OVER_CAP -> colors.warning
+    }
+    val textColor = when (tier) {
+        UrgencyScarcityTier.AVAILABLE -> colors.inkSecondary
+        UrgencyScarcityTier.APPROACHING -> colors.inkPrimary
+        UrgencyScarcityTier.AT_OR_OVER_CAP -> colors.inkPrimary
+    }
+    val pillSpec = resolveUrgencySlotPillSpec(tier)
+    val pillText = stringResource(pillSpec.labelResId, activeCount, maxCount)
+    val statusText = stringResource(pillSpec.statusResId)
+    val pillContentDescription = stringResource(
+        R.string.urgency_slot_pill_cd,
+        activeCount,
+        maxCount,
+        statusText
+    )
+
+    Surface(
+        shape = shapes.full,
+        color = backgroundColor,
+        border = BorderStroke(spacing.spacing0_5, borderColor),
+        modifier = modifier.semantics(mergeDescendants = true) {
+            contentDescription = pillContentDescription
+        }
+    ) {
+        Text(
+            text = pillText,
+            style = typography.caption,
+            color = textColor,
+            modifier = Modifier.padding(
+                horizontal = spacing.spacing2,
+                vertical = spacing.spacing0_5
+            )
+        )
+    }
 }

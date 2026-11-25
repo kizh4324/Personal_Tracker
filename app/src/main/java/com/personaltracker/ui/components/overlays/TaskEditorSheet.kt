@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,12 +44,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
+import com.personaltracker.R
 import com.personaltracker.domain.model.Task
-import com.personaltracker.ui.components.atoms.DayCapsuleStrip
+import com.personaltracker.domain.model.UrgencyScarcityPolicy
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import com.personaltracker.ui.theme.PersonalTrackerTheme
 import java.time.LocalDate
 import java.util.UUID
@@ -87,7 +92,11 @@ fun TaskEditorSheet(
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    activeUrgentTaskCount: Int = 2
+    activeUrgentTaskCount: Int = 2,
+    maxActiveUrgent: Int = UrgencyScarcityPolicy.DEFAULT_MAX_ACTIVE_URGENT,
+    urgencyScarcityTier: UrgencyScarcityTier = UrgencyScarcityTier.AVAILABLE,
+    isScarcityPromptOpen: Boolean = false,
+    isSavingTask: Boolean = false
 ) {
     if (!isOpen) return
 
@@ -114,6 +123,12 @@ fun TaskEditorSheet(
             scheduledTime = task?.scheduledTime.orEmpty()
             titleError = null
             timeError = null
+            isSubmitting = false
+        }
+    }
+
+    LaunchedEffect(isScarcityPromptOpen, isSavingTask) {
+        if (!isScarcityPromptOpen && !isSavingTask) {
             isSubmitting = false
         }
     }
@@ -158,11 +173,11 @@ fun TaskEditorSheet(
                 Surface(
                     shape = shapes.full,
                     color = colors.surfaceRaised,
-                    modifier = Modifier.size(spacing.spacing10)
+                    modifier = Modifier.size(spacing.minTouchTarget)
                 ) {
                     IconButton(
                         onClick = onDismiss,
-                        modifier = Modifier.size(spacing.spacing10)
+                        modifier = Modifier.size(spacing.minTouchTarget)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
@@ -331,9 +346,44 @@ fun TaskEditorSheet(
                 }
             }
 
+            val isUrgentSelected = deliveryIntensity.equals("URGENT", ignoreCase = true)
+            val showSoftCapBanner = isUrgentSelected &&
+                (isSoftCapReached || urgencyScarcityTier == UrgencyScarcityTier.AT_OR_OVER_CAP)
+            val showApproachingHint = isUrgentSelected &&
+                !showSoftCapBanner &&
+                urgencyScarcityTier == UrgencyScarcityTier.APPROACHING
+
+            // Approaching Soft-Cap Inline Hint
+            AnimatedVisibility(
+                visible = showApproachingHint,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                Column {
+                    Spacer(modifier = Modifier.height(spacing.spacing3))
+                    Surface(
+                        shape = shapes.md,
+                        color = colors.infoSubtle,
+                        border = BorderStroke(spacing.spacing0_5, colors.info),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = stringResource(
+                                R.string.urgency_scarcity_approaching_hint,
+                                activeUrgentTaskCount,
+                                maxActiveUrgent
+                            ),
+                            style = typography.caption,
+                            color = colors.inkPrimary,
+                            modifier = Modifier.padding(spacing.spacing3)
+                        )
+                    }
+                }
+            }
+
             // Non-blocking Soft-Scarcity Guidance Banner
             AnimatedVisibility(
-                visible = deliveryIntensity.equals("URGENT", ignoreCase = true) && isSoftCapReached,
+                visible = showSoftCapBanner,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
@@ -345,28 +395,57 @@ fun TaskEditorSheet(
                         border = BorderStroke(spacing.spacing0_5, colors.warning),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(spacing.spacing3),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                                .padding(spacing.spacing3)
                         ) {
-                            Text(
-                                text = "⚡",
-                                style = typography.title
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(spacing.spacing2)
+                            ) {
                                 Text(
-                                    text = "$activeUrgentTaskCount urgent tasks already active today. Keep focus sharp!",
-                                    style = typography.caption,
-                                    color = colors.inkPrimary
+                                    text = "⚡",
+                                    style = typography.title,
+                                    modifier = Modifier.clearAndSetSemantics {}
                                 )
-                                Spacer(modifier = Modifier.height(spacing.spacing0_5))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    val bannerTitleRes = if (activeUrgentTaskCount == 1) {
+                                        R.string.urgency_scarcity_banner_title_one
+                                    } else {
+                                        R.string.urgency_scarcity_banner_title
+                                    }
+                                    Text(
+                                        text = stringResource(
+                                            bannerTitleRes,
+                                            activeUrgentTaskCount
+                                        ),
+                                        style = typography.caption,
+                                        color = colors.inkPrimary
+                                    )
+                                    Spacer(modifier = Modifier.height(spacing.spacing0_5))
+                                    Text(
+                                        text = stringResource(R.string.urgency_scarcity_banner_subtitle),
+                                        style = typography.caption,
+                                        color = colors.inkSecondary
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(spacing.spacing1))
+                            TextButton(
+                                onClick = { deliveryIntensity = "IMPORTANT" },
+                                modifier = Modifier
+                                    .align(Alignment.End)
+                                    .defaultMinSize(
+                                        minWidth = spacing.minTouchTarget,
+                                        minHeight = spacing.minTouchTarget
+                                    )
+                            ) {
                                 Text(
-                                    text = "You can still save as urgent — soft guidance helps prevent burnout.",
-                                    style = typography.caption,
-                                    color = colors.inkSecondary
+                                    text = stringResource(R.string.urgency_scarcity_switch_to_important),
+                                    style = typography.label,
+                                    color = colors.primary
                                 )
                             }
                         }

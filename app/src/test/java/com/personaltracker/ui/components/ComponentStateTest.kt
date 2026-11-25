@@ -4,9 +4,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import com.personaltracker.R
 import com.personaltracker.domain.engine.FlameState
+import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.parser.CommandIntent
 import com.personaltracker.domain.parser.ConfidenceTier
 import com.personaltracker.domain.parser.ParsedCommand
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import com.personaltracker.ui.components.animation.CoinRewardEvent
 import com.personaltracker.ui.components.animation.RewardAnimationType
 import com.personaltracker.ui.components.animation.RewardMotionStageState
@@ -22,6 +24,9 @@ import com.personaltracker.ui.components.cards.resolveHeroPriority
 import com.personaltracker.ui.components.cards.resolveIntensityStripeSpec
 import com.personaltracker.ui.components.overlays.ProposalChipData
 import com.personaltracker.ui.components.overlays.resolveProposalChips
+import com.personaltracker.ui.components.overlays.resolveUrgencyDialogMessageSpec
+import com.personaltracker.ui.screens.home.UrgencyScarcityPromptState
+import com.personaltracker.ui.screens.home.resolveUrgencySlotPillSpec
 import com.personaltracker.ui.theme.LightPersonalTrackerColors
 import com.personaltracker.ui.theme.PersonalTrackerSpacing
 import org.junit.Assert.assertEquals
@@ -387,5 +392,73 @@ class ComponentStateTest {
         controller.onCoinArcCompleted()
         assertTrue(secondEventCompleted)
         assertNull(controller.state.activeCoinEvent)
+    }
+
+    // ─── 7. Urgency Scarcity Slot Pill & Dialog Copy Spec (Story 5.3) ───
+
+    @Test
+    fun `resolveUrgencySlotPillSpec maps all three tiers to expected label and status resources`() {
+        val available = resolveUrgencySlotPillSpec(UrgencyScarcityTier.AVAILABLE)
+        assertEquals(R.string.urgency_slot_pill_available, available.labelResId)
+        assertEquals(R.string.urgency_slot_status_available, available.statusResId)
+
+        val approaching = resolveUrgencySlotPillSpec(UrgencyScarcityTier.APPROACHING)
+        assertEquals(R.string.urgency_slot_pill_approaching, approaching.labelResId)
+        assertEquals(R.string.urgency_slot_status_approaching, approaching.statusResId)
+
+        val atCap = resolveUrgencySlotPillSpec(UrgencyScarcityTier.AT_OR_OVER_CAP)
+        assertEquals(R.string.urgency_slot_pill_at_cap, atCap.labelResId)
+        assertEquals(R.string.urgency_slot_status_at_cap, atCap.statusResId)
+    }
+
+    @Test
+    fun `resolveUrgencyDialogMessageSpec selects singular plural and today vs future date resources`() {
+        val todayOne = resolveUrgencyDialogMessageSpec(
+            UrgencyScarcityPromptState(
+                pendingTask = Task(id = "t1", title = "A", scheduledDate = "2026-11-25", deliveryIntensity = "URGENT"),
+                activeUrgentCount = 1,
+                maxActiveUrgent = 1,
+                isTargetDateToday = true
+            )
+        )
+        assertEquals(R.string.urgency_scarcity_dialog_message_today_one, todayOne.messageResId)
+        assertEquals(1, todayOne.activeCount)
+        assertNull(todayOne.formattedDate)
+
+        val todayMany = resolveUrgencyDialogMessageSpec(
+            UrgencyScarcityPromptState(
+                pendingTask = Task(id = "t2", title = "B", scheduledDate = "2026-11-25", deliveryIntensity = "URGENT"),
+                activeUrgentCount = 2,
+                maxActiveUrgent = 2,
+                isTargetDateToday = true
+            )
+        )
+        assertEquals(R.string.urgency_scarcity_dialog_message_today_many, todayMany.messageResId)
+        assertEquals(2, todayMany.activeCount)
+        assertNull(todayMany.formattedDate)
+
+        val futureOne = resolveUrgencyDialogMessageSpec(
+            UrgencyScarcityPromptState(
+                pendingTask = Task(id = "t3", title = "C", scheduledDate = "2026-11-26", deliveryIntensity = "URGENT"),
+                activeUrgentCount = 1,
+                maxActiveUrgent = 1,
+                isTargetDateToday = false
+            )
+        )
+        assertEquals(R.string.urgency_scarcity_dialog_message_date_one, futureOne.messageResId)
+        assertEquals(1, futureOne.activeCount)
+        assertEquals("2026-11-26", futureOne.formattedDate)
+
+        val futureMany = resolveUrgencyDialogMessageSpec(
+            UrgencyScarcityPromptState(
+                pendingTask = Task(id = "t4", title = "D", scheduledDate = "2026-11-26", deliveryIntensity = "URGENT"),
+                activeUrgentCount = 3,
+                maxActiveUrgent = 2,
+                isTargetDateToday = false
+            )
+        )
+        assertEquals(R.string.urgency_scarcity_dialog_message_date_many, futureMany.messageResId)
+        assertEquals(3, futureMany.activeCount)
+        assertEquals("2026-11-26", futureMany.formattedDate)
     }
 }

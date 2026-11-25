@@ -375,6 +375,25 @@ Authoritative repository of verified engineering heuristics, operational invaria
   3. **Symmetric Intent Extras & Isolated `PendingIntent`s:** Propagate `EXTRA_ESCALATION_ATTEMPT` in both `scheduleExact` and `scheduleInexactFallback`. Assign distinct `requestCode` offsets (`+1..+4`) and unique `personaltracker://notification/$taskId/{open,complete,acknowledge,swipe_dismiss}` `Uri`s to every notification action and `deleteIntent`.
   4. **Eager ViewModel State Sync & Kotlin Constructor Compatibility:** Always apply `_uiState.update` alongside repository mutations before emitting `UiEffect`s, and provide explicit secondary constructors when adding optional trailing parameters to `@Inject` classes so cached/existing callers remain binary-compatible.
 
+---
+
+## 28. Non-Blocking Urgency Soft-Cap & Intercepted Sheet Submissions
+
+### EXP-051: Interceptable Bottom-Sheet Save Guards, Non-Defaulted Kotlin Overloads & Split Home/Editor Scarcity Evaluation (AD-1, AD-2, AD-4, AD-7, Story 5.3)
+* **Context:** Configurable `UrgencyScarcityPolicy`, tiered `EvaluateTaskUrgencyScarcityUseCase` (`AVAILABLE`, `APPROACHING`, `AT_OR_OVER_CAP`), `HomeViewModel` save-time scarcity interception, `UrgencyScarcityGuidanceDialog`, `TaskEditorSheet`, and `UrgencySlotStatusPill` in `HomeScreen`.
+* **Heuristic:**
+  1. Setting local `isSubmitting = true` in a composable modal (`TaskEditorSheet`) and resetting it solely in `LaunchedEffect(isOpen, task)` deadlocks the Save button whenever `ViewModel` intercepts a save to show a confirmation dialog (`UrgencyScarcityGuidanceDialog`) or catches a persistence error without closing the sheet.
+  2. Adding 3-arg Kotlin function overloads with defaulted parameters alongside existing 2-arg defaulted overloads causes compile-time `Overload resolution ambiguity` across pre-existing call sites.
+  3. Passing `excludingTaskId = taskEditor.task?.id` into a single scarcity evaluation used by both Home's slot pill and the open editor causes Home's pill count behind the sheet to decrement and jump as the sheet opens/closes.
+  4. Relying on client-generated UUID `task.id.isNotBlank()` to detect existing task edits fails because `TaskEditorSheet` assigns `UUID.randomUUID()` on new drafts, and skipping date normalization lets whitespace-padded `scheduledDate` values diverge between scarcity checks and persistence.
+  5. Checking `remainingSlots <= 1 -> APPROACHING` before `active >= max -> AT_OR_OVER_CAP` (or omitting `active > 0`) misclassifies `(active = 0, max = 1)` as `APPROACHING`.
+* **Rule:**
+  1. **Track Sheet In-Flight & Prompt State Explicitly:** Pass both `isScarcityPromptOpen: Boolean` and `isSavingTask: Boolean` into `TaskEditorSheet`, resetting local `isSubmitting = false` whenever `!isScarcityPromptOpen && !isSavingTask`, while preserving `isSavingTaskInFlight` (`AtomicBoolean`) + `isSavingTaskState` across both `handleSaveTaskItem` and `handleResolveUrgencyScarcity`.
+  2. **Non-Defaulted Policy Overloads:** When extending existing defaulted Kotlin use-case overloads (`invoke(tasks, excludingTaskId = null)`), omit default values on `policy: UrgencyScarcityPolicy` in the 3-arg overloads so existing 1-arg/2-arg callers stay unambiguous.
+  3. **Split Home vs Editor Evaluation & Target-Date Guard:** Evaluate `homeActiveUrgentCount` (`excludingTaskId = null`) separately from editor `activeUrgentTaskCount` (`excludingTaskId = taskEditor.task?.id`), normalize `targetDate = task.scheduledDate.trim().ifBlank { today }` before both scarcity lookup and save, and resolve `wasAlreadyActiveUrgent` via `taskRepository.getTaskById(id)` verifying intensity, active state, and matching `scheduledDate`.
+  4. **Order Tier Precedence Strictest-First:** Evaluate `active >= max -> AT_OR_OVER_CAP`, then `active > 0 && active >= max - 1 -> APPROACHING`, else `AVAILABLE`. Keep UI prompt copy in `strings.xml` rather than `domain/`.
+
+
 
 
 

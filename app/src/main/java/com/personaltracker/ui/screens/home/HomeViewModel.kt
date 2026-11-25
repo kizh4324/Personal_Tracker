@@ -18,6 +18,7 @@ import com.personaltracker.domain.model.Routine
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.model.UrgencyScarcityPolicy
 import com.personaltracker.domain.repository.DayTypeRepository
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.HabitRepository
@@ -48,6 +49,7 @@ import com.personaltracker.ui.components.cards.RoutineStepStatus
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.onStart
@@ -66,6 +69,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
 private data class BaseHomeData(
@@ -91,7 +95,9 @@ private data class HomeControlData(
     val carryDialogOpen: Boolean,
     val completedRoutineSteps: Set<String>,
     val skippedRoutineSteps: Set<String>,
-    val shiftedRoutineTime: String?
+    val shiftedRoutineTime: String?,
+    val pendingUrgencyScarcityControl: UrgencyScarcityPromptState?,
+    val isSavingTask: Boolean
 )
 
 /**
@@ -141,6 +147,9 @@ class HomeViewModel @Inject constructor(
     private val isDayTypeSelectorOpen = MutableStateFlow(false)
     private val isCarryForwardDialogOpen = MutableStateFlow(false)
     private val taskEditorControl = MutableStateFlow(TaskEditorControl())
+    private val pendingUrgencyScarcityPrompt = MutableStateFlow<UrgencyScarcityPromptState?>(null)
+    private val isSavingTaskState = MutableStateFlow(false)
+    private val isSavingTaskInFlight = AtomicBoolean(false)
     private val snoozedTaskIds = MutableStateFlow<Set<String>>(emptySet())
 
     private val completedRoutineStepIds = MutableStateFlow<Set<String>>(emptySet())
@@ -155,6 +164,7 @@ class HomeViewModel @Inject constructor(
 
     private fun observeDataStreams() {
         observeDataJob?.cancel()
+        pendingUrgencyScarcityPrompt.value = null
         val today = LocalDate.now().toString()
 
         val tasksFlow = taskRepository.getTasksForDate(today)
@@ -198,7 +208,9 @@ class HomeViewModel @Inject constructor(
             isCarryForwardDialogOpen,
             completedRoutineStepIds,
             skippedRoutineStepIds,
-            shiftedRoutineStartTime
+            shiftedRoutineStartTime,
+            pendingUrgencyScarcityPrompt,
+            isSavingTaskState
         ) { args: Array<Any?> ->
             @Suppress("UNCHECKED_CAST")
             HomeControlData(
@@ -208,7 +220,9 @@ class HomeViewModel @Inject constructor(
                 carryDialogOpen = args[3] as Boolean,
                 completedRoutineSteps = args[4] as Set<String>,
                 skippedRoutineSteps = args[5] as Set<String>,
-                shiftedRoutineTime = args[6] as String?
+                shiftedRoutineTime = args[6] as String?,
+                pendingUrgencyScarcityControl = args[7] as UrgencyScarcityPromptState?,
+                isSavingTask = args[8] as Boolean
             )
         }
 
@@ -438,10 +452,17 @@ class HomeViewModel @Inject constructor(
                 }
             }
 
-            // Urgency soft-scarcity evaluation
-            val urgencyEvaluation = evaluateTaskUrgencyScarcityUseCase(
+            // Urgency soft-scarcity evaluation (Home pill excludes nothing; editor excludes active edited task)
+            val scarcityPolicy = UrgencyScarcityPolicy()
+            val homeUrgencyEvaluation = evaluateTaskUrgencyScarcityUseCase(
                 tasks = tasks,
-                excludingTaskId = taskEditor.task?.id
+                excludingTaskId = null,
+                policy = scarcityPolicy
+            )
+            val editorUrgencyEvaluation = evaluateTaskUrgencyScarcityUseCase(
+                tasks = tasks,
+                excludingTaskId = taskEditor.task?.id,
+                policy = scarcityPolicy
             )
 
             val companionProfile = baseData.companionProfile
@@ -458,8 +479,15 @@ class HomeViewModel @Inject constructor(
                 isCarryForwardDialogOpen = control.carryDialogOpen,
                 isTaskEditorOpen = taskEditor.isOpen,
                 editingTask = taskEditor.task,
-                activeUrgentTaskCount = urgencyEvaluation.activeUrgentCount,
-                isUrgencySoftCapReached = urgencyEvaluation.isSoftCapReached,
+                activeUrgentTaskCount = editorUrgencyEvaluation.activeUrgentCount,
+                isUrgencySoftCapReached = editorUrgencyEvaluation.isSoftCapReached,
+                maxActiveUrgent = editorUrgencyEvaluation.maxActiveUrgent,
+                remainingUrgentSlots = editorUrgencyEvaluation.remainingSlots,
+                urgencyScarcityTier = editorUrgencyEvaluation.tier,
+                homeActiveUrgentCount = homeUrgencyEvaluation.activeUrgentCount,
+                homeUrgencyScarcityTier = homeUrgencyEvaluation.tier,
+                pendingUrgencyScarcityPrompt = control.pendingUrgencyScarcityControl,
+                isSavingTask = control.isSavingTask,
                 streakCount = maxStreak,
                 flameState = overallFlameState,
                 coinBalance = balance,
@@ -513,33 +541,138 @@ class HomeViewModel @Inject constructor(
             is HomeUiIntent.OpenTaskEditor -> handleOpenTaskEditor(intent.task)
             is HomeUiIntent.DismissTaskEditor -> handleDismissTaskEditor()
             is HomeUiIntent.SaveTaskItem -> handleSaveTaskItem(intent.task)
+            is HomeUiIntent.ResolveUrgencyScarcity -> handleResolveUrgencyScarcity(intent.keepUrgent)
+            is HomeUiIntent.DismissUrgencyScarcityPrompt -> handleDismissUrgencyScarcityPrompt()
             is HomeUiIntent.DeleteTaskItem -> handleDeleteTaskItem(intent.taskId)
             is HomeUiIntent.Refresh -> observeDataStreams()
         }
     }
 
     private fun handleOpenTaskEditor(task: Task?) {
+        pendingUrgencyScarcityPrompt.value = null
         taskEditorControl.value = TaskEditorControl(isOpen = true, task = task)
     }
 
     private fun handleDismissTaskEditor() {
+        pendingUrgencyScarcityPrompt.value = null
         taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
     }
 
     private fun handleSaveTaskItem(task: Task) {
+        if (pendingUrgencyScarcityPrompt.value != null) return
+        if (!isSavingTaskInFlight.compareAndSet(false, true)) return
+        isSavingTaskState.value = true
+
         viewModelScope.launch {
-            runCatching {
-                saveTaskUseCase(task)
-                taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
-                _uiEffect.send(HomeUiEffect.ShowSnackbar("Task saved."))
-            }.onFailure { e ->
-                val msg = e.message ?: "Could not save task. Please try again."
-                _uiEffect.send(HomeUiEffect.ShowSnackbar(msg))
+            try {
+                try {
+                    val today = LocalDate.now().toString()
+                    val targetDate = task.scheduledDate.trim().ifBlank { today }
+                    val normalizedTask = task.copy(scheduledDate = targetDate)
+                    val isIncomingUrgent = normalizedTask.deliveryIntensity.equals(
+                        EvaluateTaskUrgencyScarcityUseCase.URGENT_INTENSITY,
+                        ignoreCase = true
+                    )
+                    val isIncomingActive = !normalizedTask.state.equals("COMPLETED", ignoreCase = true) &&
+                        !normalizedTask.state.equals("CANCELLED", ignoreCase = true)
+
+                    if (isIncomingUrgent && isIncomingActive) {
+                        val existingTask = if (normalizedTask.id.isNotBlank()) {
+                            try {
+                                taskRepository.getTaskById(normalizedTask.id)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (_: Exception) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                        val wasAlreadyActiveUrgent = existingTask != null &&
+                            existingTask.deliveryIntensity.equals(
+                                EvaluateTaskUrgencyScarcityUseCase.URGENT_INTENSITY,
+                                ignoreCase = true
+                            ) &&
+                            !existingTask.state.equals("COMPLETED", ignoreCase = true) &&
+                            !existingTask.state.equals("CANCELLED", ignoreCase = true) &&
+                            existingTask.scheduledDate == targetDate
+
+                        if (!wasAlreadyActiveUrgent) {
+                            val evaluation = evaluateTaskUrgencyScarcityUseCase(
+                                date = targetDate,
+                                excludingTaskId = normalizedTask.id.ifBlank { null },
+                                policy = UrgencyScarcityPolicy()
+                            )
+                            if (evaluation.isSoftCapReached) {
+                                pendingUrgencyScarcityPrompt.value = UrgencyScarcityPromptState(
+                                    pendingTask = normalizedTask,
+                                    activeUrgentCount = evaluation.activeUrgentCount,
+                                    maxActiveUrgent = evaluation.maxActiveUrgent,
+                                    isTargetDateToday = targetDate == today
+                                )
+                                return@launch
+                            }
+                        }
+                    }
+
+                    saveTaskUseCase(normalizedTask)
+                    taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar("Task saved."))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Could not save task. Please try again."
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar(msg))
+                }
+            } finally {
+                isSavingTaskState.value = false
+                isSavingTaskInFlight.set(false)
             }
         }
     }
 
+    private fun handleResolveUrgencyScarcity(keepUrgent: Boolean) {
+        if (!isSavingTaskInFlight.compareAndSet(false, true)) return
+        isSavingTaskState.value = true
+        val prompt = pendingUrgencyScarcityPrompt.getAndUpdate { null }
+        if (prompt == null) {
+            isSavingTaskState.value = false
+            isSavingTaskInFlight.set(false)
+            return
+        }
+        val resolvedIntensity = if (keepUrgent) {
+            EvaluateTaskUrgencyScarcityUseCase.URGENT_INTENSITY
+        } else {
+            "IMPORTANT"
+        }
+        val taskToPersist = prompt.pendingTask.copy(deliveryIntensity = resolvedIntensity)
+        val confirmationMessage = if (keepUrgent) "Task saved as Urgent." else "Saved as Important."
+
+        viewModelScope.launch {
+            try {
+                try {
+                    saveTaskUseCase(taskToPersist)
+                    taskEditorControl.value = TaskEditorControl(isOpen = false, task = null)
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar(confirmationMessage))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    val msg = e.message ?: "Could not save task. Please try again."
+                    _uiEffect.send(HomeUiEffect.ShowSnackbar(msg))
+                }
+            } finally {
+                isSavingTaskState.value = false
+                isSavingTaskInFlight.set(false)
+            }
+        }
+    }
+
+    private fun handleDismissUrgencyScarcityPrompt() {
+        pendingUrgencyScarcityPrompt.value = null
+    }
+
     private fun handleDeleteTaskItem(taskId: String) {
+        pendingUrgencyScarcityPrompt.value = null
         viewModelScope.launch {
             runCatching {
                 deleteTaskUseCase(taskId)

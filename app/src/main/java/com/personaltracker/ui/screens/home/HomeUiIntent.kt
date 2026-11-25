@@ -35,6 +35,8 @@ sealed interface HomeUiIntent {
     data class OpenTaskEditor(val task: Task? = null) : HomeUiIntent
     object DismissTaskEditor : HomeUiIntent
     data class SaveTaskItem(val task: Task) : HomeUiIntent
+    data class ResolveUrgencyScarcity(val keepUrgent: Boolean) : HomeUiIntent
+    object DismissUrgencyScarcityPrompt : HomeUiIntent
     data class DeleteTaskItem(val taskId: String) : HomeUiIntent
     object Refresh : HomeUiIntent
 }

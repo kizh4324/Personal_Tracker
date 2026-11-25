@@ -7,8 +7,20 @@ import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.Routine
 import com.personaltracker.domain.model.RoutineStep
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.model.UrgencyScarcityPolicy
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import com.personaltracker.ui.components.cards.HeroCardState
 import com.personaltracker.ui.components.cards.RoutineStepStatus
+
+/**
+ * Pending soft-cap scarcity guidance prompt state when a user saves an active URGENT task at/over cap (AD-2, AD-4).
+ */
+data class UrgencyScarcityPromptState(
+    val pendingTask: Task,
+    val activeUrgentCount: Int,
+    val maxActiveUrgent: Int,
+    val isTargetDateToday: Boolean = true
+)
 
 /**
  * Single immutable UI state representing the entire Home screen surface (AD-2).
@@ -25,6 +37,13 @@ data class HomeUiState(
     val editingTask: Task? = null,
     val activeUrgentTaskCount: Int = 0,
     val isUrgencySoftCapReached: Boolean = false,
+    val maxActiveUrgent: Int = UrgencyScarcityPolicy.DEFAULT_MAX_ACTIVE_URGENT,
+    val remainingUrgentSlots: Int = UrgencyScarcityPolicy.DEFAULT_MAX_ACTIVE_URGENT,
+    val urgencyScarcityTier: UrgencyScarcityTier = UrgencyScarcityTier.AVAILABLE,
+    val homeActiveUrgentCount: Int = 0,
+    val homeUrgencyScarcityTier: UrgencyScarcityTier = UrgencyScarcityTier.AVAILABLE,
+    val pendingUrgencyScarcityPrompt: UrgencyScarcityPromptState? = null,
+    val isSavingTask: Boolean = false,
     val streakCount: Int = 0,
     val flameState: FlameState = FlameState.COLD,
     val coinBalance: Int = 0,

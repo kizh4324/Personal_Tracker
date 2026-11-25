@@ -17,8 +17,8 @@ status: active
 ## 1. Snapshot
 *   **Project Name:** Personal-Tracker
 *   **One-line Purpose:** Local-first, network-optional native Android personal productivity companion with SQLCipher encrypted persistence, pure Kotlin behavioral engines, voice quick-capture, and a non-punishing companion pet.
-*   **Date/Time:** 2026-11-25 13:50:00 +05:30
-*   **Current Git Commit:** Story 5.2 Complete — Acknowledgement-Based Bounded Escalation Engine (Epic 5 In-Progress)
+*   **Date/Time:** 2026-11-25 15:15:00 +05:30
+*   **Current Git Commit:** Story 5.3 Complete — Urgency Soft-Cap Scarcity Guidance (Epic 5 In-Progress)
 *   **Tech Stack & Versions:**
     *   **Language & Runtime:** Kotlin 2.1.0, JDK 21 (Eclipse Temurin 21.0.6 / JBR 21.0.11), Gradle 9.4+ / AGP 8.8.0
     *   **UI Toolkit:** Jetpack Compose BOM 2026.02.00, Material 3 (1.3.1), Warm Organic Tactile Design Language
@@ -27,7 +27,7 @@ status: active
     *   **Animation Runtimes:** Airbnb Lottie Compose 6.6.2 (`com.airbnb.android:lottie-compose`), Rive Android Runtime 9.1.0 (`app.rive:rive-android`)
     *   **Multi-Agent Plugins:** Elephant-Goldfish Model (EGM) Global Plugin (`C:\Users\User\.gemini\config\plugins\egm`)
 *   **Commands to Build & Test:**
-    *   Unit Tests (JVM): `.\gradlew test` (540 tests across Debug & Release, passes clean with 0 errors)
+    *   Unit Tests (JVM): `.\gradlew test` (558 tests across Debug & Release, passes clean with 0 errors)
     *   Android Lint: `.\gradlew lintDebug` (0 errors, verifies token & accessibility rules)
     *   Architecture Spine Linter: `python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .` (`ok: true, total_findings: 0`)
     *   Domain Purity Linter: `python .agents/scripts/domain_purity_check.py` (`ALL ARCHITECTURAL PURITY CHECKS PASSED`)
@@ -43,7 +43,8 @@ status: active
     *   **Epic 5 (Non-Punishing Notification & Escalation Engine):** In Progress (`in-progress`).
         *   **Story 5.1 (`5-1-tiered-notification-channels-exact-alarm-scheduling-engine`):** 100% Complete (`done`).
         *   **Story 5.2 (`5-2-acknowledgement-based-bounded-escalation-engine`):** 100% Complete (`done`).
-        *   **Story 5.3 (`5-3-urgency-soft-cap-scarcity-guidance`):** Next up (`backlog`).
+        *   **Story 5.3 (`5-3-urgency-soft-cap-scarcity-guidance`):** 100% Complete (`done`).
+        *   **Story 5.4 (`5-4-evening-morning-carry-forward-review-card`):** Next up (`backlog`).
     *   **Warm Organic Tactile Design System:** 100% Synchronized across all Figma frames, Framer prototypes, and Jetpack Compose screens.
     *   **Device Verification:** Verified offline-safe, crash-free, with Room v2->v3 migration passing clean.
 
@@ -51,7 +52,18 @@ status: active
 
 ## 2. Completed Work Today (2026-11-25)
 
-### A. Story 5.2: Acknowledgement-Based Bounded Escalation Engine
+### A. Story 5.3: Urgency Soft-Cap Scarcity Guidance
+1. **Pure Kotlin Policy & Tiered Scarcity Use Case (`UrgencyScarcityPolicy.kt`, `EvaluateTaskUrgencyScarcityUseCase.kt`):**
+   - Extracted pure Kotlin `UrgencyScarcityPolicy(maxActiveUrgent = 2)` (`1..5` valid via `require(...)`) and `UrgencyScarcityTier` (`AVAILABLE`, `APPROACHING`, `AT_OR_OVER_CAP`), keeping `AT_OR_OVER_CAP` -> `APPROACHING` -> `AVAILABLE` precedence.
+   - Preserved 1-arg/2-arg delegates and backward-compatible `advisoryMessage` (singular/plural) while adding non-defaulted 3-arg `invoke(..., policy)` overloads.
+2. **Home MVI Save-Time Interception & Slot Visibility (`HomeUiState.kt`, `HomeUiIntent.kt`, `HomeViewModel.kt`):**
+   - Split `homeActiveUrgentCount`/`homeUrgencyScarcityTier` (`excludingTaskId = null`) from editor `activeUrgentTaskCount`/`urgencyScarcityTier` (`excludingTaskId = taskEditor.task?.id`) so Home's slot pill remains stable behind the sheet.
+   - Normalized `targetDate`, checked `wasAlreadyActiveUrgent` via `taskRepository.getTaskById`, deferred newly marked active `URGENT` items at/over cap into `pendingUrgencyScarcityPrompt`, and guarded both `SaveTaskItem` and `ResolveUrgencyScarcity` with `isSavingTaskInFlight` + `isSavingTask` + atomic `getAndUpdate { null }`.
+3. **Warm Organic Tactile UI & Step-4 Review (`UrgencyScarcityGuidanceDialog.kt`, `TaskEditorSheet.kt`, `HomeScreen.kt`, `strings.xml`):**
+   - Rendered tokenized `UrgencySlotStatusPill` (`colors.surfaceSunken` / `infoSubtle` / `warningSubtle`, `semantics(mergeDescendants = true)`), editor approaching hint + inline 48dp `"Switch to Important"` action + `isSubmitting` reset via `isScarcityPromptOpen` and `isSavingTask`, and vertical 48dp `UrgencyScarcityGuidanceDialog` (`"Change to Important"`, `"Keep Urgent"`, `"Keep Editing"`).
+   - Verified 0.0% spec-to-code drift in `docs/designs/drift/drift-report-5-3.md` and appended `EXP-051` to `.harness2/EXPERIENCE.md`.
+
+### B. Story 5.2: Acknowledgement-Based Bounded Escalation Engine
 1. **Pure Kotlin Escalation Policy & Engine (`EscalationPolicy.kt`, `BoundedEscalationEngine.kt`, `EscalationStateRepository.kt`):**
    - Implemented pure Kotlin `EscalationPolicy(retryIntervalMinutes = 5, maxReFires = 3)` with bounds validation (`1..60` min, `0..5` re-fires) and deterministic `BoundedEscalationEngine` returning `EscalationDecision`.
    - Only `URGENT`, `PENDING`, unacknowledged tasks with `currentAttemptNumber < policy.maxReFires` schedule bounded follow-up attempts; `ROUTINE` and `IMPORTANT` tasks never escalate.
@@ -137,9 +149,9 @@ flowchart TD
 *   **`python .agents/scripts/domain_purity_check.py`:** **PASSED** (0 `android.*` in domain, 0 raw hex in UI)
 *   **`python .agent/skills/bmad-architecture/scripts/lint_spine.py --workspace .`:** **PASSED** (0 findings)
 *   **`python .agents/scripts/harness2_bridge.py --check`:** **PASSED** (All 8 H0 components valid)
-*   **`.\gradlew test`:** **PASSED** (All 540 JVM unit tests passing across Debug & Release, 0 failures, 0 skipped)
+*   **`.\gradlew test`:** **PASSED** (All 558 JVM unit tests passing across Debug & Release, 0 failures, 0 skipped)
 *   **`.\gradlew lintDebug`:** **PASSED** (0 errors)
-*   **Gate 6 (Artemis E2E Real-Device Verification):** **SKIPPED** (No device attached via `adb devices -l` during Story 5.2 completion)
+*   **Gate 6 (Artemis E2E Real-Device Verification):** **SKIPPED** (No device attached via `adb devices -l` during Story 5.3 completion)
 *   **Git Status:** Committed and pushed to `origin/main`
 
 ---
@@ -169,8 +181,8 @@ flowchart TD
 ### Epic 5: Local Privacy, Encryption & Non-Punishing Notifications (In Progress)
 *   [x] **Story 5.1:** Tiered notification channels & exact alarm scheduling engine (`5-1-tiered-notification-channels-exact-alarm-scheduling-engine`, `TieredNotificationManager`, `channel_routine` [LOW], `channel_important` [DEFAULT], `channel_urgent` [HIGH], tier-differentiated wakeups, `ExactAlarmScheduler` defensive `SecurityException` fallback, `TaskAlarmScheduler.canScheduleExactAlarms()`, Settings MVI deep-links). `[DONE]`
 *   [x] **Story 5.2:** Acknowledgement-based bounded escalation engine (`5-2-acknowledgement-based-bounded-escalation-engine`, pure Kotlin `EscalationPolicy` & `BoundedEscalationEngine`, `Mutex`-serialized `EscalationAlarmCoordinator`, `goAsync()` receivers with isolated `"Mark Done"`/`"Got it"`/`deleteIntent` actions, synchronized `SharedPrefsEscalationStateRepository`, lifecycle ack resets, and Settings cadence `FilterChip` selectors). `[DONE]`
-*   [ ] **Story 5.3:** Urgency soft-cap scarcity guidance (`5-3-urgency-soft-cap-scarcity-guidance`). `[READY FOR DEV]`
-*   [ ] **Story 5.4:** Evening/morning carry-forward review card (`5-4-evening-morning-carry-forward-review-card`). `[BACKLOG]`
+*   [x] **Story 5.3:** Urgency soft-cap scarcity guidance (`5-3-urgency-soft-cap-scarcity-guidance`, configurable `UrgencyScarcityPolicy`, `UrgencyScarcityTier`, split Home/editor scarcity evaluation, `UrgencySlotStatusPill`, editor approaching/cap switch, and non-blocking `UrgencyScarcityGuidanceDialog`). `[DONE]`
+*   [ ] **Story 5.4:** Evening/morning carry-forward review card (`5-4-evening-morning-carry-forward-review-card`). `[READY FOR DEV]`
 *   [ ] **Story 5.5:** Advisory workload capacity indicator guardrails (`5-5-advisory-workload-capacity-indicator-guardrails`). `[BACKLOG]`
 
 ---
@@ -186,9 +198,9 @@ $env:JAVA_HOME = "C:\Users\User\.jdks\jbr-21.0.11"
 .\gradlew test
 ```
 
-### Step 2: Kick off Story 5.3 Implementation with EGM & BMAD Build
+### Step 2: Kick off Story 5.4 Implementation with EGM & BMAD Build
 ```
-/bmad-build 5-3-urgency-soft-cap-scarcity-guidance
+/bmad-build 5-4-evening-morning-carry-forward-review-card
 ```
 1. **The Elephant:** Hold full context (`docs/okf/index.md`, `ARCHITECTURE-SPINE.md`, `.harness2/EXPERIENCE.md`, `HANDOFF.md`) to design `spec-5-2-*.md` under the strict "No Code During Design" rule (`/egm:egm-brainstorm` & `/egm:egm-draft`).
 2. **The Goldfish Swarm:** Dispatch isolated spec to stateless subagents (`/egm:egm-review`) for the 3-stage gate: Comprehension check, Antagonistic review (`AD-1`..`AD-8`), and Implementation Readiness Go/No-Go.

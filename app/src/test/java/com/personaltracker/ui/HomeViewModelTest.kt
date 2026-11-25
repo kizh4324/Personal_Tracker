@@ -12,6 +12,7 @@ import com.personaltracker.domain.model.FocusIntervalType
 import com.personaltracker.domain.model.Habit
 import com.personaltracker.domain.model.StudySession
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.usecase.CarryForwardTasksUseCase
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
 import com.personaltracker.domain.usecase.DeleteTaskUseCase
@@ -23,6 +24,7 @@ import com.personaltracker.domain.usecase.ResolveHeroStateUseCase
 import com.personaltracker.domain.usecase.ResumeInterruptedSessionUseCase
 import com.personaltracker.domain.usecase.SaveTaskUseCase
 import com.personaltracker.domain.usecase.SwitchDayTypeUseCase
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import com.personaltracker.platform.timer.StudySessionForegroundService
 import com.personaltracker.platform.timer.StudySessionTimerState
 import com.personaltracker.ui.components.animation.RewardAnimationType
@@ -102,8 +104,8 @@ class HomeViewModelTest {
         resolveHeroStateUseCase = ResolveHeroStateUseCase()
         carryForwardTasksUseCase = CarryForwardTasksUseCase(taskRepository)
         dismissOverdueTasksUseCase = DismissOverdueTasksUseCase(taskRepository)
-        saveTaskUseCase = SaveTaskUseCase(taskRepository, taskAlarmScheduler)
-        deleteTaskUseCase = DeleteTaskUseCase(taskRepository, taskAlarmScheduler)
+        saveTaskUseCase = SaveTaskUseCase(taskRepository, taskAlarmScheduler, mainDispatcherRule.testDispatcher)
+        deleteTaskUseCase = DeleteTaskUseCase(taskRepository, taskAlarmScheduler, mainDispatcherRule.testDispatcher)
         evaluateTaskUrgencyScarcityUseCase = EvaluateTaskUrgencyScarcityUseCase(taskRepository)
         resetTimerState()
     }
@@ -826,5 +828,437 @@ class HomeViewModelTest {
             assertEquals(20, resumable.bankedMinutes)
             assertEquals(10, resumable.remainingMinutes)
         }
+    }
+
+    // =========================================================================
+    // Story 5.3: Urgency Soft-Cap Scarcity Guidance Tests
+    // =========================================================================
+
+    @Test
+    fun testSaveThirdUrgentTaskWithBlankDateTriggersPromptAndKeepUrgentSaves() = runTest {
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+        advanceUntilIdle()
+
+        val thirdUrgentBlankDate = Task(
+            id = "u3",
+            title = "Third Urgent",
+            scheduledDate = "",
+            deliveryIntensity = "URGENT"
+        )
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(thirdUrgentBlankDate))
+        advanceUntilIdle()
+
+        val promptedState = viewModel.uiState.value
+        assertEquals(2, promptedState.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, promptedState.homeUrgencyScarcityTier)
+        org.junit.Assert.assertNotNull(promptedState.pendingUrgencyScarcityPrompt)
+        assertEquals(2, promptedState.pendingUrgencyScarcityPrompt?.activeUrgentCount)
+        assertEquals(2, promptedState.pendingUrgencyScarcityPrompt?.maxActiveUrgent)
+        assertTrue(promptedState.pendingUrgencyScarcityPrompt?.isTargetDateToday == true)
+        assertEquals(today, promptedState.pendingUrgencyScarcityPrompt?.pendingTask?.scheduledDate)
+        org.junit.Assert.assertNull(taskRepository.getTaskById("u3"))
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.ResolveUrgencyScarcity(keepUrgent = true))
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Task saved as Urgent.", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+        advanceUntilIdle()
+
+        val saved = taskRepository.getTaskById("u3")
+        org.junit.Assert.assertNotNull(saved)
+        assertEquals("URGENT", saved?.deliveryIntensity)
+        assertEquals(today, saved?.scheduledDate)
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertFalse(viewModel.uiState.value.isTaskEditorOpen)
+        assertEquals(3, viewModel.uiState.value.homeActiveUrgentCount)
+    }
+
+    @Test
+    fun testChangeToImportantFromGuidanceDialogDowngradesAndSchedulesImportantAlarm() = runTest {
+        saveTaskUseCase.clock = java.time.Clock.fixed(
+            java.time.Instant.parse("${today}T08:00:00Z"),
+            java.time.ZoneId.of("UTC")
+        )
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(
+                    id = "u3_downgrade",
+                    title = "Downgraded Task",
+                    scheduledDate = today,
+                    scheduledTime = "11:00",
+                    deliveryIntensity = "URGENT"
+                )
+            )
+        )
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.ResolveUrgencyScarcity(keepUrgent = false))
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Saved as Important.", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+        advanceUntilIdle()
+
+        val saved = taskRepository.getTaskById("u3_downgrade")
+        assertEquals("IMPORTANT", saved?.deliveryIntensity)
+        assertEquals(1, taskAlarmScheduler.scheduledTasks.size)
+        assertEquals("IMPORTANT", taskAlarmScheduler.scheduledTasks[0].deliveryIntensity)
+        assertEquals(2, viewModel.uiState.value.homeActiveUrgentCount)
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertFalse(viewModel.uiState.value.isTaskEditorOpen)
+    }
+
+    @Test
+    fun testDismissUrgencyScarcityPromptPreservesEditorDraftWithoutSaving() = runTest {
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(id = "u3_unsaved", title = "Unsaved Urgent", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        viewModel.onIntent(HomeUiIntent.DismissUrgencyScarcityPrompt)
+        advanceUntilIdle()
+
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertTrue(viewModel.uiState.value.isTaskEditorOpen)
+        org.junit.Assert.assertNull(taskRepository.getTaskById("u3_unsaved"))
+    }
+
+    @Test
+    fun testEditExistingActiveUrgentTaskOnSameDateSavesWithoutModalDialog() = runTest {
+        val u1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+        val u2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+        taskRepository.saveTasks(listOf(u1, u2))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(u1))
+        advanceUntilIdle()
+
+        // Home pill remains 2 (AT_OR_OVER_CAP) while editor sees 1 other urgent task (APPROACHING)
+        assertEquals(2, viewModel.uiState.value.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, viewModel.uiState.value.homeUrgencyScarcityTier)
+        assertEquals(1, viewModel.uiState.value.activeUrgentTaskCount)
+        assertEquals(UrgencyScarcityTier.APPROACHING, viewModel.uiState.value.urgencyScarcityTier)
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.SaveTaskItem(u1.copy(title = "Urgent 1 Edited")))
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Task saved.", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+        advanceUntilIdle()
+
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertFalse(viewModel.uiState.value.isTaskEditorOpen)
+        assertEquals("Urgent 1 Edited", taskRepository.getTaskById("u1")?.title)
+    }
+
+    @Test
+    fun testFutureDateScarcityEvaluationPromptsForFullFutureDateWhileTodayRemainsZero() = runTest {
+        val tomorrow = LocalDate.now().plusDays(1).toString()
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "tm1", title = "Tomorrow 1", scheduledDate = tomorrow, deliveryIntensity = "URGENT"),
+                Task(id = "tm2", title = "Tomorrow 2", scheduledDate = tomorrow, deliveryIntensity = "URGENT")
+            )
+        )
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.uiState.value.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.AVAILABLE, viewModel.uiState.value.homeUrgencyScarcityTier)
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(
+                    id = "tm3",
+                    title = "Tomorrow 3",
+                    scheduledDate = tomorrow,
+                    deliveryIntensity = "URGENT"
+                )
+            )
+        )
+        advanceUntilIdle()
+
+        val prompt = viewModel.uiState.value.pendingUrgencyScarcityPrompt
+        org.junit.Assert.assertNotNull(prompt)
+        assertEquals(2, prompt?.activeUrgentCount)
+        assertEquals(tomorrow, prompt?.pendingTask?.scheduledDate)
+        assertFalse(prompt?.isTargetDateToday ?: true)
+        assertEquals(0, viewModel.uiState.value.homeActiveUrgentCount)
+    }
+
+    @Test
+    fun testCompletedOrCancelledUrgentAtCapSavesDirectlyAndDeleteReleasesSlot() = runTest {
+        val u1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+        val u2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+        taskRepository.saveTasks(listOf(u1, u2))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // Saving a COMPLETED urgent task never opens scarcity dialog
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(id = "u_done", title = "Done Urgent", scheduledDate = today, deliveryIntensity = "URGENT", state = "COMPLETED")
+            )
+        )
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertEquals(2, viewModel.uiState.value.homeActiveUrgentCount)
+
+        // Deleting an active urgent task releases its slot immediately
+        viewModel.onIntent(HomeUiIntent.DeleteTaskItem("u1"))
+        advanceUntilIdle()
+        assertEquals(1, viewModel.uiState.value.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.APPROACHING, viewModel.uiState.value.homeUrgencyScarcityTier)
+    }
+
+    @Test
+    fun testUpgradeExistingRoutineTaskToUrgentAtCapTriggersPromptAndDefersSave() = runTest {
+        val u1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+        val u2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+        val routine = Task(id = "r1", title = "Routine Task", scheduledDate = today, deliveryIntensity = "ROUTINE")
+        taskRepository.saveTasks(listOf(u1, u2, routine))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(routine))
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(routine.copy(deliveryIntensity = "URGENT")))
+        advanceUntilIdle()
+
+        val prompt = viewModel.uiState.value.pendingUrgencyScarcityPrompt
+        org.junit.Assert.assertNotNull(prompt)
+        assertEquals(2, prompt?.activeUrgentCount)
+        assertEquals("ROUTINE", taskRepository.getTaskById("r1")?.deliveryIntensity)
+    }
+
+    @Test
+    fun testMoveExistingActiveUrgentTaskToFullFutureDateTriggersPrompt() = runTest {
+        val tomorrow = LocalDate.now().plusDays(1).toString()
+        val uToday = Task(id = "u_today", title = "Today Urgent", scheduledDate = today, deliveryIntensity = "URGENT")
+        val tm1 = Task(id = "tm1", title = "Tomorrow 1", scheduledDate = tomorrow, deliveryIntensity = "URGENT")
+        val tm2 = Task(id = "tm2", title = "Tomorrow 2", scheduledDate = tomorrow, deliveryIntensity = "URGENT")
+        taskRepository.saveTasks(listOf(uToday, tm1, tm2))
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(uToday))
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(uToday.copy(scheduledDate = tomorrow)))
+        advanceUntilIdle()
+
+        val prompt = viewModel.uiState.value.pendingUrgencyScarcityPrompt
+        org.junit.Assert.assertNotNull(prompt)
+        assertEquals(tomorrow, prompt?.pendingTask?.scheduledDate)
+        assertFalse(prompt?.isTargetDateToday ?: true)
+        assertEquals(today, taskRepository.getTaskById("u_today")?.scheduledDate)
+    }
+
+    @Test
+    fun testSaveCancelledUrgentTaskAtCapSavesDirectlyWithoutPrompt() = runTest {
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(id = "u_cancel", title = "Cancelled Urgent", scheduledDate = today, deliveryIntensity = "URGENT", state = "CANCELLED")
+            )
+        )
+        advanceUntilIdle()
+
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        assertEquals("CANCELLED", taskRepository.getTaskById("u_cancel")?.state)
+        assertEquals(2, viewModel.uiState.value.homeActiveUrgentCount)
+    }
+
+    @Test
+    fun testCompleteUrgentTaskViaToggleTaskReleasesUrgentSlotReactively() = runTest {
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        assertEquals(2, viewModel.uiState.value.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, viewModel.uiState.value.homeUrgencyScarcityTier)
+
+        viewModel.onIntent(HomeUiIntent.ToggleTask("u1"))
+        advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.homeActiveUrgentCount)
+        assertEquals(UrgencyScarcityTier.APPROACHING, viewModel.uiState.value.homeUrgencyScarcityTier)
+    }
+
+    @Test
+    fun testPromptClearedByEditorLifecycleAndRefreshAllowsSubsequentSave() = runTest {
+        val u1 = Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT")
+        val u2 = Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+        taskRepository.saveTasks(listOf(u1, u2))
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        val u3 = Task(id = "u3", title = "Urgent 3", scheduledDate = today, deliveryIntensity = "URGENT")
+
+        // 1. DismissTaskEditor clears prompt
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(null))
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(u3))
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        viewModel.onIntent(HomeUiIntent.DismissTaskEditor)
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        // 2. OpenTaskEditor clears prompt
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(u3))
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        viewModel.onIntent(HomeUiIntent.OpenTaskEditor(u1))
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        // 3. Refresh clears prompt
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(u3))
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        viewModel.onIntent(HomeUiIntent.Refresh)
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        // 4. DeleteTaskItem clears prompt and frees slot so subsequent SaveTaskItem succeeds directly
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(u3))
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        viewModel.onIntent(HomeUiIntent.DeleteTaskItem("u1"))
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        viewModel.onIntent(HomeUiIntent.SaveTaskItem(u3))
+        advanceUntilIdle()
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+        org.junit.Assert.assertNotNull(taskRepository.getTaskById("u3"))
+    }
+
+    @Test
+    fun testFailedSaveTaskUseCaseOnDirectSaveAndPromptResolutionResetsIsSavingTask() = runTest {
+        taskRepository.saveTasks(
+            listOf(
+                Task(id = "u1", title = "Urgent 1", scheduledDate = today, deliveryIntensity = "URGENT"),
+                Task(id = "u2", title = "Urgent 2", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        val failingSaveRepo = object : TaskRepository by taskRepository {
+            override suspend fun saveTask(task: Task) {
+                throw IllegalStateException("Simulated save failure")
+            }
+        }
+        val failingSaveUseCase = SaveTaskUseCase(
+            failingSaveRepo,
+            taskAlarmScheduler,
+            mainDispatcherRule.testDispatcher
+        )
+        val viewModel = HomeViewModel(
+            taskRepository = taskRepository,
+            habitRepository = habitRepository,
+            routineRepository = routineRepository,
+            economyRepository = economyRepository,
+            dayTypeRepository = dayTypeRepository,
+            resolveDayTypeUseCase = resolveDayTypeUseCase,
+            switchDayTypeUseCase = switchDayTypeUseCase,
+            completeTaskUseCase = completeTaskUseCase,
+            logHabitUseCase = logHabitUseCase,
+            streakStateMachine = streakMachine,
+            resolveHeroStateUseCase = resolveHeroStateUseCase,
+            carryForwardTasksUseCase = carryForwardTasksUseCase,
+            dismissOverdueTasksUseCase = dismissOverdueTasksUseCase,
+            saveTaskUseCase = failingSaveUseCase,
+            deleteTaskUseCase = deleteTaskUseCase,
+            evaluateTaskUrgencyScarcityUseCase = evaluateTaskUrgencyScarcityUseCase,
+            studySessionRepository = studyRepository,
+            resumeInterruptedSessionUseCase = resumeInterruptedSessionUseCase
+        )
+        advanceUntilIdle()
+
+        // 1. Direct save failure resets isSavingTask
+        viewModel.uiEffect.test {
+            viewModel.onIntent(
+                HomeUiIntent.SaveTaskItem(
+                    Task(id = "r_fail", title = "Routine Fail", scheduledDate = today, deliveryIntensity = "ROUTINE")
+                )
+            )
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Simulated save failure", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isSavingTask)
+
+        // 2. Prompt resolution failure resets isSavingTask
+        viewModel.onIntent(
+            HomeUiIntent.SaveTaskItem(
+                Task(id = "u3_fail", title = "Urgent Fail", scheduledDate = today, deliveryIntensity = "URGENT")
+            )
+        )
+        advanceUntilIdle()
+        org.junit.Assert.assertNotNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(HomeUiIntent.ResolveUrgencyScarcity(keepUrgent = true))
+            val effect = awaitItem()
+            assertTrue(effect is HomeUiEffect.ShowSnackbar)
+            assertEquals("Simulated save failure", (effect as HomeUiEffect.ShowSnackbar).message)
+        }
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isSavingTask)
+        org.junit.Assert.assertNull(viewModel.uiState.value.pendingUrgencyScarcityPrompt)
     }
 }

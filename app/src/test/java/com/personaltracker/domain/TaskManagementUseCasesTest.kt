@@ -7,6 +7,7 @@ import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.model.UrgencyScarcityPolicy
 import com.personaltracker.domain.repository.EconomyRepository
 import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
@@ -14,6 +15,8 @@ import com.personaltracker.domain.usecase.CompleteTaskUseCase
 import com.personaltracker.domain.usecase.DeleteTaskUseCase
 import com.personaltracker.domain.usecase.EvaluateTaskUrgencyScarcityUseCase
 import com.personaltracker.domain.usecase.SaveTaskUseCase
+import com.personaltracker.domain.usecase.TaskUrgencyScarcityResult
+import com.personaltracker.domain.usecase.UrgencyScarcityTier
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -577,5 +580,111 @@ class TaskManagementUseCasesTest {
         assertTrue(deleteTaskUseCase("u_del"))
         assertFalse(fakeEscalationRepo.isAcknowledged("u_del"))
         assertEquals(0, evaluateScarcityUseCase(today).activeUrgentCount)
+    }
+
+    @Test
+    fun testUrgencyScarcityPolicyBoundsGuard() {
+        assertEquals(2, UrgencyScarcityPolicy().maxActiveUrgent)
+        for (valid in 1..5) {
+            assertEquals(valid, UrgencyScarcityPolicy(valid).maxActiveUrgent)
+        }
+        try {
+            UrgencyScarcityPolicy(0)
+            fail("Expected IllegalArgumentException for maxActiveUrgent=0")
+        } catch (_: IllegalArgumentException) {
+            // Expected
+        }
+        try {
+            UrgencyScarcityPolicy(6)
+            fail("Expected IllegalArgumentException for maxActiveUrgent=6")
+        } catch (_: IllegalArgumentException) {
+            // Expected
+        }
+    }
+
+    @Test
+    fun testUrgencyScarcityTierRulesAcrossPolicies() {
+        val oneUrgent = listOf(Task(id = "u1", title = "U1", scheduledDate = today, deliveryIntensity = "URGENT"))
+        val twoUrgent = oneUrgent + Task(id = "u2", title = "U2", scheduledDate = today, deliveryIntensity = "URGENT")
+        val fourUrgent = (1..4).map { Task(id = "u$it", title = "U$it", scheduledDate = today, deliveryIntensity = "URGENT") }
+        val fiveUrgent = fourUrgent + Task(id = "u5", title = "U5", scheduledDate = today, deliveryIntensity = "URGENT")
+
+        // max = 1
+        val max1Empty = evaluateScarcityUseCase(emptyList(), null, UrgencyScarcityPolicy(1))
+        assertEquals(UrgencyScarcityTier.AVAILABLE, max1Empty.tier)
+        assertEquals(1, max1Empty.remainingSlots)
+        assertFalse(max1Empty.isSoftCapReached)
+
+        val max1Full = evaluateScarcityUseCase(oneUrgent, null, UrgencyScarcityPolicy(1))
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, max1Full.tier)
+        assertEquals(0, max1Full.remainingSlots)
+        assertTrue(max1Full.isSoftCapReached)
+
+        // max = 2
+        val max2Empty = evaluateScarcityUseCase(emptyList(), null, UrgencyScarcityPolicy(2))
+        assertEquals(UrgencyScarcityTier.AVAILABLE, max2Empty.tier)
+        assertEquals(2, max2Empty.remainingSlots)
+
+        val max2Approaching = evaluateScarcityUseCase(oneUrgent, null, UrgencyScarcityPolicy(2))
+        assertEquals(UrgencyScarcityTier.APPROACHING, max2Approaching.tier)
+        assertEquals(1, max2Approaching.remainingSlots)
+        assertFalse(max2Approaching.isSoftCapReached)
+
+        val max2AtCap = evaluateScarcityUseCase(twoUrgent, null, UrgencyScarcityPolicy(2))
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, max2AtCap.tier)
+        assertEquals(0, max2AtCap.remainingSlots)
+        assertTrue(max2AtCap.isSoftCapReached)
+
+        // max = 5
+        val max5Available = evaluateScarcityUseCase(oneUrgent, null, UrgencyScarcityPolicy(5))
+        assertEquals(UrgencyScarcityTier.AVAILABLE, max5Available.tier)
+        assertEquals(4, max5Available.remainingSlots)
+
+        val max5Approaching = evaluateScarcityUseCase(fourUrgent, null, UrgencyScarcityPolicy(5))
+        assertEquals(UrgencyScarcityTier.APPROACHING, max5Approaching.tier)
+        assertEquals(1, max5Approaching.remainingSlots)
+        assertFalse(max5Approaching.isSoftCapReached)
+
+        val max5AtCap = evaluateScarcityUseCase(fiveUrgent, null, UrgencyScarcityPolicy(5))
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, max5AtCap.tier)
+        assertEquals(0, max5AtCap.remainingSlots)
+        assertTrue(max5AtCap.isSoftCapReached)
+    }
+
+    @Test
+    fun testUrgencyScarcitySuspendOverloadWithExplicitPolicy() = runTest {
+        fakeTaskRepo.saveTask(Task(id = "u1", title = "U1", scheduledDate = today, deliveryIntensity = "URGENT"))
+
+        val result = evaluateScarcityUseCase(today, null, UrgencyScarcityPolicy(1))
+
+        assertEquals(1, result.activeUrgentCount)
+        assertEquals(1, result.maxActiveUrgent)
+        assertEquals(0, result.remainingSlots)
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, result.tier)
+        assertTrue(result.isSoftCapReached)
+        assertEquals("1 urgent task already active today. Keep focus sharp!", result.advisoryMessage)
+    }
+
+    @Test
+    fun testTaskUrgencyScarcityResultDefaultTierComputesApproachingConsistently() {
+        val available = TaskUrgencyScarcityResult(
+            activeUrgentCount = 0,
+            isSoftCapReached = false,
+            maxActiveUrgent = 2
+        )
+        val approaching = TaskUrgencyScarcityResult(
+            activeUrgentCount = 1,
+            isSoftCapReached = false,
+            maxActiveUrgent = 2
+        )
+        val atCap = TaskUrgencyScarcityResult(
+            activeUrgentCount = 2,
+            isSoftCapReached = true,
+            maxActiveUrgent = 2
+        )
+
+        assertEquals(UrgencyScarcityTier.AVAILABLE, available.tier)
+        assertEquals(UrgencyScarcityTier.APPROACHING, approaching.tier)
+        assertEquals(UrgencyScarcityTier.AT_OR_OVER_CAP, atCap.tier)
     }
 }
