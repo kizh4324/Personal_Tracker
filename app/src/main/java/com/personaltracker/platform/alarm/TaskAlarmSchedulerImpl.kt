@@ -2,15 +2,15 @@ package com.personaltracker.platform.alarm
 
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.Task
-import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Platform implementation of [TaskAlarmScheduler] delegating to [ExactAlarmScheduler] (FR-5, AD-1, Story 5.1).
+ * Platform implementation of [TaskAlarmScheduler] delegating to [ExactAlarmScheduler] (FR-5, AD-1, Story 5.1, Story 5.2).
  */
 @Singleton
-class TaskAlarmSchedulerImpl @Inject constructor(
-    private val exactAlarmScheduler: ExactAlarmScheduler
+class TaskAlarmSchedulerImpl(
+    private val exactAlarmScheduler: ExactAlarmScheduler,
+    private val notificationCanceller: (Int) -> Unit = {}
 ) : TaskAlarmScheduler {
 
     override fun canScheduleExactAlarms(): Boolean {
@@ -22,7 +22,9 @@ class TaskAlarmSchedulerImpl @Inject constructor(
     }
 
     override fun cancelTaskAlarm(taskId: String) {
-        val rawId = taskId.removePrefix("TASK_")
+        val rawId = taskId.removePrefix("TASK_").removePrefix("ESCALATION_")
         exactAlarmScheduler.cancelAlarm("TASK_$rawId")
+        exactAlarmScheduler.cancelEscalationAlarm(rawId)
+        notificationCanceller(rawId.hashCode())
     }
 }

@@ -4,9 +4,11 @@ import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CoinTransaction
 import com.personaltracker.domain.model.CompanionProfile
+import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.ShopItem
 import com.personaltracker.domain.model.Task
 import com.personaltracker.domain.repository.EconomyRepository
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
 import com.personaltracker.domain.usecase.CompleteTaskUseCase
 import com.personaltracker.domain.usecase.DeleteTaskUseCase
@@ -141,11 +143,24 @@ private class FakeEconomyRepository : EconomyRepository {
     override suspend fun updateShopItem(item: ShopItem) {}
 }
 
+private class FakeEscalationRepo : EscalationStateRepository {
+    val ackedIds = mutableSetOf<String>()
+    private val policyFlow = MutableStateFlow(EscalationPolicy())
+
+    override fun observePolicy(): Flow<EscalationPolicy> = policyFlow.asStateFlow()
+    override fun getPolicy(): EscalationPolicy = policyFlow.value
+    override fun updatePolicy(policy: EscalationPolicy) { policyFlow.value = policy }
+    override fun isAcknowledged(taskId: String): Boolean = taskId in ackedIds
+    override fun markAcknowledged(taskId: String) { ackedIds.add(taskId) }
+    override fun clearAcknowledgement(taskId: String) { ackedIds.remove(taskId) }
+}
+
 class TaskManagementUseCasesTest {
 
     private lateinit var fakeTaskRepo: FakeTaskRepository
     private lateinit var fakeAlarmScheduler: FakeTaskAlarmScheduler
     private lateinit var fakeEconomyRepo: FakeEconomyRepository
+    private lateinit var fakeEscalationRepo: FakeEscalationRepo
     private lateinit var ledgerEngine: GamificationLedgerEngine
 
     private lateinit var saveTaskUseCase: SaveTaskUseCase
@@ -163,12 +178,28 @@ class TaskManagementUseCasesTest {
         fakeTaskRepo = FakeTaskRepository()
         fakeAlarmScheduler = FakeTaskAlarmScheduler()
         fakeEconomyRepo = FakeEconomyRepository()
+        fakeEscalationRepo = FakeEscalationRepo()
         ledgerEngine = GamificationLedgerEngine()
 
-        saveTaskUseCase = SaveTaskUseCase(fakeTaskRepo, fakeAlarmScheduler, fixedClock)
-        deleteTaskUseCase = DeleteTaskUseCase(fakeTaskRepo, fakeAlarmScheduler)
+        saveTaskUseCase = SaveTaskUseCase(
+            taskRepository = fakeTaskRepo,
+            taskAlarmScheduler = fakeAlarmScheduler,
+            clock = fixedClock,
+            escalationStateRepository = fakeEscalationRepo
+        )
+        deleteTaskUseCase = DeleteTaskUseCase(
+            taskRepository = fakeTaskRepo,
+            taskAlarmScheduler = fakeAlarmScheduler,
+            escalationStateRepository = fakeEscalationRepo
+        )
         evaluateScarcityUseCase = EvaluateTaskUrgencyScarcityUseCase(fakeTaskRepo)
-        completeTaskUseCase = CompleteTaskUseCase(fakeTaskRepo, fakeEconomyRepo, ledgerEngine, fakeAlarmScheduler)
+        completeTaskUseCase = CompleteTaskUseCase(
+            taskRepository = fakeTaskRepo,
+            economyRepository = fakeEconomyRepo,
+            ledgerEngine = ledgerEngine,
+            taskAlarmScheduler = fakeAlarmScheduler,
+            escalationStateRepository = fakeEscalationRepo
+        )
     }
 
     // =========================================================================
@@ -520,5 +551,31 @@ class TaskManagementUseCasesTest {
 
         assertEquals(2, result.activeUrgentCount)
         assertTrue(result.isSoftCapReached)
+    }
+
+    @Test
+    fun testLifecycleUseCasesClearAcknowledgementAndCompleteReleasesUrgentSlot() = runTest {
+        val t1 = Task(id = "u_save", title = "U1", scheduledDate = today, scheduledTime = "12:00", deliveryIntensity = "URGENT")
+        val t2 = Task(id = "u_del", title = "U2", scheduledDate = today, scheduledTime = "13:00", deliveryIntensity = "URGENT")
+        fakeEscalationRepo.markAcknowledged("u_save")
+        fakeEscalationRepo.markAcknowledged("u_del")
+
+        saveTaskUseCase(t1)
+        assertFalse(fakeEscalationRepo.isAcknowledged("u_save"))
+
+        saveTaskUseCase(t2)
+        assertEquals(2, evaluateScarcityUseCase(today).activeUrgentCount)
+        assertTrue(evaluateScarcityUseCase(today).isSoftCapReached)
+
+        fakeEscalationRepo.markAcknowledged("u_save")
+        completeTaskUseCase("u_save")
+        assertFalse(fakeEscalationRepo.isAcknowledged("u_save"))
+        assertEquals(1, evaluateScarcityUseCase(today).activeUrgentCount)
+        assertFalse(evaluateScarcityUseCase(today).isSoftCapReached)
+
+        fakeEscalationRepo.markAcknowledged("u_del")
+        assertTrue(deleteTaskUseCase("u_del"))
+        assertFalse(fakeEscalationRepo.isAcknowledged("u_del"))
+        assertEquals(0, evaluateScarcityUseCase(today).activeUrgentCount)
     }
 }

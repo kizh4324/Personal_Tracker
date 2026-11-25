@@ -2,6 +2,7 @@ package com.personaltracker.domain.usecase
 
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -18,16 +19,37 @@ import javax.inject.Inject
 class SaveTaskUseCase @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskAlarmScheduler: TaskAlarmScheduler,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val escalationStateRepository: EscalationStateRepository? = null
 ) {
     internal var clock: java.time.Clock = java.time.Clock.systemDefaultZone()
 
     constructor(
         taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler
+    ) : this(taskRepository, taskAlarmScheduler, Dispatchers.IO, null)
+
+    constructor(
+        taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler,
+        ioDispatcher: CoroutineDispatcher
+    ) : this(taskRepository, taskAlarmScheduler, ioDispatcher, null)
+
+    constructor(
+        taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler,
+        clock: java.time.Clock
+    ) : this(taskRepository, taskAlarmScheduler, Dispatchers.IO, null) {
+        this.clock = clock
+    }
+
+    constructor(
+        taskRepository: TaskRepository,
         taskAlarmScheduler: TaskAlarmScheduler,
         clock: java.time.Clock,
-        ioDispatcher: CoroutineDispatcher = Dispatchers.IO
-    ) : this(taskRepository, taskAlarmScheduler, ioDispatcher) {
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        escalationStateRepository: EscalationStateRepository? = null
+    ) : this(taskRepository, taskAlarmScheduler, ioDispatcher, escalationStateRepository) {
         this.clock = clock
     }
 
@@ -77,7 +99,8 @@ class SaveTaskUseCase @Inject constructor(
 
         taskRepository.saveTask(taskToSave)
 
-        // Cancel previous pending alarm if any, and reschedule if scheduledTime is present and not past
+        // Clear stale acknowledgement and cancel previous pending alarms before rescheduling
+        escalationStateRepository?.clearAcknowledgement(taskId)
         taskAlarmScheduler.cancelTaskAlarm(taskId)
         if (!cleanScheduledTime.isNullOrBlank() &&
             !isPastTime &&

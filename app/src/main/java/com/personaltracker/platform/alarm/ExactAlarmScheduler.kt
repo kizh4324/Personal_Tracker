@@ -24,7 +24,8 @@ data class ScheduledAlarm(
     val title: String,
     val message: String,
     val taskId: String? = null,
-    val deliveryIntensity: String = "ROUTINE"
+    val deliveryIntensity: String = "ROUTINE",
+    val escalationAttempt: Int = 0
 )
 
 /**
@@ -67,6 +68,7 @@ class SystemAlarmManagerDelegate(
             putExtra(ExactAlarmScheduler.EXTRA_MESSAGE, alarm.message)
             putExtra(ExactAlarmScheduler.EXTRA_TASK_ID, alarm.taskId)
             putExtra(ExactAlarmScheduler.EXTRA_INTENSITY, alarm.deliveryIntensity)
+            putExtra(ExactAlarmScheduler.EXTRA_ESCALATION_ATTEMPT, alarm.escalationAttempt)
         }
         val triggerPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -108,6 +110,7 @@ class SystemAlarmManagerDelegate(
             putExtra(ExactAlarmScheduler.EXTRA_MESSAGE, alarm.message)
             putExtra(ExactAlarmScheduler.EXTRA_TASK_ID, alarm.taskId)
             putExtra(ExactAlarmScheduler.EXTRA_INTENSITY, alarm.deliveryIntensity)
+            putExtra(ExactAlarmScheduler.EXTRA_ESCALATION_ATTEMPT, alarm.escalationAttempt)
         }
         val triggerPendingIntent = PendingIntent.getBroadcast(
             context,
@@ -230,6 +233,35 @@ class ExactAlarmScheduler(
     }
 
     /**
+     * Schedules a bounded escalation follow-up alarm for [task] at [triggerEpochMillis].
+     */
+    fun scheduleEscalation(
+        task: Task,
+        attemptNumber: Int,
+        triggerEpochMillis: Long
+    ): Boolean {
+        if (attemptNumber <= 0) return false
+        val alarm = ScheduledAlarm(
+            alarmId = "ESCALATION_${task.id}",
+            triggerEpochMillis = triggerEpochMillis,
+            title = task.title,
+            message = task.description?.ifBlank { null } ?: "Scheduled task ready when you are.",
+            taskId = task.id,
+            deliveryIntensity = task.deliveryIntensity,
+            escalationAttempt = attemptNumber
+        )
+        return scheduleAlarm(alarm)
+    }
+
+    /**
+     * Cancels any pending escalation follow-up alarm for [taskId].
+     */
+    fun cancelEscalationAlarm(taskId: String) {
+        val rawId = taskId.removePrefix("ESCALATION_").removePrefix("TASK_")
+        delegate.cancelAlarm("ESCALATION_$rawId")
+    }
+
+    /**
      * Cancels any pending alarm with matching alarmId.
      */
     fun cancelAlarm(alarmId: String) {
@@ -243,5 +275,6 @@ class ExactAlarmScheduler(
         const val EXTRA_MESSAGE = "extra_message"
         const val EXTRA_TASK_ID = "extra_task_id"
         const val EXTRA_INTENSITY = "extra_intensity"
+        const val EXTRA_ESCALATION_ATTEMPT = "extra_escalation_attempt"
     }
 }

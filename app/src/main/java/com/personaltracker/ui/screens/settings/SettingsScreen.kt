@@ -36,11 +36,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.personaltracker.R
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.ui.navigation.PersonalTrackerDestination
 import com.personaltracker.ui.theme.PersonalTrackerTheme
@@ -675,6 +677,118 @@ fun SettingsScreenContent(
                         .defaultMinSize(minHeight = spacing.minTouchTarget)
                 ) {
                     Text(text = "Configure Notification Channels", style = typography.label)
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing4))
+
+                // Bounded Escalation Cadence Controls (Story 5.2, AD-4, AD-7)
+                Text(
+                    text = stringResource(R.string.settings_escalation_cadence_title),
+                    style = typography.title,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing1))
+                Text(
+                    text = stringResource(R.string.settings_escalation_cadence_subtitle),
+                    style = typography.caption,
+                    color = colors.inkSecondary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing3))
+
+                Text(
+                    text = stringResource(R.string.settings_escalation_interval_label),
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                val intervalOptions = remember { listOf(3, 5, 10, 15) }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    intervalOptions.forEach { minutes ->
+                        val isSelected = state.escalationPolicy.retryIntervalMinutes == minutes
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                onIntent(
+                                    SettingsUiIntent.UpdateEscalationPolicy(
+                                        retryIntervalMinutes = minutes,
+                                        maxReFires = state.escalationPolicy.maxReFires
+                                    )
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = stringResource(R.string.settings_escalation_interval_option, minutes),
+                                    style = typography.caption
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.primary,
+                                selectedLabelColor = colors.surfaceBase,
+                                containerColor = colors.surfaceSunken,
+                                labelColor = colors.inkPrimary
+                            ),
+                            modifier = Modifier.defaultMinSize(
+                                minWidth = spacing.minTouchTarget,
+                                minHeight = spacing.minTouchTarget
+                            )
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(spacing.spacing3))
+
+                Text(
+                    text = stringResource(R.string.settings_escalation_max_refires_label),
+                    style = typography.label,
+                    color = colors.inkPrimary
+                )
+                Spacer(modifier = Modifier.height(spacing.spacing2))
+
+                val maxReFireOptions = remember { listOf(0, 1, 2, 3, 5) }
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    verticalArrangement = Arrangement.spacedBy(spacing.spacing2),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    maxReFireOptions.forEach { count ->
+                        val isSelected = state.escalationPolicy.maxReFires == count
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                onIntent(
+                                    SettingsUiIntent.UpdateEscalationPolicy(
+                                        retryIntervalMinutes = state.escalationPolicy.retryIntervalMinutes,
+                                        maxReFires = count
+                                    )
+                                )
+                            },
+                            label = {
+                                Text(
+                                    text = if (count == 0) {
+                                        stringResource(R.string.settings_escalation_refires_off)
+                                    } else {
+                                        stringResource(R.string.settings_escalation_refires_option, count)
+                                    },
+                                    style = typography.caption
+                                )
+                            },
+                            colors = FilterChipDefaults.filterChipColors(
+                                selectedContainerColor = colors.primary,
+                                selectedLabelColor = colors.surfaceBase,
+                                containerColor = colors.surfaceSunken,
+                                labelColor = colors.inkPrimary
+                            ),
+                            modifier = Modifier.defaultMinSize(
+                                minWidth = spacing.minTouchTarget,
+                                minHeight = spacing.minTouchTarget
+                            )
+                        )
+                    }
                 }
             }
         }

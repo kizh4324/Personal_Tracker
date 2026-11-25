@@ -57,6 +57,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".platform.alarm.NotificationActionReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".platform.receiver.BootCompletedReceiver"
             android:exported="true">
             <intent-filter>

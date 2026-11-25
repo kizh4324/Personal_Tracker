@@ -10,8 +10,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.DayOverride
+import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.repository.DayTypeRepository
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.usecase.AddWhitelistedAppUseCase
 import com.personaltracker.domain.usecase.GetInterventionRulesUseCase
 import com.personaltracker.domain.usecase.GetWhitelistRulesUseCase
@@ -30,6 +32,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -53,8 +56,34 @@ class SettingsViewModel @Inject constructor(
     private val getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
     private val toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
     @ApplicationContext private val context: Context? = null,
-    private val taskAlarmScheduler: TaskAlarmScheduler? = null
+    private val taskAlarmScheduler: TaskAlarmScheduler? = null,
+    private val escalationStateRepository: EscalationStateRepository? = null
 ) : ViewModel() {
+
+    constructor(
+        dayTypeRepository: DayTypeRepository,
+        resolveDayTypeUseCase: ResolveDayTypeUseCase,
+        getInterventionRulesUseCase: GetInterventionRulesUseCase,
+        togglePackageInterceptionRuleUseCase: TogglePackageInterceptionRuleUseCase,
+        addWhitelistedAppUseCase: AddWhitelistedAppUseCase,
+        removeWhitelistedAppUseCase: RemoveWhitelistedAppUseCase,
+        getWhitelistRulesUseCase: GetWhitelistRulesUseCase,
+        toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase,
+        context: Context?,
+        taskAlarmScheduler: TaskAlarmScheduler?
+    ) : this(
+        dayTypeRepository = dayTypeRepository,
+        resolveDayTypeUseCase = resolveDayTypeUseCase,
+        getInterventionRulesUseCase = getInterventionRulesUseCase,
+        togglePackageInterceptionRuleUseCase = togglePackageInterceptionRuleUseCase,
+        addWhitelistedAppUseCase = addWhitelistedAppUseCase,
+        removeWhitelistedAppUseCase = removeWhitelistedAppUseCase,
+        getWhitelistRulesUseCase = getWhitelistRulesUseCase,
+        toggleAppWhitelistUseCase = toggleAppWhitelistUseCase,
+        context = context,
+        taskAlarmScheduler = taskAlarmScheduler,
+        escalationStateRepository = null
+    )
 
     internal var permissionChecker: (() -> Pair<Boolean, Boolean>)? = null
     internal var exactAlarmChecker: (() -> Boolean)? = null
@@ -88,13 +117,15 @@ class SettingsViewModel @Inject constructor(
         }
 
         val rulesFlow = getInterventionRulesUseCase(_searchQuery)
+        val policyFlow = escalationStateRepository?.observePolicy() ?: flowOf(EscalationPolicy())
 
         observeDataJob = combine(
             dayDataFlow,
             rulesFlow,
             _focusTimerPolicy,
-            _isWhitelistSheetOpen
-        ) { (dayTypes, override), categorizedRules, timerPolicy, isSheetOpen ->
+            _isWhitelistSheetOpen,
+            policyFlow
+        ) { (dayTypes, override), categorizedRules, timerPolicy, isSheetOpen, escalationPolicy ->
             val resolvedActive = resolveDayTypeUseCase.resolve(today, override, dayTypes)
             val (accessibility, overlay) = checkPermissionsStatus()
             val (exactAlarm, notifications) = checkAlarmAndNotificationStatus()
@@ -113,6 +144,7 @@ class SettingsViewModel @Inject constructor(
                 isOverlayGranted = overlay,
                 isExactAlarmGranted = exactAlarm,
                 isNotificationsEnabled = notifications,
+                escalationPolicy = escalationPolicy,
                 isLoading = false,
                 errorMessage = null
             )
@@ -132,6 +164,10 @@ class SettingsViewModel @Inject constructor(
             is SettingsUiIntent.OpenOverlaySettings -> handleOpenOverlaySettings()
             is SettingsUiIntent.OpenExactAlarmSettings -> handleOpenExactAlarmSettings()
             is SettingsUiIntent.OpenNotificationSettings -> handleOpenNotificationSettings()
+            is SettingsUiIntent.UpdateEscalationPolicy -> handleUpdateEscalationPolicy(
+                intent.retryIntervalMinutes,
+                intent.maxReFires
+            )
             is SettingsUiIntent.Refresh -> {
                 observeSettingsData()
                 checkPermissions()
@@ -325,5 +361,27 @@ class SettingsViewModel @Inject constructor(
 
     private fun handleToggleWhitelistSheet(isOpen: Boolean) {
         _isWhitelistSheetOpen.value = isOpen
+    }
+
+    private fun handleUpdateEscalationPolicy(retryIntervalMinutes: Int, maxReFires: Int) {
+        viewModelScope.launch {
+            runCatching {
+                val updated = EscalationPolicy(
+                    retryIntervalMinutes = retryIntervalMinutes,
+                    maxReFires = maxReFires
+                )
+                escalationStateRepository?.updatePolicy(updated)
+                _uiState.update { it.copy(escalationPolicy = updated) }
+                _uiEffect.send(
+                    SettingsUiEffect.ShowSnackbar(
+                        "Urgent follow-up cadence updated ($retryIntervalMinutes min, max $maxReFires)"
+                    )
+                )
+            }.onFailure {
+                _uiEffect.send(
+                    SettingsUiEffect.ShowSnackbar("Could not update follow-up cadence")
+                )
+            }
+        }
     }
 }

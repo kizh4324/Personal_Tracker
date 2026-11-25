@@ -5,8 +5,10 @@ import app.cash.turbine.test
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.model.InterventionRule
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.usecase.AddWhitelistedAppUseCase
 import com.personaltracker.domain.usecase.GetInterventionRulesUseCase
 import com.personaltracker.domain.usecase.GetWhitelistRulesUseCase
@@ -19,6 +21,9 @@ import com.personaltracker.ui.screens.settings.SettingsUiEffect
 import com.personaltracker.ui.screens.settings.SettingsUiIntent
 import com.personaltracker.ui.screens.settings.SettingsViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -46,12 +51,14 @@ class SettingsViewModelTest {
     private lateinit var toggleAppWhitelistUseCase: ToggleAppWhitelistUseCase
     private lateinit var addWhitelistedAppUseCase: AddWhitelistedAppUseCase
     private lateinit var removeWhitelistedAppUseCase: RemoveWhitelistedAppUseCase
+    private lateinit var escalationStateRepository: FakeSettingsEscalationRepo
 
     private val today = LocalDate.now().toString()
 
     @Before
     fun setUp() {
         DistractionInterceptionService.activeFocusTimerPolicy = FocusTimerPolicy.AUTO_PAUSE
+        escalationStateRepository = FakeSettingsEscalationRepo()
         dayTypeRepository = TestDayTypeRepository()
         ruleRepository = TestInterventionRuleRepository(
             listOf(
@@ -86,7 +93,8 @@ class SettingsViewModelTest {
             addWhitelistedAppUseCase = addWhitelistedAppUseCase,
             removeWhitelistedAppUseCase = removeWhitelistedAppUseCase,
             getWhitelistRulesUseCase = getWhitelistRulesUseCase,
-            toggleAppWhitelistUseCase = toggleAppWhitelistUseCase
+            toggleAppWhitelistUseCase = toggleAppWhitelistUseCase,
+            escalationStateRepository = escalationStateRepository
         )
     }
 
@@ -435,6 +443,54 @@ class SettingsViewModelTest {
             viewModel.onIntent(SettingsUiIntent.OpenNotificationSettings)
             val effect = awaitItem()
             assertTrue(effect is SettingsUiEffect.OpenSystemSetting)
+        }
+    }
+
+    @Test
+    fun testUpdateEscalationPolicyUpdatesRepositoryStateAndEmitsSnackbar() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.UpdateEscalationPolicy(retryIntervalMinutes = 10, maxReFires = 2))
+
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.ShowSnackbar)
+            assertEquals(EscalationPolicy(retryIntervalMinutes = 10, maxReFires = 2), escalationStateRepository.getPolicy())
+            assertEquals(EscalationPolicy(retryIntervalMinutes = 10, maxReFires = 2), viewModel.uiState.value.escalationPolicy)
+        }
+    }
+
+    @Test
+    fun testUpdateEscalationPolicyRejectsOutOfBoundsWithoutMutatingRepository() = runTest {
+        val viewModel = createViewModel()
+
+        viewModel.uiEffect.test {
+            viewModel.onIntent(SettingsUiIntent.UpdateEscalationPolicy(retryIntervalMinutes = 0, maxReFires = 3))
+
+            val effect = awaitItem()
+            assertTrue(effect is SettingsUiEffect.ShowSnackbar)
+            assertTrue((effect as SettingsUiEffect.ShowSnackbar).message.contains("Could not update"))
+            assertEquals(EscalationPolicy(retryIntervalMinutes = 5, maxReFires = 3), escalationStateRepository.getPolicy())
+        }
+    }
+
+    private class FakeSettingsEscalationRepo : EscalationStateRepository {
+        private val policyFlow = MutableStateFlow(EscalationPolicy())
+        private val acked = mutableSetOf<String>()
+
+        override fun observePolicy(): Flow<EscalationPolicy> = policyFlow.asStateFlow()
+        override fun getPolicy(): EscalationPolicy = policyFlow.value
+        override fun updatePolicy(policy: EscalationPolicy) {
+            policyFlow.value = policy
+        }
+
+        override fun isAcknowledged(taskId: String): Boolean = taskId in acked
+        override fun markAcknowledged(taskId: String) {
+            acked.add(taskId)
+        }
+
+        override fun clearAcknowledgement(taskId: String) {
+            acked.remove(taskId)
         }
     }
 }

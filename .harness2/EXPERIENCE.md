@@ -357,6 +357,25 @@ Authoritative repository of verified engineering heuristics, operational invaria
   4. **Domain Purity Bridge (AD-1):** Expose exact alarm capability through pure Kotlin domain interface `TaskAlarmScheduler.canScheduleExactAlarms(): Boolean` with zero `android.*` imports, implemented in platform layer via `exactAlarmScheduler.canScheduleExact()`.
   5. **Direct Settings Deep-Links & Non-Punitive Copy (AD-4, AD-7):** In `SettingsScreen`, present notification channel preferences and exact alarm permission status using 100% `PersonalTrackerTheme` tokens (48dp touch targets). Deep-link directly to `ACTION_REQUEST_SCHEDULE_EXACT_ALARM` with `package:${context.packageName}` and `ACTION_APP_NOTIFICATION_SETTINGS` with `EXTRA_APP_PACKAGE`.
 
+---
+
+## 27. Bounded Escalation & BroadcastReceiver Concurrency
+
+### EXP-050: Mutex-Serialized Escalation Coordination, Fallback Extra Propagation & Isolated Notification PendingIntents (AD-1, AD-3, AD-4, Story 5.2)
+* **Context:** Bounded follow-up reminder engine (`BoundedEscalationEngine`, `EscalationAlarmCoordinator`), `AlarmNotificationReceiver`, `NotificationActionReceiver`, `ExactAlarmScheduler`, `SharedPrefsEscalationStateRepository`, and `SettingsViewModel` UI state synchronization.
+* **Heuristic:**
+  1. `BroadcastReceiver.onReceive()` has a short OS main-thread ANR budget; blocking the main thread or firing uncoordinated `CoroutineScope.launch` without `goAsync()` risks process termination before Room/SharedPrefs writes finish. Meanwhile, concurrent alarm fires and `"Got it"`/`"Mark Done"` taps can race without mutual exclusion.
+  2. Clearing `isAcknowledged` inside `ExactAlarmScheduler.scheduleForTask(task)` causes device reboots (`BootRecoveryCoordinator`) to wipe user acknowledgements and restart escalation sequences unexpectedly.
+  3. Omitting `EXTRA_ESCALATION_ATTEMPT` inside `SystemAlarmManagerDelegate.scheduleInexactFallback()` resets fallback follow-ups to attempt `0`, creating an infinite retry loop when exact alarm permission is denied.
+  4. Reusing `requestCode` or omitting distinct `Intent.data` URIs across `"Mark Done"`, `"Got it"`, notification tap, and `deleteIntent` causes Android `PendingIntent.FLAG_UPDATE_CURRENT` to overwrite actions silently.
+  5. Gating `_uiState.update` in `SettingsViewModel` behind `if (repository == null)` leaves synchronous UI observers and Turbine assertions stale before repository `combine(...)` re-emits.
+* **Rule:**
+  1. **`Mutex` + Bounded `goAsync()`:** Wrap `BroadcastReceiver` background execution in `goAsync()` + `withTimeout(8_000L)` on `Dispatchers.IO` with `try/finally { pendingResult.finish() }`, and serialize coordinator trigger/action decisions via `kotlinx.coroutines.sync.Mutex`.
+  2. **Lifecycle-Only Ack Reset & Synchronized `commit()`:** Persist transient `ack_<taskId>` and `EscalationPolicy` via synchronized `SharedPreferences.edit().commit()` + `MutableStateFlow`, and reset acknowledgements solely in explicit task lifecycle use cases (`Save`, `Complete`, `Delete`, `DismissOverdue`, `CarryForward`), never inside `scheduleForTask()`.
+  3. **Symmetric Intent Extras & Isolated `PendingIntent`s:** Propagate `EXTRA_ESCALATION_ATTEMPT` in both `scheduleExact` and `scheduleInexactFallback`. Assign distinct `requestCode` offsets (`+1..+4`) and unique `personaltracker://notification/$taskId/{open,complete,acknowledge,swipe_dismiss}` `Uri`s to every notification action and `deleteIntent`.
+  4. **Eager ViewModel State Sync & Kotlin Constructor Compatibility:** Always apply `_uiState.update` alongside repository mutations before emitting `UiEffect`s, and provide explicit secondary constructors when adding optional trailing parameters to `@Inject` classes so cached/existing callers remain binary-compatible.
+
+
 
 
 

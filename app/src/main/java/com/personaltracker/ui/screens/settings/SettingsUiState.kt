@@ -2,6 +2,7 @@ package com.personaltracker.ui.screens.settings
 
 import com.personaltracker.domain.model.DayOverride
 import com.personaltracker.domain.model.DayType
+import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.FocusTimerPolicy
 import com.personaltracker.domain.model.InterventionRule
 
@@ -19,6 +20,7 @@ data class SettingsUiState(
     val isOverlayGranted: Boolean = false,
     val isExactAlarmGranted: Boolean = true,
     val isNotificationsEnabled: Boolean = true,
+    val escalationPolicy: EscalationPolicy = EscalationPolicy(),
     val whitelistedRules: List<InterventionRule> = emptyList(),
     val blockedRules: List<InterventionRule> = emptyList(),
     val allInterventionRules: List<InterventionRule> = emptyList(),

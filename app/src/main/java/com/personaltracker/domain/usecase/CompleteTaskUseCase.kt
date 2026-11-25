@@ -6,6 +6,7 @@ import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.model.CompanionProfile
 import com.personaltracker.domain.model.EconomyEventTypes
 import com.personaltracker.domain.repository.EconomyRepository
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
 import java.time.LocalDate
 import java.time.ZoneId
@@ -31,8 +32,21 @@ class CompleteTaskUseCase @Inject constructor(
     private val taskRepository: TaskRepository,
     private val economyRepository: EconomyRepository,
     private val ledgerEngine: GamificationLedgerEngine,
-    private val taskAlarmScheduler: TaskAlarmScheduler? = null
+    private val taskAlarmScheduler: TaskAlarmScheduler? = null,
+    private val escalationStateRepository: EscalationStateRepository? = null
 ) {
+    constructor(
+        taskRepository: TaskRepository,
+        economyRepository: EconomyRepository,
+        ledgerEngine: GamificationLedgerEngine
+    ) : this(taskRepository, economyRepository, ledgerEngine, null, null)
+
+    constructor(
+        taskRepository: TaskRepository,
+        economyRepository: EconomyRepository,
+        ledgerEngine: GamificationLedgerEngine,
+        taskAlarmScheduler: TaskAlarmScheduler?
+    ) : this(taskRepository, economyRepository, ledgerEngine, taskAlarmScheduler, null)
     suspend operator fun invoke(
         taskId: String,
         completionTimestamp: Long = System.currentTimeMillis()
@@ -47,6 +61,7 @@ class CompleteTaskUseCase @Inject constructor(
 
         if (task.state.equals("COMPLETED", ignoreCase = true)) {
             taskAlarmScheduler?.cancelTaskAlarm(taskId)
+            escalationStateRepository?.clearAcknowledgement(taskId)
             return CompleteTaskResult(
                 taskId = taskId,
                 coinReward = 0,
@@ -88,6 +103,7 @@ class CompleteTaskUseCase @Inject constructor(
         } catch (e: Exception) {
             // Handle duplicate submission or already completed task gracefully without UI errors
             taskAlarmScheduler?.cancelTaskAlarm(taskId)
+            escalationStateRepository?.clearAcknowledgement(taskId)
             return CompleteTaskResult(
                 taskId = taskId,
                 coinReward = 0,
@@ -97,8 +113,9 @@ class CompleteTaskUseCase @Inject constructor(
             )
         }
 
-        // Cleanly cancel pending reminder alarm if scheduled
+        // Cleanly cancel pending reminder alarm if scheduled and prune acknowledgement state
         taskAlarmScheduler?.cancelTaskAlarm(taskId)
+        escalationStateRepository?.clearAcknowledgement(taskId)
 
         // 3. Award companion XP and celebrate
         val currentProfile = economyRepository.getCompanionProfile()

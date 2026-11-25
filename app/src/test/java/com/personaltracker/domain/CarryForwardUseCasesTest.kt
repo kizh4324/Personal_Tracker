@@ -1,7 +1,12 @@
 package com.personaltracker.domain.usecase
 
+import com.personaltracker.domain.model.EscalationPolicy
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.repository.EscalationStateRepository
+import com.personaltracker.ui.TestTaskAlarmScheduler
 import com.personaltracker.ui.TestTaskRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -129,5 +134,66 @@ class CarryForwardUseCasesTest {
         )
         assertEquals(0, result.dismissedCount)
         assertTrue(result.dismissedTasks.isEmpty())
+    }
+
+    @Test
+    fun testCarryForwardClearsAcknowledgementCancelsAndReschedulesAlarms() = runTest {
+        val scheduler = TestTaskAlarmScheduler()
+        val escalationRepo = FakeCarryForwardEscalationRepo().apply { acked.add("t_cf") }
+        val useCase = CarryForwardTasksUseCase(taskRepository, scheduler, escalationRepo)
+
+        val taskWithTime = Task(
+            id = "t_cf",
+            title = "Carried Urgent Task",
+            scheduledDate = "2026-10-22",
+            scheduledTime = "14:00",
+            deliveryIntensity = "URGENT",
+            state = "PENDING"
+        )
+        taskRepository.saveTask(taskWithTime)
+
+        val result = useCase(targetDate = "2026-10-24", tasks = listOf(taskWithTime))
+
+        assertEquals(1, result.carriedCount)
+        assertFalse(escalationRepo.isAcknowledged("t_cf"))
+        assertTrue(scheduler.cancelledAlarms.contains("t_cf"))
+        assertEquals(1, scheduler.scheduledTasks.size)
+        assertEquals("2026-10-24", scheduler.scheduledTasks.first().scheduledDate)
+    }
+
+    @Test
+    fun testDismissOverdueCancelsAlarmsAndClearsAcknowledgement() = runTest {
+        val scheduler = TestTaskAlarmScheduler()
+        val escalationRepo = FakeCarryForwardEscalationRepo().apply { acked.add("t_dismiss") }
+        val useCase = DismissOverdueTasksUseCase(taskRepository, scheduler, escalationRepo)
+
+        val task = Task(
+            id = "t_dismiss",
+            title = "Overdue Urgent Task",
+            scheduledDate = "2026-10-20",
+            scheduledTime = "11:00",
+            deliveryIntensity = "URGENT",
+            state = "PENDING"
+        )
+        taskRepository.saveTask(task)
+
+        val result = useCase(targetDate = "2026-10-24", tasks = listOf(task))
+
+        assertEquals(1, result.dismissedCount)
+        assertTrue(scheduler.cancelledAlarms.contains("t_dismiss"))
+        assertFalse(escalationRepo.isAcknowledged("t_dismiss"))
+    }
+
+    private fun assertFalse(condition: Boolean) = org.junit.Assert.assertFalse(condition)
+
+    private class FakeCarryForwardEscalationRepo : EscalationStateRepository {
+        val acked = mutableSetOf<String>()
+        private val policy = MutableStateFlow(EscalationPolicy())
+        override fun observePolicy(): Flow<EscalationPolicy> = policy
+        override fun getPolicy(): EscalationPolicy = policy.value
+        override fun updatePolicy(policy: EscalationPolicy) { this.policy.value = policy }
+        override fun isAcknowledged(taskId: String): Boolean = taskId in acked
+        override fun markAcknowledged(taskId: String) { acked.add(taskId) }
+        override fun clearAcknowledgement(taskId: String) { acked.remove(taskId) }
     }
 }

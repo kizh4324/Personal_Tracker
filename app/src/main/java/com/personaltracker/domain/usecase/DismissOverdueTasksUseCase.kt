@@ -1,6 +1,8 @@
 package com.personaltracker.domain.usecase
 
+import com.personaltracker.domain.alarm.TaskAlarmScheduler
 import com.personaltracker.domain.model.Task
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
 import java.time.LocalDate
 import javax.inject.Inject
@@ -19,8 +21,18 @@ data class DismissOverdueResult(
  * Safely marks overdue tasks as CANCELLED without coin penalties, streak resets, or pet energy loss.
  */
 class DismissOverdueTasksUseCase @Inject constructor(
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val taskAlarmScheduler: TaskAlarmScheduler? = null,
+    private val escalationStateRepository: EscalationStateRepository? = null
 ) {
+    constructor(
+        taskRepository: TaskRepository
+    ) : this(taskRepository, null, null)
+
+    constructor(
+        taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler?
+    ) : this(taskRepository, taskAlarmScheduler, null)
     suspend operator fun invoke(
         targetDate: String = LocalDate.now().toString(),
         tasks: List<Task>? = null
@@ -36,6 +48,10 @@ class DismissOverdueTasksUseCase @Inject constructor(
         }
 
         taskRepository.saveTasks(dismissedTasks)
+        dismissedTasks.forEach { task ->
+            taskAlarmScheduler?.cancelTaskAlarm(task.id)
+            escalationStateRepository?.clearAcknowledgement(task.id)
+        }
         return DismissOverdueResult(dismissedTasks, dismissedTasks.size)
     }
 }

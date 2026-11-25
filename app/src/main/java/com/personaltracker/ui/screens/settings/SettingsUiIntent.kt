@@ -14,6 +14,7 @@ sealed interface SettingsUiIntent {
     object OpenOverlaySettings : SettingsUiIntent
     object OpenExactAlarmSettings : SettingsUiIntent
     object OpenNotificationSettings : SettingsUiIntent
+    data class UpdateEscalationPolicy(val retryIntervalMinutes: Int, val maxReFires: Int) : SettingsUiIntent
     object Refresh : SettingsUiIntent
 
     // Whitelist and Call Policy Intents (Story 3.3)

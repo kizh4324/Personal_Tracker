@@ -1,6 +1,7 @@
 package com.personaltracker.domain.usecase
 
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.domain.repository.TaskRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -13,8 +14,19 @@ import javax.inject.Inject
 class DeleteTaskUseCase @Inject constructor(
     private val taskRepository: TaskRepository,
     private val taskAlarmScheduler: TaskAlarmScheduler,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val escalationStateRepository: EscalationStateRepository? = null
 ) {
+    constructor(
+        taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler
+    ) : this(taskRepository, taskAlarmScheduler, Dispatchers.IO, null)
+
+    constructor(
+        taskRepository: TaskRepository,
+        taskAlarmScheduler: TaskAlarmScheduler,
+        ioDispatcher: CoroutineDispatcher
+    ) : this(taskRepository, taskAlarmScheduler, ioDispatcher, null)
 
     /**
      * Removes the task identified by [taskId] from persistence and cancels its reminder alarm.
@@ -28,6 +40,7 @@ class DeleteTaskUseCase @Inject constructor(
 
         taskRepository.deleteTask(task)
         taskAlarmScheduler.cancelTaskAlarm(taskId)
+        escalationStateRepository?.clearAcknowledgement(taskId)
         true
     }
 }

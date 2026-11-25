@@ -1,9 +1,12 @@
 package com.personaltracker.di
 
 import android.content.Context
+import androidx.core.app.NotificationManagerCompat
 import com.personaltracker.domain.alarm.TaskAlarmScheduler
+import com.personaltracker.domain.repository.EscalationStateRepository
 import com.personaltracker.platform.alarm.ExactAlarmScheduler
 import com.personaltracker.platform.alarm.TaskAlarmSchedulerImpl
+import com.personaltracker.platform.notification.SharedPrefsEscalationStateRepository
 import com.personaltracker.platform.voice.QuickCaptureVoiceRecorder
 import com.personaltracker.platform.voice.SpeechRecognitionManager
 import dagger.Module
@@ -29,8 +32,20 @@ object PlatformModule {
     @Provides
     @Singleton
     fun provideTaskAlarmScheduler(
+        @ApplicationContext context: Context,
         exactAlarmScheduler: ExactAlarmScheduler
-    ): TaskAlarmScheduler = TaskAlarmSchedulerImpl(exactAlarmScheduler)
+    ): TaskAlarmScheduler = TaskAlarmSchedulerImpl(
+        exactAlarmScheduler = exactAlarmScheduler,
+        notificationCanceller = { notificationId ->
+            NotificationManagerCompat.from(context).cancel(notificationId)
+        }
+    )
+
+    @Provides
+    @Singleton
+    fun provideEscalationStateRepository(
+        impl: SharedPrefsEscalationStateRepository
+    ): EscalationStateRepository = impl
 
     @Provides
     @Singleton

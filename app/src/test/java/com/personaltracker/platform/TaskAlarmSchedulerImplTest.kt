@@ -17,14 +17,19 @@ class TaskAlarmSchedulerImplTest {
     private lateinit var fakeDelegate: FakeAlarmManagerDelegate
     private lateinit var exactAlarmScheduler: ExactAlarmScheduler
     private lateinit var scheduler: TaskAlarmSchedulerImpl
+    private val cancelledNotificationIds = mutableListOf<Int>()
 
     private val futureDate = LocalDate.now().plusDays(1).toString()
 
     @Before
     fun setUp() {
+        cancelledNotificationIds.clear()
         fakeDelegate = FakeAlarmManagerDelegate()
         exactAlarmScheduler = ExactAlarmScheduler(fakeDelegate)
-        scheduler = TaskAlarmSchedulerImpl(exactAlarmScheduler)
+        scheduler = TaskAlarmSchedulerImpl(
+            exactAlarmScheduler = exactAlarmScheduler,
+            notificationCanceller = { cancelledNotificationIds.add(it) }
+        )
     }
 
     @Test
@@ -72,17 +77,27 @@ class TaskAlarmSchedulerImplTest {
     }
 
     @Test
-    fun `cancelTaskAlarm with raw taskId normalizes to TASK_ prefix`() {
+    fun `cancelTaskAlarm with raw taskId cancels both TASK_ and ESCALATION_ alarms and notification`() {
         scheduler.cancelTaskAlarm("abc_123")
 
-        assertEquals(listOf("TASK_abc_123"), fakeDelegate.cancelledAlarmIds)
+        assertEquals(listOf("TASK_abc_123", "ESCALATION_abc_123"), fakeDelegate.cancelledAlarmIds)
+        assertEquals(listOf("abc_123".hashCode()), cancelledNotificationIds)
     }
 
     @Test
     fun `cancelTaskAlarm with already prefixed taskId avoids duplicate prefix`() {
         scheduler.cancelTaskAlarm("TASK_def_456")
 
-        assertEquals(listOf("TASK_def_456"), fakeDelegate.cancelledAlarmIds)
+        assertEquals(listOf("TASK_def_456", "ESCALATION_def_456"), fakeDelegate.cancelledAlarmIds)
+        assertEquals(listOf("def_456".hashCode()), cancelledNotificationIds)
+    }
+
+    @Test
+    fun `cancelTaskAlarm with ESCALATION_ prefix normalizes cleanly`() {
+        scheduler.cancelTaskAlarm("ESCALATION_ghi_789")
+
+        assertEquals(listOf("TASK_ghi_789", "ESCALATION_ghi_789"), fakeDelegate.cancelledAlarmIds)
+        assertEquals(listOf("ghi_789".hashCode()), cancelledNotificationIds)
     }
 
     private class FakeAlarmManagerDelegate : AlarmManagerDelegate {

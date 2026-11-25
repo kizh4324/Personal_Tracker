@@ -1,6 +1,7 @@
 package com.personaltracker.di
 
 import com.personaltracker.domain.engine.AdaptiveScheduleEngine
+import com.personaltracker.domain.engine.BoundedEscalationEngine
 import com.personaltracker.domain.engine.FocusRescheduleEngine
 import com.personaltracker.domain.engine.GamificationLedgerEngine
 import com.personaltracker.domain.engine.HeatmapLedgerEngine
@@ -62,6 +63,12 @@ internal object DomainEngineModule {
     @Singleton
     fun provideInterventionRuleEngine(): InterventionRuleEngine {
         return InterventionRuleEngine()
+    }
+
+    @Provides
+    @Singleton
+    fun provideBoundedEscalationEngine(): BoundedEscalationEngine {
+        return BoundedEscalationEngine()
     }
 
     @Provides

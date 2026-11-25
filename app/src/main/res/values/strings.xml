@@ -20,4 +20,17 @@
     <string name="settings_notifications_status_disabled">App Notifications: Disabled</string>
     <string name="settings_exact_alarm_button">Configure Exact Alarm Timing</string>
     <string name="settings_notification_channels_button">Configure Notification Channels</string>
+
+    <!-- Bounded Escalation Notification Actions & Settings (Story 5.2, AD-4, FR-5.4) -->
+    <string name="notification_escalation_title">Reminder: %1$s</string>
+    <string name="notification_escalation_message">Follow-up %1$d of %2$d • Ready when you are</string>
+    <string name="notification_action_acknowledge">Got it</string>
+    <string name="notification_action_complete">Mark Done</string>
+    <string name="settings_escalation_cadence_title">Urgent Follow-Up Cadence</string>
+    <string name="settings_escalation_cadence_subtitle">Calm follow-up reminders until you tap Got it or finish the task.</string>
+    <string name="settings_escalation_interval_label">Follow-up interval</string>
+    <string name="settings_escalation_interval_option">%1$d min</string>
+    <string name="settings_escalation_max_refires_label">Maximum follow-ups</string>
+    <string name="settings_escalation_refires_off">Off</string>
+    <string name="settings_escalation_refires_option">%1$dx</string>
 </resources>

@@ -210,6 +210,74 @@ class ExactAlarmSchedulerTest {
         assertEquals(listOf("alarm-to-cancel"), fakeDelegate.cancelledAlarmIds)
     }
 
+    @Test
+    fun `scheduleEscalation schedules ESCALATION_ alarm with attempt number when exact permitted`() {
+        fakeDelegate.hasExactPermission = true
+        val futureMillis = System.currentTimeMillis() + 300_000L
+        val task = Task(
+            id = "task-esc-1",
+            title = "Urgent Review",
+            scheduledDate = LocalDate.now().plusDays(1).toString(),
+            deliveryIntensity = "URGENT"
+        )
+
+        val result = scheduler.scheduleEscalation(task, attemptNumber = 2, triggerEpochMillis = futureMillis)
+
+        assertTrue(result)
+        assertEquals(1, fakeDelegate.exactAlarms.size)
+        val alarm = fakeDelegate.exactAlarms.first()
+        assertEquals("ESCALATION_task-esc-1", alarm.alarmId)
+        assertEquals(2, alarm.escalationAttempt)
+        assertEquals("task-esc-1", alarm.taskId)
+    }
+
+    @Test
+    fun `scheduleEscalation preserves escalationAttempt in fallback path when exact permission denied`() {
+        fakeDelegate.hasExactPermission = false
+        val futureMillis = System.currentTimeMillis() + 300_000L
+        val task = Task(
+            id = "task-esc-fallback",
+            title = "Urgent Fallback",
+            scheduledDate = LocalDate.now().plusDays(1).toString(),
+            deliveryIntensity = "URGENT"
+        )
+
+        val result = scheduler.scheduleEscalation(task, attemptNumber = 1, triggerEpochMillis = futureMillis)
+
+        assertFalse(result)
+        assertEquals(0, fakeDelegate.exactAlarms.size)
+        assertEquals(1, fakeDelegate.inexactAlarms.size)
+        assertEquals(1, fakeDelegate.inexactAlarms.first().escalationAttempt)
+        assertEquals("ESCALATION_task-esc-fallback", fakeDelegate.inexactAlarms.first().alarmId)
+    }
+
+    @Test
+    fun `scheduleEscalation rejects non-positive attemptNumber`() {
+        val futureMillis = System.currentTimeMillis() + 300_000L
+        val task = Task(
+            id = "task-esc-0",
+            title = "Invalid Attempt",
+            scheduledDate = LocalDate.now().plusDays(1).toString(),
+            deliveryIntensity = "URGENT"
+        )
+
+        assertFalse(scheduler.scheduleEscalation(task, attemptNumber = 0, triggerEpochMillis = futureMillis))
+        assertEquals(0, fakeDelegate.exactAlarms.size)
+        assertEquals(0, fakeDelegate.inexactAlarms.size)
+    }
+
+    @Test
+    fun `cancelEscalationAlarm normalizes prefix before cancelling`() {
+        scheduler.cancelEscalationAlarm("ESCALATION_abc")
+        scheduler.cancelEscalationAlarm("TASK_def")
+        scheduler.cancelEscalationAlarm("ghi")
+
+        assertEquals(
+            listOf("ESCALATION_abc", "ESCALATION_def", "ESCALATION_ghi"),
+            fakeDelegate.cancelledAlarmIds
+        )
+    }
+
     // --- Fake Delegate ---
 
     private class FakeAlarmManagerDelegate : AlarmManagerDelegate {
